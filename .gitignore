@@ -3,6 +3,8 @@ _shots/
 
 # Tệp tạm khi kiểm tra giao diện
 _probe.html
+_probe*.html
+_dump.html
 
 # Hệ điều hành
 .DS_Store

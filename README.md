@@ -18,6 +18,10 @@ Giao diện cho một **online judge** phục vụ nội bộ Trường THCS Sô
 |---|---|
 | ![Tổng quan giáo viên](docs/05-tong-quan-giao-vien.jpg) | ![Bài nộp](docs/06-bai-nop.jpg) |
 
+| Chi tiết một bài nộp | Chế độ tối |
+|---|---|
+| ![Chi tiết bài nộp](docs/07-chi-tiet-bai-nop.jpg) | ![Chế độ tối](docs/08-che-do-toi.jpg) |
+
 ## Xem thử
 
 Cần chạy qua HTTP, không mở trực tiếp bằng `file://` — trình duyệt sẽ chặn tải phông chữ do CORS:
@@ -41,6 +45,7 @@ Nhóm **học sinh**:
 | `problems.html` | Danh sách đề — tìm kiếm, lọc theo độ khó và chủ đề, bảng sắp xếp được, phân trang |
 | `problem.html` | Chi tiết đề + nộp bài — 3 thẻ: Đề bài / Nộp bài / Kết quả chấm |
 | `submissions.html` | Danh sách bài nộp — lọc theo kết quả, ngôn ngữ, khoảng thời gian |
+| `submission.html` | Chi tiết một lần nộp — kết luận, so sánh ở bộ dữ liệu chưa đạt, kết quả từng bộ, mã nguồn, nhật ký dịch |
 | `contests.html` | Kỳ thi — đang diễn ra, sắp diễn ra, đã kết thúc |
 | `leaderboard.html` | Bảng xếp hạng — top 3, biểu đồ cột ngang, bảng đầy đủ |
 | `login.html` | Đăng nhập — có minh hoạ báo lỗi theo chuẩn trợ năng |
@@ -60,7 +65,7 @@ Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.h
 ```
 .
 ├── demo/                     Bản demo giao diện (mở thư mục này để xem)
-│   ├── *.html                10 trang
+│   ├── *.html                11 trang
 │   └── assets/
 │       ├── css/style.css     Toàn bộ hệ thống thiết kế (token + thành phần)
 │       ├── js/app.js         Tương tác, không phụ thuộc thư viện ngoài
@@ -101,6 +106,12 @@ Màu kết quả chấm bài dùng đúng bộ màu Bootstrap mà trang trườn
 
 Phông: **Fira Sans** cho giao diện, **Fira Code** cho mã nguồn. Đang tải từ Google Fonts — nếu triển khai trong mạng nội bộ không có Internet, cần tải về đặt cùng máy chủ và sửa `@font-face`.
 
+### Chế độ tối
+
+Có sẵn chế độ tối, đổi bằng nút ở góc trên bên phải. Lần đầu truy cập thì theo cài đặt hệ điều hành; sau khi người dùng tự chọn thì lựa chọn được nhớ lại.
+
+Toàn bộ phần này chỉ chiếm một khối `html[data-theme="dark"]` khoảng 45 dòng, vì mọi thành phần đều tham chiếu token ngữ nghĩa (`--bg`, `--surface`, `--fg`, `--border`, `--link`, `--ink`, `--fill`, màu kết quả…) chứ không dùng mã màu trực tiếp. Đoạn script đổi chế độ nằm trong `<head>` và chạy trước lần vẽ đầu tiên nên không bị nháy trắng khi tải trang.
+
 ### Về logo nhà trường
 
 Trường **không có file logo chính thức**. Hình đang dùng trên website là ảnh chụp sân trường có chèn sẵn dòng chữ "TRƯỜNG THCS SÔNG LÔ - XÃ TAM SƠN - TỈNH PHÚ THỌ". Vì vậy ở đây dùng một dấu `</>` làm biểu trưng cho hệ thống chấm bài, còn ảnh trường được cắt lại ở những vùng không có chữ để dùng làm ảnh minh hoạ.
@@ -110,7 +121,8 @@ Trường **không có file logo chính thức**. Hình đang dùng trên websit
 - **Tô màu cú pháp C++ không cần thư viện.** `app.js` có một bộ tách từ bằng một biểu thức chính quy duy nhất, chạy trên lớp `<pre>` nằm dưới một `textarea` trong suốt chữ. Con trỏ và vùng chọn vẫn là của trình duyệt. Nếu JS lỗi, lớp tô màu không được bật và mã nguồn vẫn đọc được bình thường.
 - **Ô soạn thảo tự giãn theo nội dung**, tối thiểu 210 px, tối đa 620 px rồi mới cuộn.
 - **Trợ năng:** liên kết bỏ qua điều hướng, vòng tiêu điểm rõ ràng, vùng chạm tối thiểu 44×44 px, `aria-sort` cho cột sắp xếp, tóm tắt lỗi biểu mẫu nhận tiêu điểm, thẻ dùng `role="tab"` và điều hướng bằng phím mũi tên, tôn trọng `prefers-reduced-motion`.
-- **Không tràn ngang ở 390 px** trên cả 10 trang (đã đo bằng script, không phải ước lượng).
+- **Không tràn ngang ở 390 px** trên cả 11 trang (đã đo bằng script, không phải ước lượng).
+- **Trang chi tiết bài nộp** giải thích được lỗi cụ thể: bộ dữ liệu 5 có `1500000000 1500000000`, kết quả đúng là `3000000000` nhưng chương trình in ra `-1294967296` — tràn số `int`. Đây là lỗi dịch không báo, chạy không sập, chỉ sai kết quả.
 
 ## Bước tiếp theo
 

@@ -25,6 +25,7 @@ Nhóm học sinh:
 | `problems.html` | Danh sách đề — tìm kiếm, lọc theo độ khó và chủ đề, bảng sắp xếp được, phân trang |
 | `problem.html` | Chi tiết đề + nộp bài — 3 thẻ: Đề bài / Nộp bài / Kết quả chấm |
 | `submissions.html` | Danh sách bài nộp — lọc theo kết quả, ngôn ngữ, khoảng thời gian; có thống kê phân loại |
+| `submission.html` | Chi tiết một lần nộp — kết luận, so sánh ở bộ dữ liệu chưa đạt, bảng kết quả từng bộ, mã nguồn tô màu, nhật ký dịch |
 | `contests.html` | Kỳ thi — kỳ thi đang diễn ra, sắp diễn ra, đã kết thúc |
 | `leaderboard.html` | Bảng xếp hạng — top 3, biểu đồ cột ngang, bảng đầy đủ sắp xếp được |
 | `login.html` | Đăng nhập — có minh hoạ báo lỗi theo chuẩn trợ năng |
@@ -39,13 +40,15 @@ Nhóm giáo viên:
 
 Nút chuyển vai trò **Học sinh / Giáo viên** nằm ở góc trên bên phải mỗi trang. Đây là chi tiết riêng của bản demo để xem được cả hai phía mà không cần đăng nhập; khi nối backend thì bỏ đi.
 
+Cạnh đó là nút đổi **chế độ sáng / tối**. Lần đầu truy cập, trang theo cài đặt hệ điều hành; sau khi người dùng tự bấm thì lựa chọn được nhớ trong `localStorage` và không bị ghi đè nữa.
+
 Liên kết sâu tới từng thẻ, ví dụ `problem.html#panel-submit` mở thẳng phần nộp bài.
 
 ## Cấu trúc
 
 ```
 demo/
-├── index.html · problems.html · problem.html · submissions.html
+├── index.html · problems.html · problem.html · submissions.html · submission.html
 ├── contests.html · leaderboard.html · login.html
 ├── teacher.html · teacher-problems.html · teacher-classes.html
 └── assets/
@@ -62,6 +65,12 @@ Phong cách **Swiss grid + product UI**: lưới rõ ràng, tương phản cao, 
 
 Bảng màu và phông chữ: xem bảng đầy đủ trong [`../README.md`](../README.md).
 
+### Chế độ tối
+
+Mọi thành phần chỉ tham chiếu **token ngữ nghĩa** (`--bg`, `--surface`, `--fg`, `--border`, `--link`, `--ink`, `--fill`, `--row-alt`, `--track`, `--deep`, các màu kết quả…) chứ không dùng mã màu trực tiếp. Nhờ vậy toàn bộ chế độ tối nằm gọn trong một khối `html[data-theme="dark"]` dài khoảng 45 dòng — không có quy tắc nào của thành phần bị viết lại lần hai.
+
+Đổi chế độ được thực hiện bằng một đoạn script nhỏ đặt trong `<head>`, chạy **trước lần vẽ đầu tiên**, nên không có hiện tượng nháy trắng khi tải trang.
+
 ## Trợ năng
 
 Đã áp dụng theo danh sách kiểm tra trước khi giao:
@@ -76,7 +85,8 @@ Bảng màu và phông chữ: xem bảng đầy đủ trong [`../README.md`](../
 - Thẻ dùng `role="tab"` / `role="tabpanel"`, điều hướng bằng phím mũi tên, `Home`, `End`
 - Tôn trọng `prefers-reduced-motion`
 - Có kiểu in riêng cho trang đề bài
-- Không tràn ngang ở bề rộng 390 px trên cả 10 trang
+- Nút đổi chế độ sáng/tối có `aria-pressed` và nhãn đổi theo trạng thái hiện tại
+- Không tràn ngang ở bề rộng 390 px trên cả 11 trang
 
 ## Chi tiết kỹ thuật đáng chú ý
 
@@ -88,14 +98,14 @@ Hai lớp phải trùng khít số đo phông (cùng `font-family`, `font-size`,
 
 **Bộ lọc bảng** dùng chung một hàm cho cả tìm kiếm chữ, nút chọn nhanh (chip) và ô chọn: mỗi `<select data-filter-select data-filter-key="verdict">` được đối chiếu với thuộc tính `data-verdict` của dòng.
 
+**Khung xem mã nguồn chỉ đọc** (`submission.html`) dùng lại đúng bộ tô màu của ô soạn thảo nhưng bỏ hẳn `textarea` — chỉ còn một lớp `<pre>` đã tô màu, nên không có gì phải đồng bộ ngoài cột số dòng. Việc tô màu là tuỳ chọn theo từng khối: nhật ký dịch đặt `data-lang="text"` để giữ nguyên văn, không bị tô nhầm.
+
 ## Chưa làm
 
 - **Toàn bộ backend.** Chưa có đăng nhập thật, chưa lưu gì, chưa chấm bài.
 - Nút "Nộp bài" chỉ hiện thông báo, không gửi đi đâu.
 - Bộ lọc và phân trang chạy phía trình duyệt trên dữ liệu cứng.
 - Bảng xếp hạng chưa lọc theo lớp thật (ô chọn "Phạm vi" chỉ để minh hoạ).
-- Chưa có chế độ tối.
-- Chưa có trang chi tiết bài nộp để xem lại mã nguồn từng lần nộp.
 - Trang soạn đề chưa có nút chạy thử bộ dữ liệu cục bộ.
 
 ## Bước tiếp theo

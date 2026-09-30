@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bài nộp #24817 — Hệ thống chấm bài lập trình | Trường THCS Sông Lô</title>
+<meta name="description" content="Chi tiết một lần nộp bài: kết quả từng bộ dữ liệu, mã nguồn, nhật ký dịch và so sánh ở bộ dữ liệu chưa đạt.">
+<script>(function(){try{var t=localStorage.getItem("sl-theme");if(!t)t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";if(t==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Bỏ qua điều hướng, tới nội dung chính</a>
+
+<header class="site-head">
+  <div class="container site-head__inner">
+    <div class="site-head__mark" aria-hidden="true">&lt;/&gt;</div>
+    <div class="site-head__text">
+      <p class="site-head__dept">Sở Giáo dục và Đào tạo tỉnh Phú Thọ</p>
+      <p class="site-head__name">Trường THCS Sông Lô — Xã Tam Sơn</p>
+    </div>
+    <div class="site-head__tools">
+      <button class="theme-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Chuyển sang chế độ tối">
+        <svg class="theme-btn__moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+        <svg class="theme-btn__sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+      <div class="role-switch role-switch--light" role="group" aria-label="Chế độ xem bản demo">
+        <a href="index.html" aria-current="page">Học sinh</a>
+        <a href="teacher.html">Giáo viên</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Điều hướng chính">
+  <div class="container nav__inner">
+    <a class="nav__link" href="index.html">Trang chủ</a>
+    <a class="nav__link" href="problems.html">Đề bài</a>
+    <a class="nav__link" href="submissions.html" aria-current="page">Bài nộp</a>
+    <a class="nav__link" href="contests.html">Kỳ thi</a>
+    <a class="nav__link" href="leaderboard.html">Bảng xếp hạng</a>
+    <span class="nav__user">
+      <span class="nav__avatar" aria-hidden="true">NA</span>
+      <span>Nguyễn Văn An</span>
+      <span class="tag tag--onnav">9A</span>
+      <a href="login.html">Đăng xuất</a>
+    </span>
+  </div>
+</nav>
+
+<main id="main">
+  <div class="container">
+
+    <div class="page-head">
+      <div>
+        <p class="micro mb-2"><a href="submissions.html">Bài nộp</a> · #24817</p>
+        <h1 class="page-head__title">Chi tiết bài nộp</h1>
+        <p class="page-head__sub">SL001 — Tổng hai số nguyên · nộp lúc 21:09 ngày 28/09/2026</p>
+      </div>
+      <div class="page-head__actions">
+        <a class="btn btn--outline" href="problem.html">Xem đề bài</a>
+        <a class="btn btn--primary" href="problem.html#panel-submit">Nộp lại</a>
+      </div>
+    </div>
+
+    <!-- ============ Kết luận ============ -->
+    <div class="vbar vbar--wa mb-5">
+      <div class="vbar__icon" aria-hidden="true">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+      </div>
+      <div class="vbar__text">
+        <p class="vbar__verdict">Sai ở 6 bộ dữ liệu</p>
+        <p class="vbar__sub">Đạt 4/10 bộ dữ liệu. Bài sai ở các bộ dữ liệu có tổng vượt quá 2 147 483 647 — xem phần so sánh bên dưới.</p>
+      </div>
+      <div class="vbar__score">
+        <b>40</b>
+        <span>trên 100 điểm</span>
+      </div>
+    </div>
+
+    <div class="grid grid-sidebar mb-5">
+
+      <!-- ============ Cột chính ============ -->
+      <div class="stack">
+
+        <!-- So sánh ở bộ dữ liệu chưa đạt -->
+        <section class="card" aria-labelledby="cmp-title">
+          <div class="row-between mb-4">
+            <h2 id="cmp-title" style="font-size:17.5px">Bộ dữ liệu 5 — chương trình xuất ra sai</h2>
+            <span class="verdict verdict--wa">Sai</span>
+          </div>
+
+          <div class="io-grid">
+            <div class="io-cell">
+              <p class="io-cell__head">Đầu vào</p>
+              <pre class="io-cell__body">1500000000 1500000000</pre>
+            </div>
+            <div class="io-cell io-cell--good">
+              <p class="io-cell__head">Kết quả mong đợi</p>
+              <pre class="io-cell__body">3000000000</pre>
+            </div>
+            <div class="io-cell io-cell--bad">
+              <p class="io-cell__head">Chương trình xuất ra</p>
+              <pre class="io-cell__body"><mark>-1294967296</mark></pre>
+            </div>
+          </div>
+
+          <div class="alert alert--info mt-4">
+            <div>
+              <p class="alert__title">Vì sao ra số âm?</p>
+              <p class="mb-0 text-sm">
+                Kiểu <code>int</code> chỉ chứa được giá trị lớn nhất là <strong>2 147 483 647</strong>.
+                Tổng đúng là <strong>3 000 000 000</strong>, lớn hơn giới hạn đó, nên bị tràn số và quay
+                thành số âm. Đây là lỗi rất hay gặp: chương trình dịch không báo lỗi, chạy không sập,
+                chỉ có kết quả sai.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Kết quả từng bộ dữ liệu -->
+        <section class="card card--flush" aria-labelledby="tests-title">
+          <div class="card__head">
+            <h2 id="tests-title">Kết quả từng bộ dữ liệu</h2>
+            <span class="text-sm text-muted">Bấm vào tiêu đề cột để sắp xếp</span>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table table--compact" data-sortable>
+              <caption class="sr-only">Kết quả chấm của 10 bộ dữ liệu, sắp xếp được theo từng cột</caption>
+              <thead>
+                <tr>
+                  <th scope="col" class="num" data-numeric style="width:60px">Bộ</th>
+                  <th scope="col" style="width:150px">Kết quả</th>
+                  <th scope="col" class="num" data-numeric style="width:110px">Thời gian</th>
+                  <th scope="col" class="num" data-numeric style="width:110px">Bộ nhớ</th>
+                  <th scope="col" class="num" data-numeric style="width:90px">Điểm</th>
+                  <th scope="col">Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-verdict="ac">
+                  <td class="num">1</td>
+                  <td><span class="verdict verdict--ac">Đúng</span></td>
+                  <td class="num">0,01 s</td>
+                  <td class="num">1,6 MB</td>
+                  <td class="num">10</td>
+                  <td class="text-sm text-muted">Hai số nhỏ</td>
+                </tr>
+                <tr data-verdict="ac">
+                  <td class="num">2</td>
+                  <td><span class="verdict verdict--ac">Đúng</span></td>
+                  <td class="num">0,01 s</td>
+                  <td class="num">1,6 MB</td>
+                  <td class="num">10</td>
+                  <td class="text-sm text-muted">Hai số nhỏ</td>
+                </tr>
+                <tr data-verdict="ac">
+                  <td class="num">3</td>
+                  <td><span class="verdict verdict--ac">Đúng</span></td>
+                  <td class="num">0,01 s</td>
+                  <td class="num">1,7 MB</td>
+                  <td class="num">10</td>
+                  <td class="text-sm text-muted">Tổng vẫn nằm trong giới hạn <code>int</code></td>
+                </tr>
+                <tr data-verdict="ac">
+                  <td class="num">4</td>
+                  <td><span class="verdict verdict--ac">Đúng</span></td>
+                  <td class="num">0,02 s</td>
+                  <td class="num">1,7 MB</td>
+                  <td class="num">10</td>
+                  <td class="text-sm text-muted">Tổng sát giới hạn nhưng chưa vượt</td>
+                </tr>
+                <tr class="is-bad" data-verdict="wa">
+                  <td class="num">5</td>
+                  <td><span class="verdict verdict--wa">Sai</span></td>
+                  <td class="num">0,02 s</td>
+                  <td class="num">1,8 MB</td>
+                  <td class="num">0</td>
+                  <td class="text-sm">Tổng vượt giới hạn <code>int</code> — đang xem ở trên</td>
+                </tr>
+                <tr data-verdict="wa">
+                  <td class="num">6</td>
+                  <td><span class="verdict verdict--wa">Sai</span></td>
+                  <td class="num">0,02 s</td>
+                  <td class="num">1,8 MB</td>
+                  <td class="num">0</td>
+                  <td class="text-sm text-muted">Tổng lớn nhất có thể</td>
+                </tr>
+                <tr data-verdict="wa">
+                  <td class="num">7</td>
+                  <td><span class="verdict verdict--wa">Sai</span></td>
+                  <td class="num">0,02 s</td>
+                  <td class="num">1,8 MB</td>
+                  <td class="num">0</td>
+                  <td class="text-sm text-muted">Một số lớn, một số lớn</td>
+                </tr>
+                <tr data-verdict="wa">
+                  <td class="num">8</td>
+                  <td><span class="verdict verdict--wa">Sai</span></td>
+                  <td class="num">0,02 s</td>
+                  <td class="num">1,9 MB</td>
+                  <td class="num">0</td>
+                  <td class="text-sm text-muted">Hai số sát trần</td>
+                </tr>
+                <tr data-verdict="wa">
+                  <td class="num">9</td>
+                  <td><span class="verdict verdict--wa">Sai</span></td>
+                  <td class="num">0,03 s</td>
+                  <td class="num">2,0 MB</td>
+                  <td class="num">0</td>
+                  <td class="text-sm text-muted">Tổng vượt trần một chút</td>
+                </tr>
+                <tr data-verdict="wa">
+                  <td class="num">10</td>
+                  <td><span class="verdict verdict--wa">Sai</span></td>
+                  <td class="num">0,28 s</td>
+                  <td class="num">2,0 MB</td>
+                  <td class="num">0</td>
+                  <td class="text-sm text-muted">Trường hợp biên — chậm nhất</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card__foot row-between">
+            <span>Tổng: <strong>40/100 điểm</strong> · 4 đúng, 6 sai</span>
+            <span class="row" style="gap:var(--sp-4)">
+              <span class="row" style="gap:6px"><span class="dot dot--ac"></span><span class="text-xs">Đúng 4</span></span>
+              <span class="row" style="gap:6px"><span class="dot dot--wa"></span><span class="text-xs">Sai 6</span></span>
+            </span>
+          </div>
+        </section>
+
+        <!-- Mã nguồn / nhật ký -->
+        <section class="card card--flush" aria-labelledby="src-title">
+          <div class="card__head">
+            <h2 id="src-title">Mã nguồn đã nộp</h2>
+            <span class="text-sm text-muted">main.cpp · 15 dòng · 214 byte</span>
+          </div>
+
+          <div class="tabs" data-tabs role="tablist" aria-label="Nội dung bài nộp">
+            <button class="tab" role="tab" id="tab-source" aria-controls="panel-source" aria-selected="true">Mã nguồn</button>
+            <button class="tab" role="tab" id="tab-log" aria-controls="panel-log" aria-selected="false">Nhật ký dịch</button>
+            <button class="tab" role="tab" id="tab-judge" aria-controls="panel-judge" aria-selected="false">Thông tin chấm</button>
+          </div>
+
+          <div class="tabpanel card__body" id="panel-source" role="tabpanel" aria-labelledby="tab-source" tabindex="0">
+            <div class="viewer" data-code-view data-lang="cpp">
+              <div class="editor__bar">
+                <span class="editor__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span class="editor__lang">main.cpp</span>
+                <span class="editor__meta">C++17 · g++ 13.2.0 · chỉ đọc</span>
+              </div>
+              <div class="viewer__body">
+                <div class="viewer__gutter" aria-hidden="true"></div>
+                <div class="viewer__code">
+<pre class="viewer__pre" data-highlight>#include &lt;iostream&gt;
+using namespace std;
+
+// SL001 - Tổng hai số nguyên
+// Đọc a, b rồi in ra a + b.
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int a, b;
+    cin &gt;&gt; a &gt;&gt; b;
+
+    int tong = a + b;      // LỖI: a + b có thể vượt quá giới hạn của int
+    cout &lt;&lt; tong &lt;&lt; '\n';
+
+    return 0;
+}</pre>
+                </div>
+              </div>
+            </div>
+            <p class="hint mb-0">Mã nguồn được lưu nguyên văn tại thời điểm nộp và không thể sửa lại.</p>
+          </div>
+
+          <div class="tabpanel card__body" id="panel-log" role="tabpanel" aria-labelledby="tab-log" tabindex="0" hidden>
+            <div class="viewer" data-code-view data-lang="text">
+              <div class="editor__bar">
+                <span class="editor__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span class="editor__lang">nhật ký dịch</span>
+                <span class="editor__meta">0,84 giây</span>
+              </div>
+              <div class="viewer__body">
+                <div class="viewer__gutter" aria-hidden="true"></div>
+                <div class="viewer__code">
+<pre class="viewer__pre viewer__pre--log">$ g++ -std=c++17 -O2 -pipe -Wall -Wextra -o main main.cpp
+$ echo $?
+0
+
+Không có cảnh báo.
+Thời gian dịch: 0,84 giây
+Kích thước tệp thực thi: 2,4 MB</pre>
+                </div>
+              </div>
+            </div>
+            <div class="alert alert--warn mt-4">
+              <div>
+                <p class="alert__title">Dịch thành công không có nghĩa là bài đúng</p>
+                <p class="mb-0 text-sm">Trình biên dịch chỉ kiểm tra cú pháp, không kiểm tra kết quả. Bài này không có cảnh báo nào nhưng vẫn sai ở 6 bộ dữ liệu.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabpanel card__body" id="panel-judge" role="tabpanel" aria-labelledby="tab-judge" tabindex="0" hidden>
+            <ul class="constraints">
+              <li><span class="k">Trình chấm</span><span>g++ 13.2.0, chuẩn C++17</span></li>
+              <li><span class="k">Cờ dịch</span><span class="mono">-O2 -pipe -Wall -Wextra</span></li>
+              <li><span class="k">Giới hạn thời gian</span><span>1,0 giây / bộ dữ liệu</span></li>
+              <li><span class="k">Giới hạn bộ nhớ</span><span>256 MB</span></li>
+              <li><span class="k">Chế độ chấm</span><span>Chấm hết 10/10 bộ dữ liệu, điểm là tỉ lệ bộ đạt</span></li>
+              <li><span class="k">Máy chấm</span><span>songlo-judge-01 · 4 nhân</span></li>
+              <li><span class="k">Chờ trong hàng đợi</span><span>0,4 giây</span></li>
+              <li><span class="k">Tổng thời gian chấm</span><span>0,9 giây</span></li>
+            </ul>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- ============ Cột phụ ============ -->
+      <div class="stack">
+
+        <section class="card" aria-labelledby="info-title">
+          <h2 id="info-title" class="mb-4" style="font-size:16px">Thông tin bài nộp</h2>
+          <ul class="constraints">
+            <li><span class="k">Đề bài</span><span><a href="problem.html">SL001 — Tổng hai số nguyên</a></span></li>
+            <li><span class="k">Người nộp</span><span>Nguyễn Văn An · 9A</span></li>
+            <li><span class="k">Ngôn ngữ</span><span>C++17</span></li>
+            <li><span class="k">Thời điểm</span><span>21:09 · 28/09/2026</span></li>
+            <li><span class="k">Thời gian chạy</span><span>0,28 s (lớn nhất)</span></li>
+            <li><span class="k">Bộ nhớ</span><span>2,0 MB (lớn nhất)</span></li>
+            <li><span class="k">Điểm</span><span><strong>40/100</strong></span></li>
+          </ul>
+        </section>
+
+        <section class="card" aria-labelledby="fix-title">
+          <h2 id="fix-title" class="mb-3" style="font-size:16px">Gợi ý sửa lỗi</h2>
+          <ol class="text-sm" style="padding-left:20px;margin:0">
+            <li class="mb-2">
+              Đổi kiểu của <code>a</code> và <code>b</code> thành
+              <code>long long</code>. Kiểu này chứa được tới khoảng
+              9,2 × 10<sup>18</sup>, thừa sức cho đề bài.
+            </li>
+            <li class="mb-2">
+              Đổi cả biến <code>tong</code> thành <code>long long</code>.
+              Nếu chỉ đổi một trong hai chỗ thì phép cộng
+              vẫn được tính bằng <code>int</code> rồi mới
+              gán, nên vẫn tràn.
+            </li>
+            <li>
+              Nếu cần giới hạn rõ ràng hơn, dùng
+              <code>long long</code> cho cả ba biến và đọc bằng
+              <code>cin</code> như bình thường.
+            </li>
+          </ol>
+        </section>
+
+        <div class="alert alert--accent">
+          <div>
+            <p class="alert__title">Còn 6 bộ dữ liệu chưa đạt</p>
+            <p class="mb-0 text-sm">Sửa xong thì nộp lại để lấy
+              điểm tối đa. Bài nộp cũ vẫn được
+              giữ lại để đối chiếu.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="row-between mb-6">
+      <a class="btn btn--ghost" href="submissions.html">← Danh sách bài nộp</a>
+      <span class="text-sm text-muted">Bài nộp trước đó: #24812 · SL001</span>
+    </div>
+
+  </div>
+</main>
+
+<footer class="site-foot">
+  <div class="container">
+    <div class="site-foot__grid">
+      <div>
+        <h4>Hệ thống chấm bài lập trình</h4>
+        <p style="margin:0;font-size:14px">Sản phẩm học tập nội bộ của Trường THCS Sông Lô, xã Tam Sơn, tỉnh Phú Thọ.</p>
+      </div>
+      <div>
+        <h4>Học sinh</h4>
+        <ul>
+          <li><a href="problems.html">Đề bài</a></li>
+          <li><a href="submissions.html">Bài nộp</a></li>
+          <li><a href="leaderboard.html">Bảng xếp hạng</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Giáo viên</h4>
+        <ul>
+          <li><a href="teacher.html">Lớp phụ trách</a></li>
+          <li><a href="teacher-problems.html">Soạn đề</a></li>
+          <li><a href="teacher-classes.html">Tài khoản học sinh</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="site-foot__bar">Bản demo giao diện — chưa nối với
+      máy chấm thật. Dữ liệu trên trang là ví dụ.</p>
+  </div>
+</footer>
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>

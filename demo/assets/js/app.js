@@ -460,11 +460,88 @@
     });
   }
 
+  /* ---------- Theme (light / dark) ---------- */
+  function initTheme() {
+    var root = document.documentElement;
+    var btns = document.querySelectorAll('[data-theme-toggle]');
+    if (!btns.length) return;
+
+    function label(dark) {
+      return dark ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối';
+    }
+
+    function apply(dark) {
+      if (dark) root.setAttribute('data-theme', 'dark');
+      else root.removeAttribute('data-theme');
+      btns.forEach(function (b) {
+        b.setAttribute('aria-pressed', String(dark));
+        b.setAttribute('aria-label', label(dark));
+        b.title = label(dark);
+      });
+    }
+
+    /* The inline <head> script already resolved the stored choice (or the OS
+       preference) before first paint — this only syncs the button labels. */
+    var dark = root.getAttribute('data-theme') === 'dark';
+    apply(dark);
+
+    btns.forEach(function (b) {
+      b.addEventListener('click', function () {
+        dark = root.getAttribute('data-theme') !== 'dark';
+        apply(dark);
+        try { localStorage.setItem('sl-theme', dark ? 'dark' : 'light'); } catch (e) {}
+      });
+    });
+
+    /* Keep following the OS, but only until the user picks a side. */
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    var onChange = function (e) {
+      var stored = null;
+      try { stored = localStorage.getItem('sl-theme'); } catch (err) {}
+      if (!stored) apply(e.matches);
+    };
+    if (mq.addEventListener) mq.addEventListener('change', onChange);
+    else if (mq.addListener) mq.addListener(onChange);
+  }
+
+  /* ---------- Read-only code viewer ---------- */
+  function initViewer() {
+    document.querySelectorAll('[data-code-view]').forEach(function (view) {
+      var pre = view.querySelector('.viewer__pre');
+      var gutter = view.querySelector('.viewer__gutter');
+      var scroller = view.querySelector('.viewer__code');
+      if (!pre) return;
+
+      var src = pre.textContent.replace(/\n+$/, '');
+      var lang = view.getAttribute('data-lang') || 'cpp';
+
+      /* Highlighting is opt-in per block: a compiler log must stay verbatim. */
+      if (lang === 'cpp' && pre.hasAttribute('data-highlight')) {
+        pre.innerHTML = highlightCpp(src);
+      }
+
+      if (gutter) {
+        var lines = src.split('\n').length;
+        var html = '';
+        for (var i = 1; i <= lines; i++) html += i + '\n';
+        gutter.textContent = html;
+
+        if (scroller) {
+          scroller.addEventListener('scroll', function () {
+            gutter.scrollTop = scroller.scrollTop;
+          });
+        }
+      }
+    });
+  }
+
   /* ---------- Boot ---------- */
   function boot() {
+    initTheme();
     initTabs();
     initSort();
     initEditor();
+    initViewer();
     initFilter();
     initCountdown();
     initSubmit();
