@@ -32,6 +32,21 @@ PROJECT_DIR = BASE_DIR.parent
 # Số lượt nộp tối đa cho một học sinh trên một đề trong một ngày.
 DAILY_SUBMIT_LIMIT = 20
 
+# Tập giá trị hợp lệ cho các ô chọn của đề.
+#
+# Vì sao cần whitelist chứ không lấy thẳng giá trị từ biểu mẫu: `difficulty` và
+# `points_mode` đi thẳng vào câu truy vấn và vào tên lớp CSS. Một giá trị lạ lọt
+# vào CSDL sẽ không khớp với `DIFFICULTY_LABEL` trong `formatting.py`, và giao
+# diện hiện ra mã thô (`co-ban2`) ở chỗ đáng lẽ là nhãn tiếng Việt. Biểu mẫu là
+# dữ liệu do người dùng gửi lên, không phải danh sách do mình kiểm soát.
+DIFFICULTIES = ("co-ban", "trung-binh", "nang-cao")
+POINTS_MODES = ("even", "custom")
+PROBLEM_STATUSES = ("draft", "review", "live")
+
+# Giới hạn thời gian và bộ nhớ, tính bằng mili giây và MB.
+MIN_TIME_MS, MAX_TIME_MS = 100, 10_000
+MIN_MEMORY_MB, MAX_MEMORY_MB = 16, 1024
+
 # Độ dài tối đa của mã nguồn, tính bằng ký tự. 64 KB tương đương khoảng 2 000
 # dòng — thừa sức cho mọi bài của cấp 2, nhưng chặn được việc ai đó dán cả một
 # tệp nén vào ô soạn thảo.
@@ -114,6 +129,12 @@ def _topics(conn) -> list[str]:
         "SELECT DISTINCT topic FROM problems WHERE topic <> '' AND status = 'live' ORDER BY topic",
     )
     return [r["topic"] for r in rows]
+
+
+def _test_count(conn, problem) -> int:
+    """Số bộ dữ liệu của một đề. Dùng ở trang sửa đề và ở chốt chặn công khai."""
+    return db.scalar(
+        conn, "SELECT COUNT(*) FROM tests WHERE problem_id = ?", (problem["id"],))
 
 
 def _user_best_by_problem(conn, user_id: int) -> dict[int, int]:
@@ -877,6 +898,41 @@ def _register_routes(app: Flask) -> None:
             compile_flags="g++ " + " ".join(COMPILE_FLAGS),
         )
 
+    @app.route("/teacher/problems/<code>/edit", methods=["GET", "POST"])
+    @auth.teacher_required
+    def teacher_problem_edit(code: str):
+        conn = db.get_db()
+        problem = db.query_one(conn, "SELECT * FROM problems WHERE code = ?", (code,))
+        if problem is None:
+            abort(404)
+
+        if request.method == "POST":
+            error = _update_problem(conn, problem, request.form)
+            if error:
+                flash(error, "warn")
+                # Hiện lại biểu mẫu với đúng những gì giáo viên vừa gõ, không
+                # phải bản cũ trong CSDL. Một đề dài mà bị xoá trắng vì thiếu
+                # một ô là lý do người ta bỏ luôn trang này.
+                return render_template(
+                    "teacher_problem_edit.html",
+                    active="teacher",
+                    problem=problem,
+                    topics=_topics(conn),
+                    test_count=_test_count(conn, problem),
+                    values=_form_values(request.form, problem),
+                )
+            flash(f"Đã lưu thay đổi cho đề {problem['code']}.", "ok")
+            return redirect(url_for("teacher_problems"))
+
+        return render_template(
+            "teacher_problem_edit.html",
+            active="teacher",
+            problem=problem,
+            topics=_topics(conn),
+            test_count=_test_count(conn, problem),
+            values=_form_values({}, problem),
+        )
+
     @app.route("/teacher/classes")
     @auth.teacher_required
     def teacher_classes():
@@ -1132,6 +1188,31 @@ def _fix_hints(submission, first_bad) -> list[str]:
 # ==========================================================================
 # Tạo đề và bộ dữ liệu (giáo viên)
 # ==========================================================================
+def _parse_limits(form) -> tuple[int, int]:
+    """Đọc giới hạn thời gian và bộ nhớ từ biểu mẫu, đã kẹp vào khoảng hợp lý.
+
+    Kẹp chứ không báo lỗi là có chủ ý: một giới hạn thời gian bằng 0 sẽ khiến mọi
+    bài nộp đều bị xử là quá thời gian, và giáo viên sẽ tưởng học sinh làm sai.
+    Dùng chung cho cả tạo và sửa đề để hai đường không thể lệch nhau.
+    """
+    try:
+        time_ms = int(float(form.get("time_limit_s") or 1) * 1000)
+    except (TypeError, ValueError):
+        time_ms = 1000
+    try:
+        memory_mb = int(form.get("memory_limit_mb") or 256)
+    except (TypeError, ValueError):
+        memory_mb = 256
+    return (max(MIN_TIME_MS, min(time_ms, MAX_TIME_MS)),
+            max(MIN_MEMORY_MB, min(memory_mb, MAX_MEMORY_MB)))
+
+
+def _choice(form, key: str, allowed: tuple[str, ...], fallback: str) -> str:
+    """Lấy một giá trị trong danh sách cho phép; giá trị lạ thì lùi về mặc định."""
+    value = (form.get(key) or "").strip()
+    return value if value in allowed else fallback
+
+
 def _create_problem(conn, user, form) -> str | None:
     """Trả về thông báo lỗi, hoặc None nếu thành công."""
     code = (form.get("code") or "").strip().upper()
@@ -1147,20 +1228,7 @@ def _create_problem(conn, user, form) -> str | None:
     if not statement:
         return "Chưa nhập nội dung đề bài."
 
-    try:
-        time_ms = int(float(form.get("time_limit_s") or 1) * 1000)
-    except (TypeError, ValueError):
-        time_ms = 1000
-    try:
-        memory_mb = int(form.get("memory_limit_mb") or 256)
-    except (TypeError, ValueError):
-        memory_mb = 256
-
-    # Kẹp giá trị vào khoảng hợp lý. Một giới hạn thời gian bằng 0 sẽ khiến mọi
-    # bài nộp đều bị xử là quá thời gian, và giáo viên sẽ tưởng học sinh làm sai.
-    time_ms = max(100, min(time_ms, 10_000))
-    memory_mb = max(16, min(memory_mb, 1024))
-
+    time_ms, memory_mb = _parse_limits(form)
     now = db.utc_now()
     with conn:
         conn.execute(
@@ -1170,12 +1238,80 @@ def _create_problem(conn, user, form) -> str | None:
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)""",
             (
                 code, name,
-                form.get("difficulty") or "co-ban",
+                _choice(form, "difficulty", DIFFICULTIES, "co-ban"),
                 (form.get("topic") or "").strip(),
                 statement, time_ms, memory_mb,
-                form.get("points_mode") or "even",
+                _choice(form, "points_mode", POINTS_MODES, "even"),
                 user["id"], now, now,
             ),
+        )
+    return None
+
+
+def _form_values(form, problem) -> dict:
+    """Giá trị để hiển thị lại trong biểu mẫu sửa đề.
+
+    Lấy từ biểu mẫu nếu có, không thì lấy từ CSDL. Dùng khi lưu thất bại: giáo
+    viên vừa gõ cả một đề dài, không được xoá trắng chỉ vì một ô còn thiếu.
+    """
+    def pick(key, fallback):
+        value = form.get(key)
+        return fallback if value is None else value
+
+    return {
+        "name": pick("name", problem["name"]),
+        "difficulty": pick("difficulty", problem["difficulty"]),
+        "topic": pick("topic", problem["topic"]),
+        "points_mode": pick("points_mode", problem["points_mode"]),
+        "time_limit_s": pick("time_limit_s", f"{problem['time_limit_ms'] / 1000:g}"),
+        "memory_limit_mb": pick("memory_limit_mb", problem["memory_limit_mb"]),
+        "statement": pick("statement", problem["statement"]),
+        "status": pick("status", problem["status"]),
+    }
+
+
+def _update_problem(conn, problem, form) -> str | None:
+    """Cập nhật một đề đã có. Trả về thông báo lỗi, hoặc None nếu thành công.
+
+    **Mã đề không đổi được.** Nó là định danh trong đường dẫn
+    (`/problems/SL001`, `/teacher/problems/SL001/tests`), nên đổi mã sẽ làm hỏng
+    mọi liên kết đã chia sẻ cho học sinh. Muốn mã khác thì tạo đề mới.
+
+    Hàm này tồn tại chủ yếu để đổi được `status`: `_create_problem` luôn ghi
+    `'draft'`, và trước hàm này thì **không có chỗ nào trong toàn bộ mã nguồn ghi
+    lại cột `status`** — nghĩa là một đề do giáo viên tạo ra nằm ở dạng bản nháp
+    vĩnh viễn, không học sinh nào thấy, vì trang danh sách đề lọc `status = 'live'`.
+    """
+    name = (form.get("name") or "").strip()
+    statement = (form.get("statement") or "").strip()
+
+    if not name:
+        return "Tên bài không được để trống."
+    if not statement:
+        return "Chưa nhập nội dung đề bài."
+
+    difficulty = _choice(form, "difficulty", DIFFICULTIES, "co-ban")
+    points_mode = _choice(form, "points_mode", POINTS_MODES, "even")
+    status = _choice(form, "status", PROBLEM_STATUSES, problem["status"])
+    time_ms, memory_mb = _parse_limits(form)
+
+    # Không cho công khai một đề chưa có bộ dữ liệu nào. Học sinh vẫn nộp được,
+    # nhưng bộ chấm không có gì để chạy nên mọi bài đều ra "lỗi hệ thống chấm" —
+    # và lỗi ấy trông như hệ thống hỏng, chứ không như đề thiếu dữ liệu.
+    if status == "live":
+        if not _test_count(conn, problem):
+            return ("Không công khai được vì đề chưa có bộ dữ liệu nào. "
+                    "Thêm ít nhất một bộ ở trang bộ dữ liệu trước.")
+
+    with conn:
+        conn.execute(
+            """UPDATE problems
+                  SET name = ?, difficulty = ?, topic = ?, statement = ?,
+                      time_limit_ms = ?, memory_limit_mb = ?, points_mode = ?,
+                      status = ?, updated_at = ?
+                WHERE id = ?""",
+            (name, difficulty, (form.get("topic") or "").strip(), statement,
+             time_ms, memory_mb, points_mode, status, db.utc_now(), problem["id"]),
         )
     return None
 

@@ -45,6 +45,7 @@ PAGES = [
     ("/submissions/13", "12-bai-nop-tle", "teacher"),
     ("/teacher", "13-tong-quan-giao-vien", "teacher"),
     ("/teacher/problems", "14-soan-de", "teacher"),
+    ("/teacher/problems/SL001/edit", "17-sua-de", "teacher"),
     ("/teacher/problems/SL001/tests", "15-bo-du-lieu", "teacher"),
     ("/teacher/classes", "16-lop-hoc", "teacher"),
 ]

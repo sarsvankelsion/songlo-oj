@@ -49,6 +49,9 @@
               <td class="text-sm">{{ p['author_name'] or '—' }}</td>
               <td>
                 <div class="toolbar">
+                  <a class="btn btn--outline btn--sm" href="{{ url_for('teacher_problem_edit', code=p['code']) }}">
+                    Sửa đề
+                  </a>
                   <a class="btn btn--ghost btn--sm" href="{{ url_for('teacher_problem_tests', code=p['code']) }}">
                     {% if p['test_count'] %}Sửa bộ dữ liệu{% else %}Thêm bộ dữ liệu{% endif %}
                   </a>
@@ -160,8 +163,8 @@
             <div class="field">
               <label class="label" for="p-points">Thang điểm</label>
               <select class="select" id="p-points" name="points_mode">
-                <option value="even" selected>100 điểm, chia đều cho các bộ</option>
-                <option value="custom">Theo điểm từng bộ dữ liệu</option>
+                <option value="even" selected>Chia đều cho các bộ</option>
+                <option value="custom">Theo điểm từng bộ</option>
               </select>
             </div>
           </div>

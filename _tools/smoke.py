@@ -54,6 +54,7 @@ ANONYMOUS_REDIRECTS = [
 TEACHER_ROUTES = [
     ("/teacher", "tổng quan giáo viên"),
     ("/teacher/problems", "soạn đề"),
+    ("/teacher/problems/SL001/edit", "sửa đề"),
     ("/teacher/problems/SL001/tests", "bộ dữ liệu"),
     ("/teacher/classes", "lớp học"),
     ("/teacher/classes?class=9B", "lớp học, chọn lớp khác"),
@@ -89,6 +90,7 @@ NOT_FOUND_ROUTES = [
     ("/khong-ton-tai", 404),
     ("/problems/KHONGCO", 404),
     ("/submissions/99999", 404),
+    ("/teacher/problems/KHONGCO/edit", 404),
     ("/teacher/problems/KHONGCO/tests", 404),
 ]
 

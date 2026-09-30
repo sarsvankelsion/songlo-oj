@@ -4,7 +4,7 @@ Giao diện cho một **online judge** phục vụ nội bộ Trường THCS Sô
 
 > **Trạng thái: đã có backend.** Flask + SQLite, đăng nhập thật, phân quyền học sinh/giáo viên, hàng đợi bài nộp và một tiến trình chấm riêng dùng `g++` với giới hạn thời gian và bộ nhớ. Bộ dữ liệu mẫu trong `server/seed.py` là mã C++ thật và được chấm thật, nên mọi con số trên giao diện đều do bộ chấm sinh ra.
 >
-> Chưa xong, và đây là danh sách đầy đủ: **sửa đề sau khi tạo** (hiện chỉ tạo được đề mới, không sửa lại đề bài hay giới hạn), quản lý kỳ thi (trang kỳ thi mới chỉ để xem), nhập danh sách tài khoản học sinh hàng loạt, xuất bảng điểm, và trang đổi mật khẩu ở lần đăng nhập đầu (cột `must_change_password` đã có trong CSDL nhưng chưa có trang).
+> Chưa xong, và đây là danh sách đầy đủ: quản lý kỳ thi (trang kỳ thi mới chỉ để xem), nhập danh sách tài khoản học sinh hàng loạt, xuất bảng điểm, và trang đổi mật khẩu ở lần đăng nhập đầu (cột `must_change_password` đã có trong CSDL nhưng chưa có trang).
 
 ## Ảnh chụp
 
@@ -33,6 +33,10 @@ Các trang của giáo viên — đăng nhập bằng `cophang / Songlo@GV2026`:
 | Lớp học & điểm | Chi tiết bài nộp quá bộ nhớ (chế độ tối) |
 |---|---|
 | ![Lớp học](docs/11-lop-hoc.jpg) | ![Bài nộp MLE](docs/12-bai-nop-mle-toi.jpg) |
+
+| Sửa đề — nơi công khai đề cho học sinh |
+|---|
+| ![Sửa đề](docs/13-sua-de.jpg) |
 
 ## Chạy thử
 
@@ -80,10 +84,18 @@ không hạ được quyền — xem `deploy/README.md` để biết vì sao má
 
 ```bash
 python _tools/smoke.py             # mở thử mọi tuyến đường, bắt lỗi template
+python _tools/test_edit_problem.py # kiểm thử chức năng sửa đề (trên bản sao CSDL)
 python _tools/render_pages.py      # render các trang cần đăng nhập ra demo/_render/
 python _tools/shoot.py --url http://127.0.0.1:8814 --theme light   # chụp ảnh từng trang
 node _tools/check_morph.js _shots/dom_*.html                       # tên morph có trùng không
 ```
+
+`test_edit_problem.py` **sao chép CSDL ra tệp tạm** trước khi làm việc, vì nó ghi
+chứ không chỉ đọc: nó tạo đề, sửa đề và công khai đề. Chạy thẳng trên CSDL thật
+thì mỗi lần kiểm thử lại để lại rác. Nó kiểm 33 điều, trong đó có những điều
+không thể chứng minh bằng cách đọc mã — rằng lưu thất bại thì CSDL không đổi và
+biểu mẫu giữ nguyên chữ đã gõ, rằng giá trị lạ trong ô chọn bị thay bằng mặc định
+chứ không lọt vào CSDL, và rằng công khai một đề chưa có bộ dữ liệu thì bị chặn.
 
 `render_pages.py` tồn tại vì `chrome --headless --screenshot` không đăng nhập được:
 các trang của giáo viên — đúng những trang nhiều cột nhất, dễ tràn ngang nhất —
@@ -117,6 +129,7 @@ Nhóm **giáo viên** (bấm nút chuyển vai trò ở góc trên bên phải):
 |---|---|
 | `teacher.html` | Tổng quan — tiến độ từng lớp, bài nộp gần đây, việc cần xử lý |
 | `teacher-problems.html` | Soạn đề — danh sách đề, biểu mẫu tạo đề, quản lý bộ dữ liệu kể cả bộ ẩn |
+| `teacher-problem-edit.html` | Sửa một đề — đề bài, giới hạn, độ khó, chủ đề và **trạng thái công khai**. Đây là chỗ duy nhất đổi được `status`, nên cũng là chỗ duy nhất công khai được một đề |
 | `teacher-classes.html` | Lớp học & điểm — sổ điểm từng lớp, lọc theo tên và trạng thái. Chưa cấp tài khoản hàng loạt và chưa xuất được bảng điểm ra tệp |
 
 Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.html#panel-submit` mở thẳng phần nộp bài.
@@ -142,10 +155,11 @@ Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.h
 │   ├── worker.py             Tiến trình chấm, tách khỏi tiến trình web
 │   ├── seed.py               Dữ liệu mẫu (kèm bài nộp C++ thật để chấm thử)
 │   ├── formatting.py         Định dạng số, ngày, nhãn tiếng Việt
-│   └── templates/            14 template Jinja
+│   └── templates/            15 template Jinja
 ├── deploy/                   Hướng dẫn dựng trên máy chủ Linux
 ├── _tools/                   Script kiểm tra và sinh ảnh chụp
-│   ├── smoke.py              Mở thử 44 tuyến đường theo ba vai trò
+│   ├── smoke.py              Mở thử 46 tuyến đường theo ba vai trò
+│   ├── test_edit_problem.py  Kiểm thử chức năng sửa đề, trên bản sao CSDL
 │   ├── render_pages.py       Render các trang cần đăng nhập ra HTML tĩnh
 │   ├── shoot.py              Chụp ảnh từng trang (đo chiều cao trước khi chụp)
 │   └── check_morph.js        Kiểm tra tên morph trên DOM đã render
@@ -260,11 +274,29 @@ Về chuyển cảnh:
 - **Hiệu ứng morph kiểu PowerPoint** giữa các trang, dùng View Transitions API. Phần tử mang `data-morph` trùng tên ở hai trang (mã đề, tên học sinh, huy hiệu kết quả) được trình duyệt nội suy vị trí và kích thước; phần còn lại mờ đi. Trình duyệt chưa hỗ trợ thì có dự phòng bằng FLIP đọc vị trí cũ từ `sessionStorage`. Tôn trọng `prefers-reduced-motion`.
 - **Một tên morph chỉ được xuất hiện một lần trong một trang.** Nếu trùng, trình duyệt huỷ **toàn bộ** hiệu ứng của cả trang chứ không chỉ bỏ qua phần tử trùng, và chỉ ghi một dòng vào console. `app.js` có bộ chặn, `_tools/check_morph.js` kiểm tra lại trên DOM đã render. Bảng xếp hạng là chỗ từng mắc lỗi này: cùng một học sinh vừa ở thẻ top 3 vừa ở bảng đầy đủ.
 
+Về vòng soạn đề:
+
+- **Trạng thái công khai từng là một đường cụt.** `_create_problem` luôn ghi `status = 'draft'`, và không có chỗ nào trong toàn bộ mã nguồn ghi lại cột `status`. Trang danh sách đề lọc `status = 'live'`, nên một đề do giáo viên tạo ra **không bao giờ** hiện với học sinh, và thẻ "Đề chờ duyệt" trên trang tổng quan đếm một trạng thái mà không đường nào chạm tới. Trang sửa đề tồn tại chủ yếu để bịt lỗ này; nó cũng là chỗ sửa được đề bài và giới hạn.
+- **Không công khai được một đề chưa có bộ dữ liệu.** Nếu cho phép, học sinh vẫn nộp bài nhưng bộ chấm không có gì để chạy nên mọi bài đều ra "lỗi hệ thống chấm" — và lỗi ấy trông như hệ thống hỏng, chứ không như đề thiếu dữ liệu. Chốt chặn nằm ở `_update_problem`, và trang sửa đề cũng cảnh báo sẵn từ trước.
+- **Mã đề cố ý không sửa được.** Nó nằm trong đường dẫn của ba trang khác nhau, nên đổi mã là làm hỏng mọi liên kết đã chia sẻ cho học sinh. Muốn mã khác thì tạo đề mới.
+- **Giá trị trong ô chọn đi qua whitelist, không lấy thẳng từ biểu mẫu.** `difficulty` và `points_mode` quyết định tên lớp CSS và được tra trong `DIFFICULTY_LABEL`; một giá trị lạ lọt vào CSDL sẽ hiện ra mã thô (`co-ban2`) ở chỗ đáng lẽ là nhãn tiếng Việt.
+- **Lưu thất bại thì hiện lại đúng những gì giáo viên vừa gõ**, không phải bản cũ trong CSDL. Mất cả một đề dài vì một ô còn thiếu là lý do người ta bỏ luôn trang này.
+
 Về cách trình bày dữ liệu thời gian và cờ trình dịch:
 
 - **`vn_range` là filter riêng cho khoảng thời gian.** Mẫu cũ là `{{ starts_at|vn_date_long }} – {{ ends_at|vn_time }}`; `vn_date_long` đã kèm cả giờ nên kỳ thi 23/09 → 03/10 hiện thành "Thứ Tư, 23/09/2026 · 19:44 – 19:44", đọc như kỳ thi dài 0 phút vì **ngày kết thúc biến mất**. Lỗi này nằm ở cả ba trang (trang chủ, kỳ thi, tổng quan giáo viên) vì cùng một mẫu được chép tay ba lần.
 - **Cờ trình dịch lấy từ `COMPILE_FLAGS` của `judge.py`, không ghi cứng trong template.** Hai trang từng ghi cứng `g++ -std=c++17 -O2` trong khi bộ chấm thật chạy thêm `-pipe -Wall -Wextra`. Cờ hiển thị mà lệch với cờ thật thì giáo viên đang đọc một thứ không đúng.
 - **`app.js` được cả bản demo tĩnh lẫn backend thật dùng chung** (Flask trỏ `static_folder` vào `demo/assets`). Khối `initSubmit` của bản demo chặn sự kiện mặc định, nên nó chỉ chạy khi biểu mẫu **không có** `action` — nếu không, một mẫu template thật lỡ mang `data-submit-form` sẽ khiến học sinh bấm "Nộp bài" mà không có gì được gửi đi, im lặng và không báo lỗi.
+- **`<select>` cắt chữ mà không để lại dấu vết nào.** Ô chọn gốc của trình duyệt cắt phần chữ vượt bề rộng, không thêm dấu ba chấm, không có gợi ý khi trỏ vào, và `scrollWidth` của `<select>` **luôn bằng** `clientWidth` nên phép so đó không phát hiện được gì. Hai ô trên trang sửa đề từng hiện "100 điểm, chia đều cho c…" và "Đã công khai — học sinh …". Cách kiểm tra đúng là đo chữ bằng chính phông của ô chọn rồi so với bề rộng khả dụng:
+  ```js
+  var cs = getComputedStyle(sel);
+  var span = document.createElement('span');
+  span.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;font:' + cs.font;
+  span.textContent = sel.options[sel.selectedIndex].textContent.trim();
+  document.body.appendChild(span);
+  var need = span.getBoundingClientRect().width;   // so với clientWidth - padding
+  ```
+  Cách chữa rẻ nhất là **viết nhãn ngắn lại và đưa phần giải thích xuống dòng gợi ý bên dưới** — không phải nới rộng ô, vì bề rộng do lưới bố cục quyết định.
 
 ## Bước tiếp theo
 
@@ -273,7 +305,8 @@ Về cách trình bày dữ liệu thời gian và cờ trình dịch:
 1. Giao diện 11 trang tĩnh + 14 template Jinja cho hệ thống thật, có chế độ tối,
    đã đo không tràn ngang ở 390 px trên cả 16 trang.
 2. Backend Flask + SQLite: tài khoản và phân quyền, đề bài và bộ dữ liệu ẩn,
-   bảng xếp hạng, kỳ thi có đếm ngược, tiến trình chấm riêng.
+   bảng xếp hạng, kỳ thi có đếm ngược, tiến trình chấm riêng. Vòng soạn đề đã
+   khép kín: tạo đề → thêm bộ dữ liệu → sửa đề → công khai.
 3. Bộ chấm đã chạy thật qua cả sáu loại kết quả: AC, WA, TLE, MLE, RE, CE.
 
 Còn lại:
@@ -286,21 +319,18 @@ Còn lại:
    này không kiểm chứng được trên Windows).
 3. Chốt giao diện với giáo viên, sửa những chỗ chưa hợp ý.
 4. Việc chưa làm, đã biết — xếp theo mức độ cản trở công việc thật:
-   1. **Sửa đề sau khi tạo.** Hiện chỉ có `POST /teacher/problems` để tạo đề mới;
-      không có route sửa, nên giáo viên gõ sai một chữ trong đề bài thì không có
-      cách nào sửa lại. Đây là lỗ hổng lớn nhất trong vòng soạn đề. Ước lượng:
-      một hàm `_update_problem` dùng lại phần kiểm tra của `_create_problem`, một
-      route `/teacher/problems/<code>/edit`, và một template biểu mẫu — khoảng
-      150 dòng, cộng một mục trong `_tools/smoke.py`.
-   2. **Quản lý kỳ thi.** Trang kỳ thi hiện chỉ đọc; chưa tạo/sửa kỳ thi hay
+   1. **Quản lý kỳ thi.** Trang kỳ thi hiện chỉ đọc; chưa tạo/sửa kỳ thi hay
       gán đề vào kỳ thi từ giao diện (dữ liệu mẫu do `server/seed.py` tạo).
-   3. **Nhập tài khoản học sinh hàng loạt.** 26 tài khoản mẫu do seed tạo; một
+   2. **Nhập tài khoản học sinh hàng loạt.** 26 tài khoản mẫu do seed tạo; một
       lớp thật có thể có hơn 40 em, nhập tay từng em một là không khả thi.
-   4. **Xuất bảng điểm** ra tệp để nộp sổ điểm.
-   5. **Trang đổi mật khẩu ở lần đăng nhập đầu.** CSDL đã có cột
+   3. **Xuất bảng điểm** ra tệp để nộp sổ điểm.
+   4. **Trang đổi mật khẩu ở lần đăng nhập đầu.** CSDL đã có cột
       `must_change_password` và `server/seed.py` đặt bằng 1 cho học sinh, nhưng
       chưa có trang nào dùng cột đó — nên hiện tại lời nhắc đổi mật khẩu không
       tồn tại trên giao diện.
+   5. **Xoá đề.** Chưa có đường xoá một đề đã tạo. Cân nhắc trước khi thêm: bài
+      nộp trỏ tới đề bằng khoá ngoại, nên xoá đề sẽ kéo theo hoặc mồ côi dữ liệu
+      điểm. Nhiều khả năng nên là "ẩn" (đổi về `draft`) chứ không phải xoá thật.
 
 ## Ghi chú về giấy phép
 

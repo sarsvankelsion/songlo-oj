@@ -1,0 +1,200 @@
+{#
+  Sửa một đề đã có: đề bài, giới hạn, độ khó, chủ đề và trạng thái.
+
+  Vì sao trang này tồn tại: `_create_problem` luôn ghi `status = 'draft'`, và
+  trước trang này thì không có chỗ nào trong mã nguồn ghi lại cột `status`.
+  Nghĩa là một đề do giáo viên tạo ra nằm ở dạng bản nháp vĩnh viễn, vì trang
+  danh sách đề chỉ hiện `status = 'live'`. Không có đường nào để công khai một
+  đề, và cũng không có đường nào để sửa một chữ sai trong đề bài.
+
+  Mã đề cố ý **không** sửa được: nó nằm trong đường dẫn của ba trang khác nhau,
+  nên đổi mã là làm hỏng mọi liên kết đã chia sẻ cho học sinh.
+#}
+{% extends "base.html" %}
+{% block title %}Sửa đề {{ problem['code'] }} — Khu giáo viên | Trường THCS Sông Lô{% endblock %}
+
+{% block content %}
+  <div class="container" style="padding-top:24px">
+
+    <nav aria-label="Đường dẫn" class="text-sm text-muted mb-3">
+      <a href="{{ url_for('teacher') }}">Khu giáo viên</a> ›
+      <a href="{{ url_for('teacher_problems') }}">Soạn đề</a> ›
+      <span>{{ problem['code'] }}</span>
+    </nav>
+
+    <div class="row-between mb-4">
+      <div>
+        <h1 style="font-size:24px">Sửa đề — {{ problem['name'] }}</h1>
+        <div class="row mt-2">
+          <span class="mono text-muted text-sm">{{ problem['code'] }}</span>
+          <span class="{{ problem['difficulty']|difficulty_class }}">{{ problem['difficulty']|difficulty_text }}</span>
+          <span class="{{ problem['status']|problem_status_class }}">{{ problem['status']|problem_status_text }}</span>
+          <span class="tag">{{ test_count }} bộ dữ liệu</span>
+        </div>
+      </div>
+      <div class="page-head__actions">
+        <a class="btn btn--outline btn--sm" href="{{ url_for('teacher_problem_tests', code=problem['code']) }}">Bộ dữ liệu</a>
+        <a class="btn btn--outline btn--sm" href="{{ url_for('problem_detail', code=problem['code']) }}">Xem như học sinh</a>
+        <a class="btn btn--ghost btn--sm" href="{{ url_for('teacher_problems') }}">← Danh sách đề</a>
+      </div>
+    </div>
+
+    {# Cảnh báo sớm thay vì để giáo viên gặp lỗi khi bấm Lưu. Cùng một điều kiện
+       được chặn ở `_update_problem`, nhưng nói trước thì dễ chịu hơn nhiều. #}
+    {% if test_count == 0 %}
+      <div class="alert alert--warn mb-4" role="note">
+        <div>
+          <p class="alert__title">Đề này chưa có bộ dữ liệu nào</p>
+          <p class="mb-0 text-sm">
+            Hệ thống chưa chấm được đề này, và sẽ không cho công khai cho tới khi có
+            ít nhất một bộ. <a href="{{ url_for('teacher_problem_tests', code=problem['code']) }}">Thêm bộ dữ liệu</a>.
+          </p>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="grid" style="grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start">
+
+      <section class="card" aria-labelledby="form-title">
+        <div class="card__head">
+          <h2 id="form-title">Nội dung đề</h2>
+          <span class="badge badge--grey">Lưu xong là học sinh thấy ngay nếu đã công khai</span>
+        </div>
+
+        <div class="card__body">
+          <form method="post" action="{{ url_for('teacher_problem_edit', code=problem['code']) }}" novalidate>
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+            <div class="grid grid-2">
+              <div class="field">
+                <label class="label" for="p-code">Mã đề</label>
+                <input class="input mono" id="p-code" type="text" value="{{ problem['code'] }}" disabled>
+                <p class="hint">
+                  Không đổi được. Mã đề nằm trong đường dẫn của trang đề bài, trang
+                  bộ dữ liệu và mọi liên kết đã gửi cho học sinh.
+                </p>
+              </div>
+              <div class="field">
+                <label class="label" for="p-name">Tên bài <span class="req" aria-hidden="true">*</span></label>
+                <input class="input" id="p-name" name="name" type="text" required
+                       value="{{ values['name'] }}"
+                       placeholder="Ví dụ: Đếm số nguyên tố trong đoạn">
+              </div>
+            </div>
+
+            <div class="grid grid-3">
+              <div class="field">
+                <label class="label" for="p-difficulty">Độ khó</label>
+                <select class="select" id="p-difficulty" name="difficulty">
+                  {% for code_, label in [('co-ban','Cơ bản'), ('trung-binh','Trung bình'), ('nang-cao','Nâng cao')] %}
+                    <option value="{{ code_ }}"{% if values['difficulty'] == code_ %} selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="field">
+                <label class="label" for="p-topic">Chủ đề</label>
+                <input class="input" id="p-topic" name="topic" type="text" list="topic-list"
+                       value="{{ values['topic'] }}" placeholder="Số học">
+                <datalist id="topic-list">
+                  {% for t in topics %}<option value="{{ t }}"></option>{% endfor %}
+                </datalist>
+                <p class="hint">Gõ chủ đề mới hoặc chọn từ danh sách đã có.</p>
+              </div>
+              <div class="field">
+                <label class="label" for="p-points">Thang điểm</label>
+                <select class="select" id="p-points" name="points_mode">
+                  <option value="even"{% if values['points_mode'] == 'even' %} selected{% endif %}>Chia đều cho các bộ</option>
+                  <option value="custom"{% if values['points_mode'] == 'custom' %} selected{% endif %}>Theo điểm từng bộ</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-3">
+              <div class="field">
+                <label class="label" for="p-time">Giới hạn thời gian (giây)</label>
+                <input class="input" id="p-time" name="time_limit_s" type="number"
+                       value="{{ values['time_limit_s'] }}" min="0.1" max="10" step="0.1">
+                <p class="hint">Từ 0,1 tới 10 giây.</p>
+              </div>
+              <div class="field">
+                <label class="label" for="p-mem">Giới hạn bộ nhớ (MB)</label>
+                <input class="input" id="p-mem" name="memory_limit_mb" type="number"
+                       value="{{ values['memory_limit_mb'] }}" min="16" max="1024" step="16">
+                <p class="hint">Từ 16 tới 1024 MB.</p>
+              </div>
+              <div class="field">
+                <label class="label" for="p-status">Trạng thái</label>
+                <select class="select" id="p-status" name="status">
+                  <option value="draft"{% if values['status'] == 'draft' %} selected{% endif %}>Bản nháp</option>
+                  <option value="review"{% if values['status'] == 'review' %} selected{% endif %}>Chờ duyệt</option>
+                  <option value="live"{% if values['status'] == 'live' %} selected{% endif %}>Đã công khai</option>
+                </select>
+                {% if test_count == 0 %}
+                  <p class="hint">Chưa có bộ dữ liệu nên chưa công khai được.</p>
+                {% else %}
+                  <p class="hint">Chỉ «Đã công khai» mới hiện với học sinh.</p>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label" for="p-statement">Đề bài <span class="req" aria-hidden="true">*</span></label>
+              <textarea class="textarea" id="p-statement" name="statement" rows="16" required
+                        style="min-height:300px"
+                        placeholder="Mô tả yêu cầu, dữ liệu vào, dữ liệu ra và giới hạn…">{{ values['statement'] }}</textarea>
+              <p class="hint">
+                Văn bản thuần, xuống dòng được giữ nguyên. Viết theo thứ tự:
+                <strong>Yêu cầu</strong> → <strong>Dữ liệu vào</strong> → <strong>Dữ liệu ra</strong> → <strong>Giới hạn</strong>.
+              </p>
+            </div>
+
+            <div class="row">
+              <button class="btn btn--primary" type="submit">Lưu thay đổi</button>
+              <a class="btn btn--ghost" href="{{ url_for('teacher_problems') }}">Huỷ</a>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <aside>
+        <section class="card mb-4" aria-labelledby="pub-title">
+          <h3 id="pub-title" class="mb-3">Ba mức trạng thái</h3>
+          <ul class="constraints">
+            <li><span class="k">Bản nháp</span> <span>chỉ giáo viên thấy</span></li>
+            <li><span class="k">Chờ duyệt</span> <span>chờ duyệt nội bộ</span></li>
+            <li><span class="k">Đã công khai</span> <span>học sinh thấy và nộp được</span></li>
+          </ul>
+          <p class="hint mb-0">
+            Đề do giáo viên tạo ra luôn bắt đầu ở dạng <strong>bản nháp</strong>.
+            Phải đổi sang <strong>đã công khai</strong> thì học sinh mới thấy —
+            và chỉ đổi được khi đề đã có ít nhất một bộ dữ liệu.
+          </p>
+        </section>
+
+        <section class="card mb-4" aria-labelledby="safe-title">
+          <h3 id="safe-title" class="mb-3">Sửa đề có ảnh hưởng gì?</h3>
+          <ul class="constraints">
+            <li><span class="k">Ngôn ngữ</span> <span>C++17</span></li>
+            <li><span class="k">Bài đã chấm</span> <span>giữ nguyên điểm</span></li>
+            <li><span class="k">Bài đang chờ</span> <span>chấm theo đề mới</span></li>
+            <li><span class="k">Bộ dữ liệu</span> <span>không bị đụng tới</span></li>
+          </ul>
+          <p class="hint mb-0">
+            Điểm đã chấm được lưu cùng bài nộp, nên sửa đề bài hay giới hạn không
+            làm thay đổi kết quả cũ. Muốn chấm lại thì phải nộp lại.
+          </p>
+        </section>
+
+        <section class="alert alert--info" role="note">
+          <div>
+            <p class="alert__title">Giới hạn thời gian và bộ nhớ</p>
+            <p class="mb-0 text-sm">
+              Đổi giới hạn không cần chấm lại bài cũ. Nhưng nếu siết chặt hơn, những
+              bài vốn đang đúng vẫn giữ điểm cũ — nên chỉ đổi khi thật cần.
+            </p>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+{% endblock %}

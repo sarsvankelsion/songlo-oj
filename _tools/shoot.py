@@ -38,6 +38,44 @@ CHROME_CANDIDATES = [
 
 HEIGHT_RE = re.compile(r"h=(\d+)")
 
+# Trang dò, do script này tự ghi ra mỗi lần chạy.
+#
+# Vì sao không để sẵn trong repo: nó là tệp dùng một lần, và nếu script phụ thuộc
+# vào một tệp đã có sẵn thì người clone repo về sẽ gặp lỗi ngay lần chạy đầu tiên
+# mà không hiểu vì sao. Tự sinh thì không có trạng thái nào để lệch.
+PROBE_NAME = "_probe_shot.html"
+
+PROBE_HTML = """<!DOCTYPE html>
+<!-- Do _tools/shoot.py sinh ra. Tệp tạm, không vào repo (_probe*.html). -->
+<html lang="vi"><head><meta charset="utf-8"><title>probe</title>
+<style>html,body{margin:0;padding:0;background:#fff}iframe{display:block;border:0;margin:0}</style>
+</head><body><div id="o">pending</div><script>
+var q = new URLSearchParams(location.search);
+var theme = q.get('theme') || 'light', page = q.get('page') || 'index.html';
+var w = parseInt(q.get('w') || '1280', 10);
+/* Ghi chu de vao localStorage TRUOC khi gan iframe.src: script chong nhay cua
+   trang doc no ngay lan ve dau tien. Chrome headless theo chu de cua he dieu
+   hanh, khong theo co dong lenh. */
+try { localStorage.setItem('sl-theme', theme); } catch (e) {}
+var f = document.createElement('iframe');
+f.style.width = w + 'px';
+f.style.height = '1000px';
+f.src = page;
+f.onload = function () {
+  /* Do o khung hinh ke tiep, khong phai trong onload: phong chu va phan do JS
+     dung (tab, ten morph, tieu de cot sap xep) xong muon hon va lam doi chieu cao. */
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      var h = f.contentDocument.documentElement.scrollHeight;
+      f.style.height = h + 'px';
+      document.getElementById('o').textContent = 'h=' + h;
+    });
+  });
+};
+document.body.appendChild(f);
+</script></body></html>
+"""
+
 
 def find_chrome(explicit: str | None) -> str:
     if explicit:
@@ -119,6 +157,10 @@ def main(argv=None) -> int:
     pages = args.pages or sorted(p.name for p in src.glob("*.html") if not p.name.startswith("_"))
     if not pages:
         sys.exit(f"Không có tệp .html nào trong {src}")
+
+    # Trang dò nằm ở gốc `demo/` để đường dẫn tài sản tĩnh `/assets/...` phân giải
+    # được, và nằm cạnh `_render/` để tham số `page` chỉ cần một tầng thư mục.
+    (DEMO / PROBE_NAME).write_text(PROBE_HTML, encoding="utf-8")
 
     outdir = Path(args.out) if args.out else ROOT / "_shots" / f"{args.dir.strip('_')}-{args.theme}"
     outdir.mkdir(parents=True, exist_ok=True)
