@@ -752,18 +752,7 @@ kbd {
 .table .toolbar { flex-wrap: nowrap; }
 .toolbar--end { justify-content: flex-end; }
 
-/* ---------- 25. Campus strip ---------- */
-.campus { display: grid; grid-template-columns: 1fr 1.5fr; gap: var(--sp-4); }
-.campus figure { margin: 0; }
-.campus img {
-  width: 100%; height: 100%; object-fit: cover;
-  border-radius: var(--r-lg); border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
-}
-.campus figcaption { font-size: 12.5px; color: var(--fg-muted); margin-top: var(--sp-2); }
-.campus figure:first-child img { min-height: 240px; }
-
-/* ---------- 26. Footer ---------- */
+/* ---------- 25. Footer ---------- */
 .site-foot { background: var(--deep); color: #B9BAE0; margin-top: var(--sp-7); padding: var(--sp-6) 0; }
 .site-foot a { color: #fff; }
 .site-foot__grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--sp-6); }
@@ -778,7 +767,7 @@ kbd {
   padding-top: var(--sp-4); font-size: 12.5px; text-align: center; color: #8B8CC0;
 }
 
-/* ---------- 27. Responsive ---------- */
+/* ---------- 26. Responsive ---------- */
 @media (max-width: 1024px) {
   .grid-sidebar { grid-template-columns: minmax(0,1fr); }
   .grid-4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
@@ -811,8 +800,6 @@ kbd {
   .stat__value { font-size: 28px; }
   .hero-stats { margin-top: -32px; }
   .editor__hl, .editor__area { font-size: 13px; }
-  .campus { grid-template-columns: 1fr; }
-  .campus figure:first-child img { min-height: 180px; }
   .bar-row { grid-template-columns: 116px 1fr 64px; }
 }
 @media (max-width: 480px) {
@@ -824,7 +811,7 @@ kbd {
   .hero__facts { gap: var(--sp-4); }
 }
 
-/* ---------- 28. Reduced motion ---------- */
+/* ---------- 27. Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: .01ms !important; animation-iteration-count: 1 !important;
@@ -832,14 +819,14 @@ kbd {
   }
 }
 
-/* ---------- 29. Print ---------- */
+/* ---------- 28. Print ---------- */
 @media print {
   .nav, .site-head__tools, .site-foot, .hero, .btn, .tabs { display: none !important; }
   body { background: #fff; }
   .card { border: 0; box-shadow: none; padding: 0; }
 }
 
-/* ---------- 28. Theme toggle ---------- */
+/* ---------- 29. Theme toggle ---------- */
 .theme-btn {
   flex: none; width: 40px; height: 40px; display: grid; place-items: center;
   border: 1px solid var(--border-strong); border-radius: var(--r-md);
@@ -858,7 +845,7 @@ kbd {
 html[data-theme="dark"] .theme-btn .theme-btn__sun { display: block; }
 html[data-theme="dark"] .theme-btn .theme-btn__moon { display: none; }
 
-/* ---------- 29. Read-only code viewer ----------
+/* ---------- 30. Read-only code viewer ----------
    Same shell as the editor but with no textarea: the highlighted <pre> is the
    only layer, so there is nothing to keep in sync except the gutter. */
 .viewer {
@@ -883,7 +870,7 @@ html[data-theme="dark"] .theme-btn .theme-btn__moon { display: none; }
 .viewer__pre--log { color: #C7CAE2; }
 .viewer__pre .ln-bad { color: var(--code-accent); }
 
-/* ---------- 30. Verdict banner ---------- */
+/* ---------- 31. Verdict banner ---------- */
 .vbar {
   display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap;
   padding: var(--sp-5); border-radius: var(--r-lg);
@@ -912,7 +899,7 @@ html[data-theme="dark"] .theme-btn .theme-btn__moon { display: none; }
 }
 .vbar__score span { font-size: 11px; font-weight: 700; letter-spacing: .085em; text-transform: uppercase; color: var(--fg-subtle); }
 
-/* ---------- 31. Test-case IO compare ---------- */
+/* ---------- 32. Test-case IO compare ---------- */
 .io-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: var(--sp-3); }
 .io-cell {
   border: 1px solid var(--border); border-radius: var(--r-md);
@@ -934,7 +921,7 @@ html[data-theme="dark"] .theme-btn .theme-btn__moon { display: none; }
 .io-cell--bad .io-cell__head { background: var(--wa-bg); color: var(--wa-fg); }
 .io-cell mark { background: rgba(217,83,79,.22); color: inherit; border-radius: 3px; padding: 0 2px; }
 
-/* ---------- 32. Dark theme ----------
+/* ---------- 33. Dark theme ----------
    Only the tokens change. No component rule below is duplicated, which is the
    whole point of the semantic layer added in section 1. */
 html[data-theme="dark"] {
@@ -1008,7 +995,7 @@ html[data-theme="dark"] .editor__dots i { filter: saturate(.85); }
   .vbar__score { margin-left: 0; text-align: left; }
 }
 
-/* ---------- 33. Follow-ups for the submission detail page ---------- */
+/* ---------- 34. Follow-ups for the submission detail page ---------- */
 /* A failing test row keeps its tint even where :nth-child(even) and :hover
    would otherwise win, because this rule is declared last. */
 .table tbody tr.is-bad { background: var(--wa-bg); }

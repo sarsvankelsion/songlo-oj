@@ -41,7 +41,7 @@ Nhóm **học sinh**:
 
 | Tệp | Nội dung |
 |---|---|
-| `index.html` | Trang chủ — ảnh trường, số liệu, kỳ thi sắp tới có đếm ngược, đề mới, bảng xếp hạng tuần |
+| `index.html` | Trang chủ — số liệu, kỳ thi sắp tới có đếm ngược, đề mới, bảng xếp hạng tuần, bài nộp gần đây |
 | `problems.html` | Danh sách đề — tìm kiếm, lọc theo độ khó và chủ đề, bảng sắp xếp được, phân trang |
 | `problem.html` | Chi tiết đề + nộp bài — 3 thẻ: Đề bài / Nộp bài / Kết quả chấm |
 | `submissions.html` | Danh sách bài nộp — lọc theo kết quả, ngôn ngữ, khoảng thời gian |
@@ -69,7 +69,7 @@ Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.h
 │   └── assets/
 │       ├── css/style.css     Toàn bộ hệ thống thiết kế (token + thành phần)
 │       ├── js/app.js         Tương tác, không phụ thuộc thư viện ngoài
-│       └── img/              logo.png (huy hiệu, nền trong suốt) + ảnh trường
+│       └── img/              logo.png (huy hiệu, nền trong suốt) · hero.jpg
 ├── docs/                     Ảnh chụp cho README
 ├── assets/                   Ảnh gốc tải từ website nhà trường (kể cả huy hiệu)
 ├── research/                 Ghi chú khảo sát DMOJ/VNOJ
@@ -118,7 +118,7 @@ Biểu trưng ở góc trên bên trái là **huy hiệu chính thức của Tr�
 
 Cách xoá nền: ảnh gốc là hình vuông có huy hiệu tròn nội tiếp, bốn góc là nền trắng phẳng. Tô loang từ bốn góc xoá đúng phần nằm ngoài vòng tròn — đo được **21,2%**, sát con số lý thuyết 21,5% (diện tích hình vuông trừ đường tròn nội tiếp) — và không đụng tới các vùng trắng bên trong huy hiệu.
 
-Ảnh chụp sân trường tải từ website nhà trường thì vẫn giữ riêng: ảnh đó có chèn sẵn dòng chữ "TRƯỜNG THCS SÔNG LÔ - XÃ TAM SƠN - TỈNH PHÚ THỌ" nên đã được cắt lại ở những vùng không có chữ để dùng làm ảnh minh hoạ.
+Ảnh chụp sân trường tải từ website nhà trường chỉ còn dùng làm **nền mờ cho khối hero** ở trang chủ (`demo/assets/img/hero.jpg`) — đã cắt ở vùng không có chữ và phủ lớp màu đậm nên chỉ còn là một mảng tối có vân, không phải ảnh minh hoạ. Một mục "Cơ sở vật chất" riêng từng có trên trang chủ đã được bỏ: nó giới thiệu khuôn viên nhà trường, không liên quan tới việc chấm bài.
 
 ## Điểm đáng chú ý về kỹ thuật
 

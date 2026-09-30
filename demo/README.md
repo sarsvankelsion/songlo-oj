@@ -21,7 +21,7 @@ Nhóm học sinh:
 
 | Tệp | Nội dung |
 |---|---|
-| `index.html` | Trang chủ — ảnh trường, số liệu, kỳ thi sắp tới có đếm ngược, đề mới, bảng xếp hạng tuần, bài nộp gần đây |
+| `index.html` | Trang chủ — số liệu, kỳ thi sắp tới có đếm ngược, đề mới, bảng xếp hạng tuần, bài nộp gần đây |
 | `problems.html` | Danh sách đề — tìm kiếm, lọc theo độ khó và chủ đề, bảng sắp xếp được, phân trang |
 | `problem.html` | Chi tiết đề + nộp bài — 3 thẻ: Đề bài / Nộp bài / Kết quả chấm |
 | `submissions.html` | Danh sách bài nộp — lọc theo kết quả, ngôn ngữ, khoảng thời gian; có thống kê phân loại |
@@ -55,7 +55,7 @@ demo/
     ├── css/style.css     Toàn bộ hệ thống thiết kế (token + thành phần)
     ├── js/app.js         Tương tác, không phụ thuộc thư viện ngoài
     └── img/              logo.png (huy hiệu trường, nền trong suốt)
-                          + ảnh trường đã cắt bỏ phần chữ chèn sẵn
+                          hero.jpg (nền mờ cho khối hero ở trang chủ)
 ```
 
 Không có bước build. Không dùng framework. CSS và JS đều là file tĩnh — chuyển thẳng sang template Django được.
