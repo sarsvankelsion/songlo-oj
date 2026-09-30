@@ -175,6 +175,23 @@ def main(argv: list[str] | None = None) -> int:
     signal.signal(signal.SIGTERM, _handle_stop)
     signal.signal(signal.SIGINT, _handle_stop)
 
+    # Không tự tạo CSDL khi tệp chưa có.
+    #
+    # Theo `deploy/README.md`, tiến trình chấm chạy bằng root; tiến trình web
+    # chạy bằng một tài khoản riêng. Nếu tệp CSDL chưa tồn tại thì `init_db` sẽ
+    # tạo nó **thuộc root**, và từ đó tiến trình web không ghi được vào nữa.
+    # Triệu chứng đến rất muộn và rất khó đoán: web chạy bình thường, đăng nhập
+    # bình thường, chỉ tới khi học sinh nộp bài mới hỏng.
+    #
+    # Tạo CSDL là việc của `server.seed`, và phải chạy bằng chính tài khoản của
+    # tiến trình web. Ở đây chỉ áp lược đồ lên một CSDL đã có.
+    if not Path(args.database).exists():
+        print(f"[judge] không thấy CSDL ở {args.database}.\n"
+              f"        Hãy chạy `python -m server.seed` bằng tài khoản của tiến trình web\n"
+              f"        (không phải root) trước khi bật tiến trình chấm.",
+              file=sys.stderr, flush=True)
+        return 2
+
     db.init_db(args.database)
     conn = db.connect(args.database)
     workspace = Path(args.workspace)

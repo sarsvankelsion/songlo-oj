@@ -86,6 +86,7 @@ không hạ được quyền — xem `deploy/README.md` để biết vì sao má
 python _tools/smoke.py             # mở thử mọi tuyến đường, bắt lỗi template
 python _tools/test_edit_problem.py # kiểm thử chức năng sửa đề (trên bản sao CSDL)
 python _tools/test_paths.py        # ba tiến trình có suy ra cùng một CSDL không
+python _tools/test_judge_isolation.py  # thư mục chấm có dùng được từ tài khoản hạ quyền không
 python _tools/render_pages.py      # render các trang cần đăng nhập ra demo/_render/
 python _tools/shoot.py --url http://127.0.0.1:8814 --theme light   # chụp ảnh từng trang
 node _tools/check_morph.js _shots/dom_*.html                       # tên morph có trùng không
@@ -106,6 +107,18 @@ tiến trình web mở một CSDL khác, rỗng, không lược đồ, không t�
 kiểm tra nào đang có bắt được, vì mọi script khác đều chạy mà không đặt
 `SONGLO_VAR` — và khi đó cả ba đường lại trùng nhau. Script này đặt biến rồi chạy
 thật cả ba, và kiểm cả rằng `server/var/` không bị đụng tới.
+
+`test_judge_isolation.py` tồn tại vì một lỗi thứ hai cũng chỉ xảy ra trên máy chủ
+Linux, và lần này triệu chứng trỏ thẳng vào bài làm của học sinh. `mkdtemp` tạo
+thư mục làm việc với quyền 0700 thuộc `root`; tiến trình con bị hạ xuống
+`SONGLO_JUDGE_RUNAS_UID` trước khi `exec` nên không có quyền **tìm kiếm** trên
+thư mục đó, và `g++` báo `cc1plus: fatal error: main.cpp: Permission denied` —
+nằm lẫn trong nhật ký dịch, cùng chỗ với lỗi cú pháp. Kết quả: **mọi** bài nộp đều
+CE, kể cả bài đúng, và không bài nào chạy được một bộ dữ liệu nào. Trên Windows
+không tái hiện được vì không có `setuid`; script này vì thế chỉ chạy đủ bốn phần
+khi là POSIX **và** đang là root, còn lại thì báo bỏ qua chứ không im lặng coi như
+đạt. Phần 2 còn kiểm ngược lại rằng thư mục 0700 của root **không** dùng được —
+một phép kiểm luôn xanh thì không chứng minh được gì.
 
 `render_pages.py` tồn tại vì `chrome --headless --screenshot` không đăng nhập được:
 các trang của giáo viên — đúng những trang nhiều cột nhất, dễ tràn ngang nhất —
@@ -171,6 +184,7 @@ Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.h
 │   ├── smoke.py              Mở thử 46 tuyến đường theo ba vai trò
 │   ├── test_edit_problem.py  Kiểm thử chức năng sửa đề, trên bản sao CSDL
 │   ├── test_paths.py         Ba tiến trình có suy ra cùng một đường dẫn CSDL không
+│   ├── test_judge_isolation.py  Thư mục chấm có dùng được từ tài khoản hạ quyền không
 │   ├── render_pages.py       Render các trang cần đăng nhập ra HTML tĩnh
 │   ├── shoot.py              Chụp ảnh từng trang (đo chiều cao trước khi chụp)
 │   └── check_morph.js        Kiểm tra tên morph trên DOM đã render

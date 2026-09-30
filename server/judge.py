@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import db
+from . import sandbox
 from .sandbox import RunResult, read_capped, run_limited
 
 # Giới hạn CPU mềm gửi SIGXCPU; giới hạn cứng gửi SIGKILL. Đọc qua getattr để
@@ -302,6 +303,13 @@ def judge_submission(
 
     workspace_root.mkdir(parents=True, exist_ok=True)
     workdir = Path(tempfile.mkdtemp(prefix=f"sub{submission_id}-", dir=str(workspace_root)))
+
+    # `mkdtemp` để thư mục ở quyền 0700 thuộc tài khoản đang chạy — root, khi
+    # tiến trình chấm chạy bằng root. Tiến trình con bị hạ quyền trước khi
+    # `exec` nên sẽ không đi qua được thư mục đó, và triệu chứng là trình dịch
+    # báo "main.cpp: Permission denied" cho **mọi** bài nộp. Xem
+    # `sandbox.prepare_workspace`.
+    sandbox.prepare_workspace(workdir)
 
     try:
         ok, compile_log, binary = compile_source(workdir, sub["source"], compiler=compiler)

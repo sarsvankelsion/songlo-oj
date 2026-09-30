@@ -72,10 +72,13 @@ WALL_GRACE_S = 2.0
 # Số tiến trình tối đa. Chặn "fork bomb" — chương trình con đệ quy gọi fork()
 # cho tới khi cạn bảng tiến trình của hệ điều hành.
 #
-# Lưu ý quan trọng khi triển khai: RLIMIT_NPROC đếm theo **mã người dùng thực**,
-# không theo tiến trình. Nếu worker chấm chạy chung tài khoản với web server thì
-# giới hạn này áp lên tổng số tiến trình của tài khoản đó, và có thể làm hỏng
-# worker. Vì vậy worker nên chạy dưới một tài khoản riêng (xem deploy/README.md).
+# Lưu ý quan trọng khi triển khai: RLIMIT_NPROC đếm theo **tài khoản**, và đếm
+# theo **task** chứ không theo tiến trình — một tiến trình có 20 luồng bị tính
+# là 20. Con số 64 rộng rãi cho một chương trình học sinh và cho cả `g++` (trình
+# dịch tự nó sinh ra cc1plus, as, collect2, ld), nhưng lại nhỏ hơn số luồng mà
+# một tài khoản dịch vụ thường đã có sẵn. Vì vậy giới hạn này chỉ được áp khi
+# tiến trình con đã thật sự rời khỏi tài khoản của bộ chấm — xem chú thích
+# trong `_apply_posix_limits`.
 MAX_PROCESSES = int(os.environ.get("SONGLO_JUDGE_MAX_PROCS", "64"))
 
 # Tuỳ chọn: hạ quyền tiến trình con xuống một tài khoản ít quyền trước khi exec.
@@ -166,26 +169,45 @@ def _apply_posix_limits(cpu_seconds: int, memory_bytes: int) -> None:
     # Kích thước tệp ghi ra.
     resource.setrlimit(resource.RLIMIT_FSIZE, (MAX_OUTPUT_BYTES, MAX_OUTPUT_BYTES))
 
-    if MAX_PROCESSES > 0:
-        try:
-            resource.setrlimit(resource.RLIMIT_NPROC, (MAX_PROCESSES, MAX_PROCESSES))
-        except (ValueError, OSError):
-            # Một số hệ thống không cho đặt giới hạn này. Thiếu nó không làm
-            # hỏng việc chấm, nên bỏ qua thay vì làm sập cả bài nộp.
-            pass
-
     # Hạ quyền. Thứ tự bắt buộc: setgid **trước** setuid, vì sau khi setuid
     # thì tiến trình không còn quyền đổi nhóm nữa.
+    dropped = False
     if RUNAS_UID:
         try:
             if RUNAS_GID:
                 os.setgid(int(RUNAS_GID))
                 os.setgroups([])
             os.setuid(int(RUNAS_UID))
+            dropped = True
         except OSError:
             # Không hạ được quyền (thường là vì worker không chạy bằng root).
             # Đã có giới hạn tài nguyên nên vẫn chấp nhận chạy tiếp; nuốt lỗi ở
             # đây là có chủ ý, vì ném ra sẽ làm mọi bài nộp đều lỗi hệ thống.
+            pass
+
+    # Số tiến trình tối đa — đặt **sau** khi hạ quyền, và chỉ khi đã hạ được.
+    #
+    # Hai lý do, cả hai đều đã quan sát được trên máy chủ thật chứ không phải
+    # phòng ngừa suông:
+    #
+    # 1. Đặt sau: `setuid` trả EAGAIN nếu tài khoản đích đã có nhiều task hơn
+    #    giới hạn. Đặt giới hạn trước rồi mới `setuid` nghĩa là một tài khoản
+    #    đang bận làm `setuid` thất bại, và lỗi đó bị nuốt ngay trên — mã học
+    #    sinh sẽ chạy bằng **root** mà không có dấu hiệu nào.
+    # 2. Chỉ khi đã hạ được: giới hạn này đo bằng **task**, không phải tiến
+    #    trình. Đo trên máy chủ đang chạy thật: uid 0 có 20 tiến trình nhưng 75
+    #    luồng, nên `MAX_PROCESSES = 64` khiến `g++` không `fork` nổi và **mọi**
+    #    bài nộp nhận CE với thông báo "vfork: Resource temporarily
+    #    unavailable" — trong khi mã nguồn hoàn toàn đúng.
+    #
+    # Nếu không hạ được quyền thì cách ly vốn đã không có, và siết số tiến trình
+    # chỉ còn tác dụng làm hỏng chính bộ chấm.
+    if MAX_PROCESSES > 0 and dropped:
+        try:
+            resource.setrlimit(resource.RLIMIT_NPROC, (MAX_PROCESSES, MAX_PROCESSES))
+        except (ValueError, OSError):
+            # Một số hệ thống không cho đặt giới hạn này. Thiếu nó không làm
+            # hỏng việc chấm, nên bỏ qua thay vì làm sập cả bài nộp.
             pass
 
 
@@ -510,6 +532,42 @@ if not IS_POSIX:
 # ==========================================================================
 # Cổng vào
 # ==========================================================================
+def prepare_workspace(path: Path) -> None:
+    """Trao quyền sở hữu thư mục làm việc cho tài khoản chạy hạ quyền.
+
+    Phải gọi ngay sau khi tạo thư mục và trước khi dịch.
+
+    Vì sao cần: ``tempfile.mkdtemp`` tạo thư mục với quyền 0700 thuộc tài khoản
+    gọi nó — tức là ``root`` khi tiến trình chấm chạy bằng root theo
+    ``deploy/README.md``. Tiến trình con sau đó bị hạ xuống
+    ``SONGLO_JUDGE_RUNAS_UID`` trước khi ``exec``, và tài khoản đó **không có
+    quyền đi qua** thư mục 0700 của root.
+
+    Hệ quả không phải một thông báo rõ ràng về quyền của bộ chấm, mà là thông
+    báo của chính trình dịch, trỏ vào mã nguồn của học sinh::
+
+        cc1plus: fatal error: main.cpp: Permission denied
+
+    Đọc lên thì như lỗi ở bài làm, nhưng bài làm không liên quan gì: ``g++``
+    không mở nổi tệp chỉ vì không có quyền tìm kiếm trên thư mục chứa nó. Kết
+    quả là **mọi** bài nộp đều CE, kể cả bài đúng — và trên Windows, nơi không
+    hạ quyền, thì không tái hiện được.
+
+    Chỉ đổi chủ khi thật sự đang chạy bằng root và có cấu hình tài khoản hạ
+    quyền; mọi trường hợp khác giữ nguyên hành vi cũ.
+    """
+    if not IS_POSIX or not RUNAS_UID or os.geteuid() != 0:
+        return
+    try:
+        # -1 = "giữ nguyên" cho trường hợp chỉ cấu hình UID mà không có GID.
+        os.chown(path, int(RUNAS_UID), int(RUNAS_GID) if RUNAS_GID else -1)
+    except OSError:
+        # Không đổi được chủ (hệ thống tệp không cho, hoặc tài khoản không tồn
+        # tại). Ném ra ở đây sẽ biến mọi bài nộp thành lỗi hệ thống, nên bỏ qua;
+        # nếu quyền thật sự thiếu thì chính trình dịch sẽ báo, kèm nhật ký.
+        pass
+
+
 def run_limited(
     argv: list[str],
     cwd: Path,
