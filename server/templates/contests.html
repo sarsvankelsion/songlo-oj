@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Kỳ thi — Hệ thống chấm bài lập trình | Trường THCS Sông Lô{% endblock %}
+
+{% block content %}
+  <div class="container">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">Kỳ thi</h1>
+        <p class="page-head__sub">Tham gia kỳ thi do giáo viên tổ chức. Điểm thi được tính riêng, không ảnh hưởng điểm luyện tập.</p>
+      </div>
+    </div>
+
+    {% for c in live %}
+    <section class="card mb-5" aria-labelledby="live-{{ c['id'] }}" style="border-left:4px solid var(--red-600)">
+      <div class="row-between mb-4">
+        <div>
+          <span class="badge badge--red">Đang diễn ra</span>
+          <h2 id="live-{{ c['id'] }}" class="mt-2" style="font-size:20px">{{ c['name'] }}</h2>
+          <p class="text-muted text-sm mb-0 mt-2">
+            {{ c['problem_count'] }} bài · {{ c['entries'] }} học sinh tham gia ·
+            kết thúc lúc {{ c['ends_at']|vn_date_long }}
+          </p>
+        </div>
+        <div class="row">
+          <div class="countdown" data-countdown="{{ c['ends_at'] }}" role="timer"
+               aria-label="Thời gian còn lại của kỳ thi đang diễn ra">
+            <div class="countdown__unit"><span class="countdown__num" data-cd="h">00</span><span class="countdown__lbl">Giờ</span></div>
+            <div class="countdown__unit"><span class="countdown__num" data-cd="m">00</span><span class="countdown__lbl">Phút</span></div>
+            <div class="countdown__unit"><span class="countdown__num" data-cd="s">00</span><span class="countdown__lbl">Giây</span></div>
+          </div>
+        </div>
+      </div>
+
+      {% if live_stats and c['id'] == live[0]['id'] %}
+      <div class="grid grid-4 mb-4">
+        <div class="stat"><p class="stat__label">Bài đã làm đúng</p>
+          <p class="stat__value">{{ live_stats.done }} / {{ c['problem_count'] }}</p></div>
+        <div class="stat"><p class="stat__label">Điểm hiện tại</p>
+          <p class="stat__value">{{ live_stats.score }}</p></div>
+        <div class="stat"><p class="stat__label">Lượt nộp đã dùng</p>
+          <p class="stat__value">{{ live_stats.used }}</p></div>
+        <div class="stat"><p class="stat__label">Số học sinh tham gia</p>
+          <p class="stat__value">{{ c['entries'] }}</p></div>
+      </div>
+      {% endif %}
+
+      <div class="row">
+        <a class="btn btn--primary" href="{{ url_for('problems') }}">Vào làm bài</a>
+        <a class="btn btn--outline" href="{{ url_for('leaderboard') }}">Bảng xếp hạng</a>
+      </div>
+    </section>
+    {% endfor %}
+
+    <div class="tabs mb-4" data-tabs role="tablist" aria-label="Phân loại kỳ thi">
+      <button class="tab" role="tab" id="tab-upcoming" aria-controls="panel-upcoming" aria-selected="true">Sắp diễn ra</button>
+      <button class="tab" role="tab" id="tab-past" aria-controls="panel-past" aria-selected="false">Đã kết thúc</button>
+    </div>
+
+    <div class="tabpanel" id="panel-upcoming" role="tabpanel" aria-labelledby="tab-upcoming" tabindex="0">
+      <div class="stack">
+        {% for c in upcoming %}
+        <article class="card">
+          <div class="row-between">
+            <div>
+              <span class="badge">Sắp diễn ra</span>
+              <h3 class="mt-2" style="font-size:18px">{{ c['name'] }}</h3>
+              <p class="text-muted text-sm mb-0 mt-2">
+                {{ c['starts_at']|vn_date_long }} – {{ c['ends_at']|vn_time }} ·
+                {{ c['problem_count'] }} bài
+                {% if c['description'] %}· {{ c['description'] }}{% endif %}
+              </p>
+            </div>
+            <div class="row">
+              <div class="countdown" data-countdown="{{ c['starts_at'] }}" role="timer"
+                   aria-label="Thời gian còn lại tới khi kỳ thi bắt đầu">
+                <div class="countdown__unit"><span class="countdown__num" data-cd="d">00</span><span class="countdown__lbl">Ngày</span></div>
+                <div class="countdown__unit"><span class="countdown__num" data-cd="h">00</span><span class="countdown__lbl">Giờ</span></div>
+                <div class="countdown__unit"><span class="countdown__num" data-cd="m">00</span><span class="countdown__lbl">Phút</span></div>
+                <div class="countdown__unit"><span class="countdown__num" data-cd="s">00</span><span class="countdown__lbl">Giây</span></div>
+              </div>
+            </div>
+          </div>
+        </article>
+        {% else %}
+        <div class="card">
+          <div class="empty">
+            <h3>Chưa có kỳ thi nào sắp diễn ra</h3>
+            <p class="mb-0">Khi giáo viên mở kỳ thi mới, nó sẽ xuất hiện ở đây.</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="tabpanel" id="panel-past" role="tabpanel" aria-labelledby="tab-past" tabindex="0" hidden>
+      <div class="card card--flush">
+        <div class="table-wrap">
+          <table class="table" data-sortable>
+            <caption class="sr-only">Các kỳ thi đã kết thúc, kèm thời gian và số học sinh tham gia</caption>
+            <thead>
+              <tr>
+                <th scope="col">Tên kỳ thi</th>
+                <th scope="col" style="width:150px">Thời gian</th>
+                <th scope="col" class="num" style="width:130px" data-numeric>Tham gia</th>
+                <th scope="col" class="num" style="width:120px" data-numeric>Số bài</th>
+                <th scope="col" style="width:110px">Kết quả</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in past %}
+              <tr>
+                <td>{{ c['name'] }}</td>
+                <td class="text-muted">{{ c['starts_at']|vn_date }}</td>
+                <td class="num">{{ c['entries'] }}</td>
+                <td class="num">{{ c['problem_count'] }}</td>
+                <td><a href="{{ url_for('leaderboard') }}">Xem</a></td>
+              </tr>
+              {% else %}
+              <tr><td colspan="5" class="text-muted">Chưa có kỳ thi nào đã kết thúc.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+{% endblock %}

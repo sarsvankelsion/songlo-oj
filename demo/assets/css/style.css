@@ -1011,3 +1011,79 @@ html[data-theme="dark"] .editor__dots i { filter: saturate(.85); }
 .io-cell__head { margin: 0; }
 
 .mb-6 { margin-bottom: var(--sp-6); }
+
+/* ---------- 35. Morph page transitions ----------
+   Kiểu "morph" của PowerPoint: phần tử có mặt ở cả hai trang (mã đề, tên học
+   sinh, huy hiệu kết quả, số điểm) trượt và đổi kích thước sang vị trí mới,
+   còn phần còn lại của trang mờ đi.
+
+   Cách làm: mỗi phần tử như vậy mang một `data-morph` trùng nhau ở hai trang
+   (ví dụ `problem-code-SL001`). `app.js` đọc thuộc tính đó và gán thành
+   `view-transition-name`. Trình duyệt thấy cùng một tên ở trang cũ và trang
+   mới thì tự nội suy vị trí và kích thước — đó chính là hiệu ứng morph.
+
+   Quy tắc quan trọng: **một tên chỉ được xuất hiện một lần trong một trang.**
+   Nếu trùng, trình duyệt huỷ toàn bộ hiệu ứng chuyển cảnh của cả trang chứ
+   không chỉ bỏ qua phần tử trùng — nên lỗi này im lặng và rất khó lần ra.
+   `app.js` có bộ chặn cho việc đó; xem `initMorphNames`.
+
+   Hai dòng `@view-transition` là điều kiện bắt buộc để hiệu ứng chạy khi
+   chuyển trang thật (không phải chuyển cảnh trong cùng một trang): **cả hai**
+   tài liệu đều phải khai báo. Vì mọi trang dùng chung tệp CSS này nên chỉ cần
+   khai báo một lần ở đây. */
+@view-transition {
+  navigation: auto;
+}
+
+/* Nền trang mờ dần, hơi chậm hơn phần tử đang bay một chút để mắt bám theo
+   phần tử chuyển động chứ không bám theo màn hình đang mờ. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: .3s;
+  animation-timing-function: var(--ease);
+}
+
+/* Thời gian của chặng bay. Đặt trên `group` vì đó là lớp mà trình duyệt dùng
+   để nội suy vị trí và kích thước. */
+::view-transition-group(*) {
+  animation-duration: .42s;
+  animation-timing-function: cubic-bezier(.22, 1, .36, 1);
+}
+
+/* Ảnh chụp của phần tử cũng phải mờ dần, nếu không nó sẽ hiện đè lên chính nó
+   ở vị trí mới trong suốt chặng bay. */
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: .34s;
+}
+
+/* Mục 27 ở trên đặt `animation-duration` cho `*, *::before, *::after`, nhưng
+   các lớp giả `::view-transition-*` không nằm trong nhóm đó — nên nếu không có
+   khối này thì người bật "giảm chuyển động" vẫn thấy hiệu ứng morph. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: .01ms !important;
+  }
+}
+
+/* ---------- 36. Test-case manager (khu giáo viên) ---------- */
+/* Ô xem trước nội dung một bộ dữ liệu trong bảng quản lý. Có trần chiều cao và
+   tự cuộn: một bộ dữ liệu có thể dài vài nghìn dòng, và để nó đẩy các dòng
+   khác xuống sẽ khiến bảng không còn đọc được. */
+.tc-pre {
+  margin: 0;
+  max-height: 150px;
+  overflow: auto;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--fg);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}

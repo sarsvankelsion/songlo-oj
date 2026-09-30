@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}Soạn đề &amp; bộ dữ liệu — Khu giáo viên | Trường THCS Sông Lô{% endblock %}
+
+{% block content %}
+  <div class="container">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">Soạn đề &amp; bộ dữ liệu</h1>
+        <p class="page-head__sub">Tạo đề, nhập bộ dữ liệu vào – ra và đánh dấu những bộ dữ liệu không cho học sinh xem.</p>
+      </div>
+      <div class="page-head__actions">
+        <a class="btn btn--outline" href="{{ url_for('problems') }}">Xem như học sinh</a>
+        <a class="btn btn--primary" href="#form-title">Tạo đề mới</a>
+      </div>
+    </div>
+
+    <section class="card card--flush mb-5" aria-labelledby="pl-title">
+      <div class="card__head">
+        <h2 id="pl-title">Danh sách đề</h2>
+        <span class="text-sm text-muted">Tổng <strong>{{ problems|length }}</strong> đề</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table" data-sortable>
+          <caption class="sr-only">Danh sách đề bài kèm trạng thái, số bộ dữ liệu và thao tác quản trị</caption>
+          <thead>
+            <tr>
+              <th scope="col" style="width:80px">Mã</th>
+              <th scope="col">Tên bài</th>
+              <th scope="col" style="width:120px">Độ khó</th>
+              <th scope="col" class="num" data-numeric style="width:130px">Bộ dữ liệu</th>
+              <th scope="col" style="width:140px">Trạng thái</th>
+              <th scope="col" style="width:170px">Người soạn</th>
+              <th scope="col" style="width:150px"><span class="sr-only">Thao tác</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in problems %}
+            <tr>
+              <td class="mono">{{ p['code'] }}</td>
+              <td><a href="{{ url_for('problem_detail', code=p['code']) }}">{{ p['name'] }}</a></td>
+              <td><span class="{{ p['difficulty']|difficulty_class }}">{{ p['difficulty']|difficulty_text }}</span></td>
+              <td class="num">
+                {{ p['test_count'] }}
+                {% if p['hidden_count'] %}<span class="text-xs text-muted">({{ p['hidden_count'] }} ẩn)</span>{% endif %}
+              </td>
+              <td><span class="{{ p['status']|problem_status_class }}">{{ p['status']|problem_status_text }}</span></td>
+              <td class="text-sm">{{ p['author_name'] or '—' }}</td>
+              <td>
+                <div class="toolbar">
+                  <a class="btn btn--ghost btn--sm" href="{{ url_for('teacher_problem_tests', code=p['code']) }}">
+                    {% if p['test_count'] %}Sửa bộ dữ liệu{% else %}Thêm bộ dữ liệu{% endif %}
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-muted">Chưa có đề nào. Dùng biểu mẫu bên dưới để tạo đề đầu tiên.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="grid grid-3 mb-5">
+
+      <section class="card" aria-labelledby="ck-title">
+        <h3 id="ck-title" class="mb-4">Trước khi công khai</h3>
+        <ul class="constraints">
+          <li><span class="k">Bộ dữ liệu</span> <span>ít nhất 3 bộ</span></li>
+          <li><span class="k">Bộ ẩn</span> <span>ít nhất 1 bộ</span></li>
+          <li><span class="k">Đề bài</span> <span>có mô tả vào – ra</span></li>
+          <li><span class="k">Giới hạn</span> <span>thời gian và bộ nhớ</span></li>
+        </ul>
+        <div class="alert alert--warn mt-4" role="note">
+          <div>
+            <p class="alert__title">Đừng quên bộ dữ liệu ẩn</p>
+            <p class="mb-0 text-sm">
+              Đề chỉ có bộ dữ liệu công khai thì học sinh đọc được đáp án từ ví dụ.
+              Đánh dấu ẩn cho các bộ ở phần nhập bên dưới.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="guide-title">
+        <h3 id="guide-title" class="mb-4">Cách chấm</h3>
+        <ul class="constraints">
+          <li><span class="k">Trình dịch</span> <span class="mono">g++ -std=c++17 -O2</span></li>
+          <li><span class="k">So khớp</span> <span>bỏ trắng cuối dòng</span></li>
+          <li><span class="k">Điểm</span> <span>chia đều cho các bộ</span></li>
+          <li><span class="k">Bộ ẩn</span> <span>chỉ hiện đúng/sai</span></li>
+        </ul>
+        <p class="hint mb-0">
+          Hệ thống bỏ khoảng trắng thừa ở <em>cuối mỗi dòng</em> và bỏ các dòng trống ở cuối
+          trước khi so khớp. Khoảng trắng ở đầu dòng vẫn được tính.
+        </p>
+      </section>
+
+      <section class="stack" aria-label="Lưu ý">
+        <div class="alert alert--info" role="note">
+          <div>
+            <p class="alert__title">Giới hạn số bộ dữ liệu</p>
+            <p class="mb-0 text-sm">Mỗi đề nên có tối đa 30 bộ dữ liệu để thời gian chấm không quá lâu vào giờ cao điểm.</p>
+          </div>
+        </div>
+        <div class="alert alert--info" role="note">
+          <div>
+            <p class="alert__title">Bộ dữ liệu ẩn</p>
+            <p class="mb-0 text-sm">Học sinh chỉ thấy trạng thái đúng hoặc sai, không thấy nội dung dữ liệu vào và ra.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card" aria-labelledby="form-title">
+      <div class="card__head">
+        <h2 id="form-title">Soạn đề mới</h2>
+        <span class="badge badge--grey">Lưu ở dạng bản nháp</span>
+      </div>
+
+      <div class="card__body">
+        <form method="post" action="{{ url_for('teacher_problems') }}" novalidate>
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+          <div class="grid grid-2">
+            <div class="field">
+              <label class="label" for="p-code">Mã đề <span class="req" aria-hidden="true">*</span></label>
+              <input class="input mono" id="p-code" name="code" type="text" required
+                     placeholder="SL046" pattern="[A-Za-z0-9\-]+">
+              <p class="hint">Không trùng với mã đề đã có. Học sinh dùng mã này để tra cứu.</p>
+            </div>
+            <div class="field">
+              <label class="label" for="p-name">Tên bài <span class="req" aria-hidden="true">*</span></label>
+              <input class="input" id="p-name" name="name" type="text" required
+                     placeholder="Ví dụ: Đếm số nguyên tố trong đoạn">
+            </div>
+          </div>
+
+          <div class="grid grid-3">
+            <div class="field">
+              <label class="label" for="p-difficulty">Độ khó</label>
+              <select class="select" id="p-difficulty" name="difficulty">
+                <option value="co-ban">Cơ bản</option>
+                <option value="trung-binh" selected>Trung bình</option>
+                <option value="nang-cao">Nâng cao</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="label" for="p-topic">Chủ đề</label>
+              <input class="input" id="p-topic" name="topic" type="text" list="topic-list"
+                     placeholder="Số học">
+              <datalist id="topic-list">
+                {% for t in topics %}<option value="{{ t }}"></option>{% endfor %}
+              </datalist>
+              <p class="hint">Gõ chủ đề mới hoặc chọn từ danh sách đã có.</p>
+            </div>
+            <div class="field">
+              <label class="label" for="p-points">Thang điểm</label>
+              <select class="select" id="p-points" name="points_mode">
+                <option value="even" selected>100 điểm, chia đều cho các bộ</option>
+                <option value="custom">Theo điểm từng bộ dữ liệu</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-3">
+            <div class="field">
+              <label class="label" for="p-time">Giới hạn thời gian (giây)</label>
+              <input class="input" id="p-time" name="time_limit_s" type="number"
+                     value="1" min="0.1" max="10" step="0.1">
+              <p class="hint">Từ 0,1 tới 10 giây. Mặc định 1 giây.</p>
+            </div>
+            <div class="field">
+              <label class="label" for="p-mem">Giới hạn bộ nhớ (MB)</label>
+              <input class="input" id="p-mem" name="memory_limit_mb" type="number"
+                     value="256" min="16" max="1024" step="16">
+              <p class="hint">Từ 16 tới 1024 MB.</p>
+            </div>
+            <div class="field">
+              <label class="label" for="p-lang">Ngôn ngữ</label>
+              <input class="input" id="p-lang" type="text" value="C++17" disabled>
+              <p class="hint">Hệ thống hiện chỉ chấm C++17.</p>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="label" for="p-statement">Đề bài <span class="req" aria-hidden="true">*</span></label>
+            <textarea class="textarea" id="p-statement" name="statement" rows="12" required
+                      style="min-height:240px"
+                      placeholder="Mô tả yêu cầu, dữ liệu vào, dữ liệu ra và giới hạn…"></textarea>
+            <p class="hint">
+              Văn bản thuần, xuống dòng được giữ nguyên. Viết theo thứ tự:
+              <strong>Yêu cầu</strong> → <strong>Dữ liệu vào</strong> → <strong>Dữ liệu ra</strong> → <strong>Giới hạn</strong>.
+            </p>
+          </div>
+
+          <div class="row">
+            <button class="btn btn--primary" type="submit">Lưu đề</button>
+            <button class="btn btn--ghost" type="reset">Xoá biểu mẫu</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+  </div>
+{% endblock %}

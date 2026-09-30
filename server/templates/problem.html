@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% block title %}{{ problem['code'] }} · {{ problem['name'] }} — Hệ thống chấm bài lập trình | Trường THCS Sông Lô{% endblock %}
+{% block description %}Đề bài {{ problem['name'] }} ({{ problem['code'] }}) và trình nộp bài C++ trực tuyến.{% endblock %}
+
+{% set tab = 'panel-statement' %}
+{% if request.args.get('tab') == 'submit' %}{% set tab = 'panel-submit' %}{% endif %}
+{% if request.args.get('tab') == 'result' %}{% set tab = 'panel-result' %}{% endif %}
+
+{% block content %}
+  <div class="container" style="padding-top:24px">
+
+    <nav aria-label="Đường dẫn" class="text-sm text-muted mb-3">
+      <a href="{{ url_for('index') }}">Trang chủ</a> ›
+      <a href="{{ url_for('problems') }}">Đề bài</a> ›
+      <span>{{ problem['code'] }}</span>
+    </nav>
+
+    <div class="row-between mb-4">
+      <div>
+        <h1 style="font-size:24px">{{ problem['name'] }}</h1>
+        <div class="row mt-2">
+          <span class="mono text-muted text-sm" data-morph="problem-code-{{ problem['code'] }}">{{ problem['code'] }}</span>
+          <span class="{{ problem['difficulty']|difficulty_class }}">{{ problem['difficulty']|difficulty_text }}</span>
+          {% if problem['topic'] %}<span class="tag">{{ problem['topic'] }}</span>{% endif %}
+          <span class="tag">{{ tests|length }} bộ dữ liệu</span>
+        </div>
+      </div>
+      <a class="btn btn--outline btn--sm" href="{{ url_for('problems') }}">← Danh sách đề</a>
+    </div>
+
+    <div class="grid grid-sidebar">
+
+      <div>
+        <section class="card card--flush">
+
+          <div class="tabs" data-tabs role="tablist" aria-label="Nội dung đề bài">
+            <button class="tab" role="tab" id="tab-statement" aria-controls="panel-statement"
+                    aria-selected="{{ 'true' if tab == 'panel-statement' else 'false' }}">Đề bài</button>
+            <button class="tab" role="tab" id="tab-submit" aria-controls="panel-submit"
+                    aria-selected="{{ 'true' if tab == 'panel-submit' else 'false' }}">Nộp bài</button>
+            <button class="tab" role="tab" id="tab-result" aria-controls="panel-result"
+                    aria-selected="{{ 'true' if tab == 'panel-result' else 'false' }}">Kết quả chấm</button>
+          </div>
+
+          {# ---------------------------------------------------------- đề bài #}
+          <div class="tabpanel card__body" id="panel-statement" role="tabpanel"
+               aria-labelledby="tab-statement" tabindex="0"{% if tab != 'panel-statement' %} hidden{% endif %}>
+            <article class="statement">
+
+              {# Nội dung đề lưu dạng văn bản thuần và hiển thị nguyên dạng.
+                 Dùng `pre-wrap` chứ không phải HTML: giáo viên dán đề từ Word
+                 vào, và nếu ta render HTML thì mọi thẻ trong đó sẽ được trình
+                 duyệt hiểu theo nghĩa của nó — một đề có chữ "<vector>" sẽ biến
+                 mất phần còn lại của bài. #}
+              <div class="statement-text">{{ problem['statement'] }}</div>
+
+              {% if sample_tests %}
+                <h3>Ví dụ</h3>
+                {% for t in sample_tests %}
+                  <div class="grid grid-2">
+                    <div>
+                      <p class="label">Dữ liệu vào{% if sample_tests|length > 1 %} — ví dụ {{ loop.index }}{% endif %}</p>
+                      <pre class="io-block">{{ t['input'] }}</pre>
+                    </div>
+                    <div>
+                      <p class="label">Dữ liệu ra</p>
+                      <pre class="io-block">{{ t['output'] }}</pre>
+                    </div>
+                  </div>
+                {% endfor %}
+              {% endif %}
+
+              <h3>Giới hạn</h3>
+              <ul class="constraints">
+                <li><span class="k">Thời gian</span> <span>{{ problem['time_limit_ms']|vn_seconds }} cho mỗi bộ dữ liệu</span></li>
+                <li><span class="k">Bộ nhớ</span> <span>{{ problem['memory_limit_mb'] }} MB</span></li>
+                <li><span class="k">Số bộ dữ liệu</span>
+                    <span>{{ tests|length }} bộ{% if hidden_tests %}, trong đó {{ hidden_tests }} bộ ẩn{% endif %}</span></li>
+              </ul>
+
+              {% if hidden_tests %}
+                <div class="alert alert--warn" role="note">
+                  <div>
+                    <p class="alert__title">Có {{ hidden_tests }} bộ dữ liệu ẩn</p>
+                    <p class="mb-0">
+                      Đề này còn {{ hidden_tests }} bộ dữ liệu em không xem được nội dung.
+                      Khi nộp bài, em chỉ thấy bộ đó đúng hay sai. Cách làm đúng là tự nghĩ ra
+                      thêm các trường hợp biên, đừng chỉ làm cho qua ví dụ ở trên.
+                    </p>
+                  </div>
+                </div>
+              {% endif %}
+
+            </article>
+          </div>
+
+          {# ---------------------------------------------------------- nộp bài #}
+          <div class="tabpanel" id="panel-submit" role="tabpanel"
+               aria-labelledby="tab-submit" tabindex="0"{% if tab != 'panel-submit' %} hidden{% endif %}>
+            <div class="card__body">
+
+              {% if not current_user %}
+                <div class="alert alert--info" role="note">
+                  <div>
+                    <p class="alert__title">Em cần đăng nhập để nộp bài</p>
+                    <p class="mb-0">Dùng tài khoản do giáo viên cấp.
+                      <a href="{{ url_for('login', next=request.path) }}">Đăng nhập</a>.</p>
+                  </div>
+                </div>
+              {% elif remaining == 0 %}
+                <div class="alert alert--warn" role="note">
+                  <div>
+                    <p class="alert__title">Em đã dùng hết lượt nộp hôm nay</p>
+                    <p class="mb-0">Mỗi đề được nộp tối đa {{ daily_limit }} lượt một ngày.
+                      Hạn mức đặt lại vào 0 giờ ngày mai.</p>
+                  </div>
+                </div>
+              {% else %}
+                <form method="post" action="{{ url_for('problem_submit', code=problem['code']) }}" novalidate>
+                  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+                  <div class="field">
+                    <label class="label" for="lang">Ngôn ngữ <span class="req" aria-hidden="true">*</span></label>
+                    <select class="select" id="lang" name="language" required>
+                      <option selected>C++17 (g++)</option>
+                    </select>
+                    <p class="hint">Hệ thống hiện chỉ hỗ trợ C++17.</p>
+                  </div>
+
+                  <div class="field">
+                    <label class="label" for="source">Mã nguồn <span class="req" aria-hidden="true">*</span></label>
+
+                    <div class="editor" data-editor>
+                      <div class="editor__bar">
+                        <span class="editor__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                        <span class="editor__lang">main.cpp</span>
+                        <span class="editor__meta" data-editor-lines></span>
+                      </div>
+                      <div class="editor__body">
+                        <div class="editor__gutter" aria-hidden="true"></div>
+                        <div class="editor__code">
+                          <pre class="editor__hl" aria-hidden="true"></pre>
+                          <textarea class="editor__area" id="source" name="source" spellcheck="false"
+                                    autocapitalize="off" autocomplete="off" wrap="off"
+                                    aria-describedby="code-hint">{{ starter_code }}</textarea>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p class="hint" id="code-hint">
+                      Phím <kbd>Tab</kbd> chèn 4 dấu cách. Nhấn <kbd>Esc</kbd> để thoát khỏi ô soạn thảo.
+                    </p>
+                  </div>
+
+                  <div class="row">
+                    <button class="btn btn--primary" type="submit">Nộp bài</button>
+                    <button class="btn btn--ghost" type="reset">Xoá hết</button>
+                    <span class="spacer"></span>
+                    <span class="text-sm text-muted">Còn {{ remaining }} / {{ daily_limit }} lượt nộp hôm nay</span>
+                  </div>
+                </form>
+              {% endif %}
+
+            </div>
+          </div>
+
+          {# ------------------------------------------------------- kết quả #}
+          <div class="tabpanel" id="panel-result" role="tabpanel"
+               aria-labelledby="tab-result" tabindex="0"{% if tab != 'panel-result' %} hidden{% endif %}>
+            <div class="card__body">
+
+              {% if not latest %}
+                <div class="empty">
+                  <h3>Em chưa nộp bài này lần nào</h3>
+                  <p class="mb-0">Chuyển sang thẻ <strong>Nộp bài</strong> để bắt đầu.</p>
+                </div>
+              {% elif latest['status'] in ('pending', 'judging') %}
+                <div class="alert alert--info" role="note" data-judge-waiting
+                     data-poll-url="{{ url_for('api_submission', submission_id=latest['id']) }}">
+                  <div>
+                    <p class="alert__title">Bài nộp đang được chấm…</p>
+                    <p class="mb-0">Trang sẽ tự cập nhật khi có kết quả.
+                      Bài nộp số <a href="{{ url_for('submission_detail', submission_id=latest['id']) }}">#{{ latest['id'] }}</a>.</p>
+                  </div>
+                </div>
+              {% else %}
+                <div class="row-between mb-4">
+                  <div>
+                    <span class="{{ latest['verdict']|verdict_class }}" style="font-size:14px;padding:6px 14px"
+                          data-morph="verdict-{{ latest['id'] }}">{{ latest['verdict']|verdict_text }}</span>
+                    <p class="text-sm text-muted mb-0 mt-2">
+                      {{ passed_count }} / {{ latest_tests|length }} bộ dữ liệu đúng ·
+                      {{ latest['score'] }} điểm · {{ latest['time_ms']|vn_seconds }}
+                    </p>
+                  </div>
+                  <div class="text-sm text-muted" style="text-align:right">
+                    Nộp lúc {{ latest['created_at']|vn_day_month }}<br>
+                    Ngôn ngữ: C++17
+                  </div>
+                </div>
+
+                <div class="table-wrap">
+                  <table class="table table--compact">
+                    <caption class="sr-only">Kết quả chấm theo từng bộ dữ liệu</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col" style="width:100px">Bộ số</th>
+                        <th scope="col" style="width:150px">Kết quả</th>
+                        <th scope="col" class="num" style="width:110px">Thời gian</th>
+                        <th scope="col" class="num" style="width:110px">Bộ nhớ</th>
+                        <th scope="col" class="num" style="width:90px">Điểm</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for r in latest_tests %}
+                      <tr{% if r['verdict'] != 'AC' %} class="is-bad"{% endif %}>
+                        <td class="mono">#{{ r['ordinal'] }}{% if hidden_ordinals and r['ordinal'] in hidden_ordinals %}
+                          <span class="badge badge--grey">ẩn</span>{% endif %}</td>
+                        <td><span class="{{ r['verdict']|verdict_class }}">{{ r['verdict']|verdict_text }}</span></td>
+                        <td class="num">{{ r['time_ms']|vn_seconds }}</td>
+                        <td class="num">{{ r['memory_kb']|vn_memory }}</td>
+                        <td class="num">{{ r['points'] }}</td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+
+                <p class="text-sm text-muted mt-4 mb-0">
+                  Kết quả của các bộ dữ liệu ẩn chỉ hiện trạng thái đúng hay sai, không hiện nội dung.
+                  <a href="{{ url_for('submission_detail', submission_id=latest['id']) }}">Xem chi tiết đầy đủ →</a>
+                </p>
+              {% endif %}
+
+            </div>
+          </div>
+
+        </section>
+      </div>
+
+      {# ------------------------------------------------------------ sidebar #}
+      <aside>
+
+        <section class="card mb-4" aria-labelledby="meta-title">
+          <h3 id="meta-title" class="mb-3">Thông tin đề</h3>
+          <ul class="constraints">
+            <li><span class="k">Mã đề</span> <span class="mono">{{ problem['code'] }}</span></li>
+            <li><span class="k">Điểm tối đa</span> <span>100</span></li>
+            <li><span class="k">Thời gian</span> <span>{{ problem['time_limit_ms']|vn_seconds }}</span></li>
+            <li><span class="k">Bộ nhớ</span> <span>{{ problem['memory_limit_mb'] }} MB</span></li>
+            <li><span class="k">Số bộ dữ liệu</span>
+                <span>{{ tests|length }}{% if hidden_tests %} ({{ hidden_tests }} bộ ẩn){% endif %}</span></li>
+            <li><span class="k">Đã giải đúng</span> <span>{{ solved_by }} học sinh</span></li>
+          </ul>
+        </section>
+
+        {% if current_user %}
+        <section class="card card--flush mb-4" aria-labelledby="sub-title">
+          <div class="card__head">
+            <h3 id="sub-title">Bài nộp của em</h3>
+          </div>
+          <div class="card__body" style="padding-top:12px;padding-bottom:12px">
+            <ul class="side-list">
+              {% for s in my_submissions %}
+              <li>
+                <div class="side-list__row">
+                  <span class="{{ s['verdict']|verdict_class }}">{{ s['verdict']|verdict_text }}</span>
+                  <span class="text-sm" style="flex:1">
+                    <a href="{{ url_for('submission_detail', submission_id=s['id']) }}">{{ s['score'] }} điểm</a>
+                  </span>
+                  <span class="text-xs text-muted">{{ s['created_at']|vn_time }}</span>
+                </div>
+              </li>
+              {% else %}
+              <li><div class="side-list__row"><span class="text-sm text-muted">Chưa có bài nộp nào.</span></div></li>
+              {% endfor %}
+            </ul>
+          </div>
+        </section>
+        {% endif %}
+
+        <section class="alert alert--info" role="note">
+          <div>
+            <p class="alert__title">Cần trợ giúp?</p>
+            <p class="mb-0 text-sm">
+              Gặp lỗi khi nộp bài, liên hệ giáo viên phụ trách phòng máy hoặc gửi câu hỏi qua mục Liên hệ.
+            </p>
+          </div>
+        </section>
+
+      </aside>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+{% if latest and latest['status'] in ('pending', 'judging') %}
+<script>
+/* Tự cập nhật khi bài đang chờ chấm.
+   Hỏi máy chủ mỗi 2 giây cho tới khi có kết quả, rồi tải lại trang. Dừng hẳn
+   sau 5 phút để một bài nộp kẹt không giữ cho tab này hỏi mãi. */
+(function () {
+  var box = document.querySelector('[data-judge-waiting]');
+  if (!box) return;
+  var url = box.getAttribute('data-poll-url');
+  var deadline = Date.now() + 5 * 60 * 1000;
+  var timer = setInterval(function () {
+    if (Date.now() > deadline) { clearInterval(timer); return; }
+    fetch(url, { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (data && data.done) { clearInterval(timer); window.location.reload(); }
+      })
+      .catch(function () { /* mất mạng tạm thời: lần sau thử lại */ });
+  }, 2000);
+})();
+</script>
+{% endif %}
+{% endblock %}

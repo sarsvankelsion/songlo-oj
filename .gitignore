@@ -6,6 +6,21 @@ _probe.html
 _probe*.html
 _dump.html
 
+# Dữ liệu chạy thật: CSDL SQLite và thư mục làm việc của bộ chấm.
+#
+# Tuyệt đối không đưa thư mục này vào repo. CSDL chứa hàm băm mật khẩu của toàn
+# bộ tài khoản học sinh, và repo này là công khai. Băm bằng PBKDF2 chỉ làm việc
+# thử mật khẩu trở nên đắt, không làm nó bất khả thi — nhất là khi mật khẩu do
+# giáo viên đặt theo một quy tắc dễ đoán.
+server/var/
+
+# Mã đã biên dịch
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
 # Hệ điều hành
 .DS_Store
 Thumbs.db

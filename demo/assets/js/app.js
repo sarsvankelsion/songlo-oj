@@ -535,6 +535,202 @@
     });
   }
 
+  /* ---------- Morph page transitions ----------
+     Xem mục 35 trong style.css. Tóm tắt: phần tử mang `data-morph` trùng tên ở
+     hai trang sẽ được trình duyệt nội suy vị trí và kích thước khi chuyển
+     trang — đó là hiệu ứng morph. Phần ở đây lo ba việc: đặt tên, chặn tên
+     trùng, và dựng lại hiệu ứng cho trình duyệt chưa hỗ trợ. */
+
+  var MORPH_STORE_KEY = 'sl-morph';
+
+  /* `document.startViewTransition` có từ Chrome 111, còn chuyển cảnh giữa hai
+     trang (thứ ta cần) chỉ có từ Chrome 126. Đây là phép thử gần đúng: trong
+     khoảng 111–125 hiệu ứng sẽ không chạy và cũng không có dự phòng, vì dự
+     phòng FLIP không thể chạy chồng lên một chuyển cảnh thật. Chấp nhận được —
+     đó là khoảng phiên bản ngắn, và bản thân trang vẫn hoạt động bình thường. */
+  var hasViewTransitions = 'startViewTransition' in document;
+
+  /* Đặt view-transition-name từ data-morph, đồng thời chặn tên trùng.
+
+     Vì sao phải chặn: khi gặp hai phần tử cùng một view-transition-name trong
+     một trang, trình duyệt **huỷ toàn bộ** hiệu ứng chuyển cảnh của cả trang,
+     chứ không chỉ bỏ qua phần tử trùng. Nó không hiện gì ra giao diện, chỉ ghi
+     một dòng vào console. Nghĩa là một lỗi template sẽ làm hiệu ứng biến mất
+     trên mọi lần chuyển trang mà không ai biết vì sao. Bộ chặn này biến một
+     thất bại im lặng thành một phần tử mất hiệu ứng, và có cảnh báo trong
+     console để lần ra chỗ sai. */
+  function initMorphNames() {
+    var seen = Object.create(null);
+
+    document.querySelectorAll('[data-morph]').forEach(function (el) {
+      var name = el.getAttribute('data-morph');
+      if (!name) return;
+
+      /* Phần tử đang bị ẩn — ví dụ nằm trong tab chưa mở — thì không chiếm tên.
+         Tên phải thuộc về phần tử thật sự được chụp ảnh. */
+      if (!el.getClientRects().length) return;
+
+      if (seen[name]) {
+        el.removeAttribute('data-morph');
+        if (window.console && console.warn) {
+          console.warn('[morph] Bỏ tên trùng "' + name +
+                       '": tên trùng làm hỏng hiệu ứng chuyển cảnh của cả trang.');
+        }
+        return;
+      }
+      seen[name] = true;
+      el.style.viewTransitionName = name;
+    });
+  }
+
+  /* Ghi lại vị trí và kích thước của mọi phần tử morph trước khi rời trang.
+     Cất vào sessionStorage chứ không phải localStorage: dữ liệu này chỉ có
+     nghĩa trong một phiên duyệt web, và để lại sẽ khiến lần mở sau đó chạy một
+     hiệu ứng dựa trên vị trí của phiên trước. */
+  function captureMorphRects() {
+    var rects = {};
+
+    document.querySelectorAll('[data-morph]').forEach(function (el) {
+      var name = el.getAttribute('data-morph');
+      if (!name) return;
+      var r = el.getBoundingClientRect();
+      if (!r.width && !r.height) return;
+      rects[name] = [r.left, r.top, r.width, r.height];
+    });
+
+    try {
+      sessionStorage.setItem(MORPH_STORE_KEY, JSON.stringify({
+        url: window.location.pathname + window.location.search,
+        rects: rects
+      }));
+    } catch (err) {
+      /* Chế độ riêng tư của một số trình duyệt chặn sessionStorage. Mất hiệu
+         ứng dự phòng, không ảnh hưởng gì tới việc dùng trang. */
+    }
+  }
+
+  /* Dựng lại hiệu ứng morph cho trình duyệt chưa có View Transitions, bằng
+     kỹ thuật FLIP: đo vị trí cũ, để phần tử hiện ở vị trí mới, rồi chạy ngược
+     từ vị trí cũ về vị trí mới bằng transform. */
+  function runMorphFallback() {
+    var raw = null;
+    try {
+      raw = sessionStorage.getItem(MORPH_STORE_KEY);
+      sessionStorage.removeItem(MORPH_STORE_KEY);
+    } catch (err) {
+      return;
+    }
+    if (!raw) return;
+
+    var saved = null;
+    try {
+      saved = JSON.parse(raw);
+    } catch (err) {
+      return;
+    }
+    if (!saved || !saved.rects) return;
+
+    /* Tải lại cùng một địa chỉ thì không phải chuyển trang, nên không diễn. */
+    if (saved.url === window.location.pathname + window.location.search) return;
+
+    document.querySelectorAll('[data-morph]').forEach(function (el) {
+      var from = saved.rects[el.getAttribute('data-morph')];
+      if (!from) return;
+      if (!from[2] && !from[3]) return;
+
+      var to = el.getBoundingClientRect();
+      if (!to.width && !to.height) return;
+
+      /* Phép biến đổi không áp dụng cho phần tử inline. Đổi sang inline-block
+         rồi **đo lại**, vì việc đổi kiểu hiển thị có thể làm phần tử xê dịch
+         vài pixel — đo trước khi đổi sẽ cho một vị trí đích sai. */
+      var wasInline = false;
+      if (window.getComputedStyle(el).display === 'inline') {
+        el.style.display = 'inline-block';
+        wasInline = true;
+        to = el.getBoundingClientRect();
+      }
+
+      var dx = from[0] - to.left;
+      var dy = from[1] - to.top;
+      var sx = to.width ? from[2] / to.width : 1;
+      var sy = to.height ? from[3] / to.height : 1;
+
+      /* Lệch không đáng kể thì thôi: một hiệu ứng nhúc nhích nửa pixel còn tệ
+         hơn không có hiệu ứng nào. */
+      if (Math.abs(dx) < 4 && Math.abs(dy) < 4 &&
+          Math.abs(sx - 1) < 0.05 && Math.abs(sy - 1) < 0.05) {
+        if (wasInline) el.style.display = '';
+        return;
+      }
+
+      el.style.transformOrigin = 'top left';
+      el.style.transition = 'none';
+      el.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + sx + ',' + sy + ')';
+      el.style.opacity = '0.4';
+
+      /* Buộc trình duyệt ghi nhận trạng thái xuất phát trước khi mở animation.
+         Thiếu bước này thì hai lệnh gán bị gộp làm một và không có gì chuyển
+         động. */
+      void el.offsetWidth;
+
+      el.style.transition = 'transform .42s cubic-bezier(.22,1,.36,1), opacity .3s ease';
+      el.style.transform = 'translate(0,0) scale(1,1)';
+      el.style.opacity = '';
+
+      /* Dọn bằng hẹn giờ chứ không bằng `transitionend`: nếu hiệu ứng bị cắt
+         giữa chừng (người dùng cuộn, phần tử bị vẽ lại), sự kiện không bao giờ
+         tới và thuộc tính inline sẽ nằm lại trên phần tử. */
+      window.setTimeout(function () {
+        el.style.transition = '';
+        el.style.transform = '';
+        el.style.transformOrigin = '';
+        el.style.opacity = '';
+        if (wasInline) el.style.display = '';
+      }, 520);
+    });
+  }
+
+  /* Chụp vị trí ngay trước khi rời trang. Bắt ở sự kiện `click` thay vì
+     `beforeunload`: `beforeunload` bắt cả lúc đóng tab và lúc tải lại, mà tải
+     lại thì không phải chuyển trang nên không nên diễn hiệu ứng. */
+  function initMorphCapture() {
+    document.addEventListener('click', function (e) {
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+      var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a) return;
+      if (a.target && a.target !== '_self') return;
+
+      var href = a.getAttribute('href') || '';
+      if (!href || href.charAt(0) === '#' || /^(mailto:|tel:|javascript:)/i.test(href)) return;
+
+      var url;
+      try {
+        url = new URL(a.href, window.location.href);
+      } catch (err) {
+        return;
+      }
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname &&
+          url.search === window.location.search) return;
+
+      captureMorphRects();
+    }, true);
+  }
+
+  /* Hộp thoại xác nhận cho các thao tác không hoàn tác được. Dùng thuộc tính
+     `data-confirm` trên biểu mẫu thay vì `onsubmit` viết thẳng trong HTML, để
+     phần đánh dấu không phải chứa mã. */
+  function initConfirm() {
+    document.querySelectorAll('form[data-confirm]').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        if (!window.confirm(form.getAttribute('data-confirm'))) e.preventDefault();
+      });
+    });
+  }
+
   /* ---------- Boot ---------- */
   function boot() {
     initTheme();
@@ -546,6 +742,24 @@
     initCountdown();
     initSubmit();
     initLogin();
+    initConfirm();
+
+    if (!reduceMotion && !hasViewTransitions) {
+      runMorphFallback();
+      initMorphCapture();
+    }
+  }
+
+  /* Đặt tên morph ngay lập tức, không đợi DOMContentLoaded.
+
+     Với chuyển cảnh giữa hai trang, trình duyệt chụp ảnh trang mới ở lần vẽ
+     đầu tiên. Nếu tên được đặt sau đó thì ảnh chụp đã lấy xong và phần tử không
+     bay được. Tệp này nằm ở cuối <body> nên mọi phần tử trong trang đều đã có
+     mặt; chỉ chờ tới DOMContentLoaded khi tệp được nạp từ <head>. */
+  if (document.body) {
+    initMorphNames();
+  } else {
+    document.addEventListener('DOMContentLoaded', initMorphNames);
   }
 
   if (document.readyState === 'loading') {

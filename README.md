@@ -22,7 +22,9 @@ Giao diện cho một **online judge** phục vụ nội bộ Trường THCS Sô
 |---|---|
 | ![Chi tiết bài nộp](docs/07-chi-tiet-bai-nop.jpg) | ![Chế độ tối](docs/08-che-do-toi.jpg) |
 
-## Xem thử
+## Chạy thử
+
+### Bản demo giao diện (tĩnh, không cần cài gì)
 
 Cần chạy qua HTTP, không mở trực tiếp bằng `file://` — trình duyệt sẽ chặn tải phông chữ do CORS:
 
@@ -34,6 +36,39 @@ python -m http.server 8777
 Rồi mở `http://127.0.0.1:8777/`.
 
 Không có bước build. Không dùng framework. CSS và JS đều là file tĩnh.
+
+### Hệ thống thật (Flask + SQLite + tiến trình chấm riêng)
+
+Cần Python 3.11 trở lên và `g++` có trong `PATH`.
+
+```bash
+python -m venv .venv && . .venv/bin/activate     # Windows: .venv\Scripts\activate
+pip install -r server/requirements.txt
+
+python -m server.seed                            # tạo tài khoản, đề, bộ dữ liệu, kỳ thi
+python -m server.worker --once                   # chấm các bài nộp mẫu
+python -m server.app                             # mở http://127.0.0.1:5000
+```
+
+`server.seed` in ra tài khoản để đăng nhập. Mật khẩu mặc định chỉ để chạy thử —
+phải đổi trước khi đưa lên máy chủ trường.
+
+Hai tiến trình, chạy song song khi dùng thật:
+
+| Tiến trình | Việc |
+|---|---|
+| `python -m server.app` | Trả trang web |
+| `python -m server.worker` | Nhận bài nộp từ hàng đợi và chấm |
+
+Trong lúc phát triển, `server.seed` và `server.worker` chạy được trên Windows.
+Phần chấm bài trên Windows chỉ có trần thời gian thực, không có giới hạn CPU và
+không hạ được quyền — xem `deploy/README.md` để biết vì sao máy chủ thật phải là Linux.
+
+### Kiểm tra
+
+```bash
+python _tools/smoke.py                           # mở thử mọi tuyến đường, bắt lỗi template
+```
 
 ## Các trang
 
@@ -66,10 +101,23 @@ Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.h
 .
 ├── demo/                     Bản demo giao diện (mở thư mục này để xem)
 │   ├── *.html                11 trang
-│   └── assets/
+│   └── assets/               CSS/JS dùng chung với hệ thống thật
 │       ├── css/style.css     Toàn bộ hệ thống thiết kế (token + thành phần)
 │       ├── js/app.js         Tương tác, không phụ thuộc thư viện ngoài
 │       └── img/              logo.png (huy hiệu, nền trong suốt) · hero.jpg
+├── server/                   Hệ thống thật
+│   ├── app.py                Tuyến đường và các trang
+│   ├── auth.py               Đăng nhập, phân quyền, chống CSRF
+│   ├── db.py                 SQLite, quy ước thời gian UTC
+│   ├── schema.sql            Lược đồ CSDL
+│   ├── sandbox.py            Chạy mã học sinh với giới hạn tài nguyên
+│   ├── judge.py              Dịch, so khớp kết quả, tính điểm
+│   ├── worker.py             Tiến trình chấm, tách khỏi tiến trình web
+│   ├── seed.py               Dữ liệu mẫu (kèm bài nộp C++ thật để chấm thử)
+│   ├── formatting.py         Định dạng số, ngày, nhãn tiếng Việt
+│   └── templates/            14 template Jinja
+├── deploy/                   Hướng dẫn dựng trên máy chủ Linux
+├── _tools/                   Script kiểm tra và sinh ảnh chụp
 ├── docs/                     Ảnh chụp cho README
 ├── assets/                   Ảnh gốc tải từ website nhà trường (kể cả huy hiệu)
 ├── research/                 Ghi chú khảo sát DMOJ/VNOJ
@@ -78,6 +126,42 @@ Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.h
 │   └── judge_config.md
 └── bao-cao-dmoj-tinh-gon.html   Báo cáo: đánh giá DMOJ, phương án tinh gọn, lộ trình
 ```
+
+## Kiến trúc backend, và một quyết định cần xác nhận
+
+**Phần backend này viết mới, không dựa trên DMOJ.** Đây là chỗ lệch so với báo cáo
+`bao-cao-dmoj-tinh-gon.html`, nên cần nói rõ để quyết định lại nếu muốn.
+
+Báo cáo kết luận nên dùng **VNOJ** (bản fork tiếng Việt của DMOJ) và ghi rõ một
+ràng buộc: DMOJ bắt buộc MariaDB + Redis + Celery + nginx + uWSGI + supervisor.
+Cắt tính năng bằng cấu hình thì được, nhưng **không cắt được tầng dữ liệu và các
+dịch vụ phụ trợ** — đó là ràng buộc cứng của kiến trúc. Một trường THCS chỉ cần
+C++ và vài lớp học, nhưng vẫn phải vận hành sáu dịch vụ.
+
+Phương án ở đây thay vào đó là một ứng dụng Flask tự chứa:
+
+| Chọn | Thay vì | Vì sao |
+|---|---|---|
+| Flask | Django | Chỉ cần tuyến đường và template. Django mang theo ORM, admin, migration — ba thứ không dùng tới. |
+| SQLite (thư viện chuẩn) | MariaDB / PostgreSQL | Quy mô một trường: vài trăm tài khoản, vài nghìn bài nộp. Sao lưu bằng cách copy một tệp. |
+| Hàng đợi là các dòng `pending` trong CSDL | Redis + Celery | Hàng đợi chỉ cần "bài nào chưa chấm". `BEGIN IMMEDIATE` bảo đảm hai tiến trình chấm không giành nhau một bài. |
+| `g++` trực tiếp + `setrlimit` | Docker cho mỗi bài | Không cần image, không cần quyền root cho Docker, chấm nhanh hơn nhiều. Đổi lại: cách ly yếu hơn, bù bằng hạ quyền và giới hạn tài nguyên. |
+| C++17 | 60+ ngôn ngữ | Đúng nhu cầu của trường. |
+
+**Đánh đổi phải biết:**
+
+- Cách ly mã học sinh **yếu hơn Docker**. Bù lại bằng `RLIMIT_AS`/`RLIMIT_CPU`/`RLIMIT_NPROC`,
+  `setsid`, chặn tệp core, và tuỳ chọn hạ quyền xuống `nobody`. Không có cách ly
+  hệ thống tệp: nếu worker chạy bằng tài khoản có quyền ghi, mã học sinh cũng có.
+  Trên máy chủ thật **phải** chạy worker bằng tài khoản riêng ít quyền.
+- Không có hệ sinh thái của DMOJ: không plugin, không bảng xếp hạng Elo, không
+  nhập đề từ các hệ thống khác, không cộng đồng hỗ trợ.
+- Đổi lại: cài đặt gọn hơn nhiều, đọc hiểu được toàn bộ mã nguồn, và chấm nhanh
+  hơn vì không có lớp Docker.
+
+Nếu sau này cần nhiều ngôn ngữ, thi đấu liên trường, hoặc tính điểm xếp hạng thì
+VNOJ sẽ phù hợp hơn. Còn với phạm vi "một trường, một ngôn ngữ, vài lớp học" thì
+phương án này nhẹ hơn và ít thứ có thể hỏng hơn.
 
 ## Hệ thống thiết kế
 
@@ -130,16 +214,44 @@ Kích thước hiển thị là **52×52 px**, không phải 46 px như bản đ
 - **Không tràn ngang ở 390 px** trên cả 11 trang (đã đo bằng script, không phải ước lượng).
 - **Trang chi tiết bài nộp** giải thích được lỗi cụ thể: bộ dữ liệu 5 có `1500000000 1500000000`, kết quả đúng là `3000000000` nhưng chương trình in ra `-1294967296` — tràn số `int`. Đây là lỗi dịch không báo, chạy không sập, chỉ sai kết quả.
 
+Về bộ chấm:
+
+- **Đo bộ nhớ bằng `os.wait4`, không phải `subprocess`.** `subprocess` không trả về `rusage`, nên không biết được đỉnh bộ nhớ thật của tiến trình con. Đổi lại phải nhớ một điều: **không được** gọi `Popen.wait()`/`poll()`/`communicate()` trên tiến trình đó, vì chúng thu hồi tiến trình trước và `os.wait4` sẽ ném `ChildProcessError`.
+- **Xét bộ nhớ trước khi xét mã thoát.** Một chương trình C++ hết bộ nhớ chết bằng `SIGABRT` (nếu dùng `new`) hoặc `SIGSEGV` (nếu dùng `malloc` trả `NULL`). Nếu xét mã thoát trước thì nó bị xếp nhầm thành "lỗi khi chạy", trong khi nguyên nhân thật là dùng quá nhiều bộ nhớ.
+- **Hai cơ chế chặn quá thời gian, không phải một.** `RLIMIT_CPU` chặn vòng lặp tính toán; đồng hồ canh giờ thực chặn chương trình ngủ hoặc chờ đọc dữ liệu vào — loại tiêu tốn ít CPU nhưng treo cả hàng đợi chấm. Bộ bài nộp mẫu trong `server/seed.py` có cả hai loại, để nếu ai xoá một trong hai cơ chế thì có bài kiểm tra phát hiện ra.
+- **Bộ dữ liệu ẩn được giấu ở tầng dữ liệu, không phải tầng hiển thị.** Ba cột `input_seen`/`expected_seen`/`actual_seen` trong `test_results` để trống với bộ ẩn, nên một lỗi ở template cũng không có gì để làm lộ.
+- **Bảng xếp hạng cộng điểm cao nhất của từng đề, không cộng mọi lần nộp.** Nếu cộng tất cả thì nộp lại nhiều lần sẽ tự tăng điểm, và bảng xếp hạng đo số lần bấm nút chứ không đo năng lực.
+
+Về chuyển cảnh:
+
+- **Hiệu ứng morph kiểu PowerPoint** giữa các trang, dùng View Transitions API. Phần tử mang `data-morph` trùng tên ở hai trang (mã đề, tên học sinh, huy hiệu kết quả) được trình duyệt nội suy vị trí và kích thước; phần còn lại mờ đi. Trình duyệt chưa hỗ trợ thì có dự phòng bằng FLIP đọc vị trí cũ từ `sessionStorage`. Tôn trọng `prefers-reduced-motion`.
+- **Một tên morph chỉ được xuất hiện một lần trong một trang.** Nếu trùng, trình duyệt huỷ **toàn bộ** hiệu ứng của cả trang chứ không chỉ bỏ qua phần tử trùng, và chỉ ghi một dòng vào console. `app.js` có bộ chặn, `_tools/check_morph.js` kiểm tra lại trên DOM đã render. Bảng xếp hạng là chỗ từng mắc lỗi này: cùng một học sinh vừa ở thẻ top 3 vừa ở bảng đầy đủ.
+
 ## Bước tiếp theo
 
-1. Chốt giao diện với giáo viên, sửa những chỗ chưa hợp ý.
-2. Dựng VNOJ (bản Việt hoá của DMOJ) trên máy ảo Linux, chạy thử một bài C++.
-3. Chuyển CSS/JS này vào template Django — giữ nguyên `demo/assets/css/style.css`, chỉ đổi phần đánh dấu thành cú pháp template.
-4. Nối dần từng phần: đăng nhập → danh sách đề → nộp bài → kết quả.
-5. Tinh gọn DMOJ theo nhóm tính năng đã chốt trong `bao-cao-dmoj-tinh-gon.html`.
+Đã xong:
+
+1. Giao diện 11 trang, có chế độ tối, đã đo không tràn ngang ở 390 px.
+2. Backend Flask + SQLite: tài khoản và phân quyền, đề bài và bộ dữ liệu ẩn,
+   bảng xếp hạng, kỳ thi có đếm ngược, tiến trình chấm riêng.
+3. Bộ chấm đã chạy thật qua cả sáu loại kết quả: AC, WA, TLE, MLE, RE, CE.
+
+Còn lại:
+
+1. **Chốt phương án backend.** Xem mục "Kiến trúc backend" ở trên — repo này
+   đang đi hướng Flask tự chứa, còn báo cáo khuyến nghị VNOJ. Cần quyết trước
+   khi làm tiếp, vì hai hướng không ghép lại được.
+2. Dựng trên máy chủ Linux của trường theo `deploy/README.md`, rồi chấm thử một
+   bài C++ thật để xác nhận `RLIMIT_CPU` và việc hạ quyền hoạt động (hai thứ
+   này không kiểm chứng được trên Windows).
+3. Chốt giao diện với giáo viên, sửa những chỗ chưa hợp ý.
+4. Việc chưa làm, đã biết: nhập tài khoản học sinh hàng loạt, xuất bảng điểm ra
+   tệp, đổi mật khẩu ở lần đăng nhập đầu tiên (CSDL đã có cột
+   `must_change_password` nhưng chưa có trang đổi mật khẩu), và trang quản lý
+   kỳ thi (hiện chỉ đọc được, chưa tạo/sửa được từ giao diện).
 
 ## Ghi chú về giấy phép
 
-Phần mã trong repo này là giao diện viết mới, không chứa mã nguồn DMOJ.
+Phần mã trong repo này là giao diện và backend viết mới, không chứa mã nguồn DMOJ.
 
 Kế hoạch triển khai dựa trên **DMOJ** / **VNOJ**, cả hai đều theo giấy phép **AGPL-3.0**. Nếu lấy mã của họ vào, repo phải giữ giấy phép AGPL-3.0 và công khai toàn bộ mã nguồn phía máy chủ. Điều này cần cân nhắc trước khi triển khai chính thức.

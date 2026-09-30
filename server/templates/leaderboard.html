@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Bảng xếp hạng — Hệ thống chấm bài lập trình | Trường THCS Sông Lô{% endblock %}
+
+{% block content %}
+  <div class="container">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">Bảng xếp hạng</h1>
+        <p class="page-head__sub">Xếp theo tổng điểm cao nhất đạt được ở từng đề. Cập nhật ngay sau mỗi lần chấm xong.</p>
+      </div>
+
+      <form method="get" action="{{ url_for('leaderboard') }}" class="row">
+        <label class="label mb-0" for="scope" style="margin-bottom:0">Phạm vi</label>
+        <select class="select" id="scope" name="scope" style="width:auto;min-width:170px"
+                onchange="this.form.submit()">
+          <option value="all"{% if scope == 'all' %} selected{% endif %}>Toàn trường</option>
+          {% for c in classes %}
+            <option value="{{ c }}"{% if scope == c %} selected{% endif %}>Lớp {{ c }}</option>
+          {% endfor %}
+        </select>
+        <noscript><button class="btn btn--outline btn--sm" type="submit">Xem</button></noscript>
+      </form>
+    </div>
+
+    {% if top %}
+    <section class="grid grid-3 mb-5" aria-label="Ba học sinh dẫn đầu">
+      {% for r in top[:3] %}
+      <div class="card" style="border-top:3px solid {% if r['rank'] == 1 %}#B8860B{% elif r['rank'] == 2 %}#8A8A8A{% else %}#A9662F{% endif %}">
+        <div class="row-between mb-2">
+          <span class="badge{% if r['rank'] == 2 %} badge--grey{% endif %}"
+                {% if r['rank'] == 1 %}style="background:#FBF3DC;color:#8A6508"{% elif r['rank'] == 3 %}style="background:#F7EBE1;color:#8A4F1F"{% endif %}>
+            Hạng {{ r['rank'] }}
+          </span>
+          <span class="text-xs text-muted">{% if r['class_name'] %}Lớp {{ r['class_name'] }}{% endif %}</span>
+        </div>
+        {# Tên morph phải khác tên dùng ở bảng đầy liệt kê bên dưới. Cùng một
+           view-transition-name xuất hiện hai lần trong một trang sẽ khiến trình
+           duyệt bỏ toàn bộ hiệu ứng chuyển cảnh, chứ không chỉ bỏ qua phần tử
+           trùng — nên đây là lỗi im lặng, rất khó lần ra. #}
+        <h2 style="font-size:17px" data-morph="user-name-top-{{ r['id'] }}">{{ r['full_name'] }}</h2>
+        <p class="stat__value" style="font-size:24px" data-morph="user-score-top-{{ r['id'] }}">{{ r['score']|vn_number }}</p>
+        <p class="stat__hint">{{ r['solved'] }} bài đã giải · {{ r['attempts'] }} lần nộp</p>
+      </div>
+      {% endfor %}
+    </section>
+
+    <section class="card mb-4" aria-labelledby="chart-title">
+      <div class="card__head" style="padding:0 0 var(--sp-4);border-bottom:0">
+        <h2 id="chart-title">Điểm của mười học sinh dẫn đầu</h2>
+        <p class="text-xs text-muted mb-0">Bảng đầy đủ ở bên dưới</p>
+      </div>
+
+      <div role="img" aria-label="Biểu đồ cột ngang so sánh điểm của mười học sinh dẫn đầu. Bảng số liệu đầy đủ nằm ngay bên dưới.">
+        {% for r in top %}
+        <div class="bar-row">
+          <span class="bar-row__name">{{ r['full_name'] }}</span>
+          <span class="bar-row__track">
+            <span class="bar-row__fill{% if r['rank'] <= 3 %} bar-row__fill--{{ r['rank'] }}{% endif %}"
+                  style="width:{{ r['bar_percent'] }}%"></span>
+          </span>
+          <span class="bar-row__val">{{ r['score']|vn_number }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="card card--flush" aria-labelledby="lb-title">
+      <div class="card__head">
+        <h2 id="lb-title">Bảng xếp hạng đầy đủ</h2>
+        <p class="text-xs text-muted mb-0">Bấm vào tiêu đề cột để sắp xếp</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table" data-sortable>
+          <caption class="sr-only">Bảng xếp hạng học sinh, có thể sắp xếp theo hạng, tên, lớp, số bài giải được và điểm</caption>
+          <thead>
+            <tr>
+              <th scope="col" style="width:80px" data-numeric>Hạng</th>
+              <th scope="col">Học sinh</th>
+              <th scope="col" style="width:90px">Lớp</th>
+              <th scope="col" class="num" style="width:120px" data-numeric>Bài giải được</th>
+              <th scope="col" class="num" style="width:110px" data-numeric>Tỉ lệ đúng</th>
+              <th scope="col" class="num" style="width:100px" data-numeric>Điểm</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+            <tr>
+              <td><span class="rank{% if r['rank'] <= 3 %} rank--{{ r['rank'] }}{% endif %}">{{ r['rank'] }}</span></td>
+              <td><span data-morph="user-name-{{ r['id'] }}">{{ r['full_name'] }}</span></td>
+              <td>{% if r['class_name'] %}<span class="tag">{{ r['class_name'] }}</span>{% endif %}</td>
+              <td class="num">{{ r['solved'] }}</td>
+              <td class="num">{{ r['accept_rate'] }}%</td>
+              <td class="num" data-morph="user-score-{{ r['id'] }}">{{ r['score']|vn_number }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-muted">Chưa có dữ liệu xếp hạng.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+{% endblock %}

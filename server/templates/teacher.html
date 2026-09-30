@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Tổng quan giáo viên — Hệ thống chấm bài lập trình | Trường THCS Sông Lô{% endblock %}
+
+{% block content %}
+  <div class="container">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">Tổng quan giáo viên</h1>
+        <p class="page-head__sub">Theo dõi hoạt động của học sinh, tình trạng đề bài và các kỳ thi đang mở.</p>
+      </div>
+      <div class="page-head__actions">
+        <a class="btn btn--outline" href="{{ url_for('teacher_classes') }}">Xem điểm</a>
+        <a class="btn btn--primary" href="{{ url_for('teacher_problems') }}">Soạn đề</a>
+      </div>
+    </div>
+
+    <section class="grid grid-4 mb-5" aria-label="Số liệu toàn trường">
+      <div class="stat">
+        <p class="stat__label">Học sinh</p>
+        <p class="stat__value">{{ stats.students|vn_number }}</p>
+        <p class="stat__hint">Thuộc {{ stats.classes }} lớp</p>
+      </div>
+      <div class="stat">
+        <p class="stat__label">Đề bài</p>
+        <p class="stat__value">{{ stats.problems|vn_number }}</p>
+        <p class="stat__hint">{{ stats.pending_review }} đề đang chờ duyệt</p>
+      </div>
+      <div class="stat">
+        <p class="stat__label">Lượt nộp hôm nay</p>
+        <p class="stat__value">{{ stats.today|vn_number }}</p>
+        <p class="stat__hint">Tính từ 0 giờ hôm nay</p>
+      </div>
+      <div class="stat stat--accent">
+        <p class="stat__label">Kỳ thi đang mở</p>
+        <p class="stat__value">{{ stats.open_contests }}</p>
+        <p class="stat__hint">
+          {% if next_contest %}Kỳ thi gần nhất: {{ next_contest['starts_at']|vn_date }}{% else %}Không có kỳ thi nào{% endif %}
+        </p>
+      </div>
+    </section>
+
+    <div class="grid grid-sidebar">
+
+      <div>
+
+        <section class="card card--flush mb-5" aria-labelledby="cls-title">
+          <div class="card__head">
+            <h2 id="cls-title">Lớp đang phụ trách</h2>
+            <a class="btn btn--ghost btn--sm" href="{{ url_for('teacher_classes') }}">Quản lý lớp</a>
+          </div>
+          <div class="table-wrap">
+            <table class="table" data-sortable>
+              <caption class="sr-only">Tiến độ luyện tập theo từng lớp</caption>
+              <thead>
+                <tr>
+                  <th scope="col" style="width:90px">Lớp</th>
+                  <th scope="col" class="num" data-numeric style="width:110px">Sĩ số</th>
+                  <th scope="col" class="num" data-numeric style="width:120px">Đã giải</th>
+                  <th scope="col" style="width:220px">Tiến độ</th>
+                  <th scope="col" class="num" data-numeric style="width:110px">Lượt nộp</th>
+                  <th scope="col" style="width:130px">Nộp gần nhất</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for c in classes %}
+                <tr>
+                  <td><strong>{{ c['class_name'] }}</strong></td>
+                  <td class="num">{{ c['size'] }}</td>
+                  <td class="num">{{ c['solved'] }}</td>
+                  <td>
+                    <div class="row" style="gap:10px">
+                      <div class="progress" style="flex:1" role="progressbar"
+                           aria-valuenow="{{ c['percent'] }}" aria-valuemin="0" aria-valuemax="100"
+                           aria-label="Lớp {{ c['class_name'] }} có {{ c['percent'] }} phần trăm học sinh đã giải được ít nhất một đề">
+                        <div class="progress__bar{% if c['percent'] >= 75 %} progress__bar--ac{% endif %}"
+                             style="width:{{ c['percent'] }}%"></div>
+                      </div>
+                      <span class="text-xs text-muted">{{ c['percent'] }}%</span>
+                    </div>
+                  </td>
+                  <td class="num">{{ c['attempts']|vn_number }}</td>
+                  <td class="text-sm text-muted">{{ c['last_at']|relative_time }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-muted">Chưa có lớp nào có học sinh.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card card--flush" aria-labelledby="sub-title">
+          <div class="card__head">
+            <h2 id="sub-title">Bài nộp gần đây</h2>
+            <span class="text-sm text-muted">Cập nhật khi tải lại trang</span>
+          </div>
+          <div class="table-wrap">
+            <table class="table table--compact">
+              <caption class="sr-only">Tám bài nộp gần đây nhất của học sinh toàn trường</caption>
+              <thead>
+                <tr>
+                  <th scope="col" style="width:110px">Thời gian</th>
+                  <th scope="col">Học sinh</th>
+                  <th scope="col" style="width:80px">Mã</th>
+                  <th scope="col" style="width:150px">Kết quả</th>
+                  <th scope="col" class="num" style="width:80px">Điểm</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for s in recent %}
+                <tr>
+                  <td class="text-sm text-muted">
+                    <a href="{{ url_for('submission_detail', submission_id=s['id']) }}">{{ s['created_at']|vn_time }}</a>
+                  </td>
+                  <td>{{ s['full_name'] }}{% if s['class_name'] %} <span class="tag">{{ s['class_name'] }}</span>{% endif %}</td>
+                  <td class="mono">{{ s['problem_code'] }}</td>
+                  <td>
+                    <span class="{{ s['verdict']|verdict_class }}">
+                      {{ s['verdict']|verdict_text if s['is_finished'] else s['status']|submission_status_text }}
+                    </span>
+                  </td>
+                  <td class="num">{{ s['score'] if s['is_finished'] else '—' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-muted">Chưa có bài nộp nào.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="card__foot">
+            <a href="{{ url_for('submissions', scope='all') }}">Xem toàn bộ bài nộp →</a>
+          </div>
+        </section>
+
+      </div>
+
+      <aside>
+
+        <section class="card mb-4" aria-labelledby="todo-title">
+          <h3 id="todo-title" class="mb-4">Việc cần xử lý</h3>
+          <ul class="side-list">
+            <li>
+              <div class="side-list__row">
+                <span class="badge{% if stats.pending_review %} badge--red{% else %} badge--grey{% endif %}">{{ stats.pending_review }}</span>
+                <span class="text-sm" style="flex:1">Đề chờ duyệt</span>
+                <a class="text-sm" href="{{ url_for('teacher_problems') }}">Duyệt</a>
+              </div>
+            </li>
+            <li>
+              <div class="side-list__row">
+                <span class="badge badge--grey">{{ stats.classes }}</span>
+                <span class="text-sm" style="flex:1">Lớp đang quản lý</span>
+                <a class="text-sm" href="{{ url_for('teacher_classes') }}">Xem</a>
+              </div>
+            </li>
+            <li>
+              <div class="side-list__row">
+                <span class="badge badge--grey">{{ stats.open_contests }}</span>
+                <span class="text-sm" style="flex:1">Kỳ thi đang mở</span>
+                <a class="text-sm" href="{{ url_for('contests') }}">Mở</a>
+              </div>
+            </li>
+          </ul>
+        </section>
+
+        {% if next_contest %}
+        <section class="card mb-4" aria-labelledby="cd-title">
+          <h3 id="cd-title" class="mb-3">Kỳ thi sắp tới</h3>
+          <p class="text-sm text-muted">{{ next_contest['name'] }}</p>
+          <div class="countdown mb-3" data-countdown="{{ next_contest['starts_at'] }}" role="timer"
+               aria-label="Thời gian còn lại tới khi kỳ thi bắt đầu">
+            <div class="countdown__unit"><span class="countdown__num" data-cd="d">00</span><span class="countdown__lbl">Ngày</span></div>
+            <div class="countdown__unit"><span class="countdown__num" data-cd="h">00</span><span class="countdown__lbl">Giờ</span></div>
+            <div class="countdown__unit"><span class="countdown__num" data-cd="m">00</span><span class="countdown__lbl">Phút</span></div>
+            <div class="countdown__unit"><span class="countdown__num" data-cd="s">00</span><span class="countdown__lbl">Giây</span></div>
+          </div>
+          <a class="btn btn--outline btn--block btn--sm" href="{{ url_for('contests') }}">Quản lý kỳ thi</a>
+        </section>
+        {% endif %}
+
+        <section class="alert alert--info" role="note">
+          <div>
+            <p class="alert__title">Nhắc nhở</p>
+            <p class="mb-0 text-sm">
+              Kiểm tra lại bộ dữ liệu ẩn của các đề mới trước khi mở cho học sinh làm bài.
+            </p>
+          </div>
+        </section>
+
+      </aside>
+    </div>
+  </div>
+{% endblock %}

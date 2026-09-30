@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% block title %}Bài nộp #{{ submission['id'] }} — {{ submission['problem_code'] }} | Trường THCS Sông Lô{% endblock %}
+
+{% set v = submission['verdict'] %}
+
+{% block content %}
+  <div class="container">
+
+    <div class="page-head">
+      <div>
+        <p class="micro mb-2">
+          <a href="{{ url_for('submissions') }}">Bài nộp</a> · #{{ submission['id'] }}
+        </p>
+        <h1 class="page-head__title">Chi tiết bài nộp</h1>
+        <p class="page-head__sub">
+          {{ submission['problem_code'] }} — {{ submission['problem_name'] }} ·
+          nộp lúc {{ submission['created_at']|vn_datetime }}
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <a class="btn btn--outline" href="{{ url_for('problem_detail', code=submission['problem_code']) }}">Xem đề bài</a>
+        {% if current_user and current_user['id'] == submission['user_id'] %}
+          <a class="btn btn--primary"
+             href="{{ url_for('problem_detail', code=submission['problem_code'], tab='submit') }}#panel-submit">Nộp lại</a>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ------------------------------------------------------- kết luận #}
+    {% if submission['status'] in ('pending', 'judging') %}
+      <div class="vbar mb-5" data-judge-waiting
+           data-poll-url="{{ url_for('api_submission', submission_id=submission['id']) }}">
+        <div class="vbar__icon" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        </div>
+        <div class="vbar__text">
+          <p class="vbar__verdict">Đang chấm bài</p>
+          <p class="vbar__sub">Trang sẽ tự cập nhật khi có kết quả. Em có thể để tab này mở.</p>
+        </div>
+      </div>
+    {% else %}
+      <div class="{{ v|vbar_class }} mb-5">
+        <div class="vbar__icon" aria-hidden="true">
+          {% if v == 'AC' %}
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          {% elif v == 'CE' %}
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>
+          {% elif v in ('RE', 'IE') %}
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/></svg>
+          {% else %}
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+          {% endif %}
+        </div>
+        <div class="vbar__text">
+          <p class="vbar__verdict" data-morph="verdict-{{ submission['id'] }}">{{ v|verdict_text }}</p>
+          <p class="vbar__sub">{{ summary_sentence }}</p>
+        </div>
+        <div class="vbar__score">
+          <b data-morph="score-{{ submission['id'] }}">{{ submission['score'] }}</b>
+          <span>trên {{ submission['max_score'] }} điểm</span>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="grid grid-sidebar mb-5">
+
+      <div class="stack">
+
+        {# --------------------------------------------- so sánh ở bộ sai đầu tiên #}
+        {% if first_bad %}
+          <section class="card" aria-labelledby="cmp-title">
+            <div class="row-between mb-4">
+              <h2 id="cmp-title" style="font-size:17.5px">
+                Bộ dữ liệu {{ first_bad['ordinal'] }} — kết quả không khớp
+              </h2>
+              <span class="{{ first_bad['verdict']|verdict_class }}">{{ first_bad['verdict']|verdict_text }}</span>
+            </div>
+
+            <div class="io-grid">
+              <div class="io-cell">
+                <p class="io-cell__head">Đầu vào</p>
+                <pre class="io-cell__body">{{ first_bad['input_seen'] }}</pre>
+              </div>
+              <div class="io-cell io-cell--good">
+                <p class="io-cell__head">Kết quả mong đợi</p>
+                <pre class="io-cell__body">{{ first_bad['expected_seen'] }}</pre>
+              </div>
+              <div class="io-cell io-cell--bad">
+                <p class="io-cell__head">Chương trình xuất ra</p>
+                <pre class="io-cell__body">{% if first_bad['actual_seen'] %}<mark>{{ first_bad['actual_seen'] }}</mark>{% else %}(không có gì){% endif %}</pre>
+              </div>
+            </div>
+
+            {% if first_bad['message'] %}
+              <div class="alert alert--info mt-4">
+                <div>
+                  <p class="alert__title">Nhận xét của hệ thống</p>
+                  <p class="mb-0 text-sm">{{ first_bad['message'] }}</p>
+                </div>
+              </div>
+            {% endif %}
+          </section>
+        {% endif %}
+
+        {# -------------------------------------------------- bảng từng bộ #}
+        <section class="card card--flush" aria-labelledby="tests-title">
+          <div class="card__head">
+            <h2 id="tests-title">Kết quả từng bộ dữ liệu</h2>
+            <span class="text-sm text-muted">Bấm vào tiêu đề cột để sắp xếp</span>
+          </div>
+
+          {% if results %}
+          <div class="table-wrap">
+            <table class="table table--compact" data-sortable>
+              <caption class="sr-only">Kết quả chấm của từng bộ dữ liệu, sắp xếp được theo từng cột</caption>
+              <thead>
+                <tr>
+                  <th scope="col" class="num" data-numeric style="width:60px">Bộ</th>
+                  <th scope="col" style="width:150px">Kết quả</th>
+                  <th scope="col" class="num" data-numeric style="width:110px">Thời gian</th>
+                  <th scope="col" class="num" data-numeric style="width:110px">Bộ nhớ</th>
+                  <th scope="col" class="num" data-numeric style="width:90px">Điểm</th>
+                  <th scope="col">Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in results %}
+                <tr{% if r['verdict'] != 'AC' %} class="is-bad"{% endif %} data-verdict="{{ r['verdict'] }}">
+                  <td class="num">{{ r['ordinal'] }}{% if r['ordinal'] in hidden_ordinals %}
+                    <span class="badge badge--grey">ẩn</span>{% endif %}</td>
+                  <td><span class="{{ r['verdict']|verdict_class }}">{{ r['verdict']|verdict_text }}</span></td>
+                  <td class="num">{{ r['time_ms']|vn_runtime(submission['time_limit_ms'], r['verdict']) }}</td>
+                  <td class="num">{{ r['memory_kb']|vn_memory }}</td>
+                  <td class="num">{{ r['points'] }}</td>
+                  <td class="text-sm{% if r['verdict'] == 'AC' %} text-muted{% endif %}">
+                    {{ r['message'] or ('Đúng' if r['verdict'] == 'AC' else '—') }}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card__foot row-between">
+            <span>Tổng: <strong>{{ submission['score'] }}/{{ submission['max_score'] }} điểm</strong>
+              · {{ passed }} đúng, {{ total_tests - passed }} chưa đạt</span>
+            <span class="row" style="gap:var(--sp-4)">
+              {% for code, n in counts.items() %}
+                <span class="row" style="gap:6px">
+                  <span class="{{ code|verdict_dot }}"></span>
+                  <span class="text-xs">{{ code|verdict_text }} {{ n }}</span>
+                </span>
+              {% endfor %}
+            </span>
+          </div>
+          {% else %}
+            <div class="card__body">
+              <div class="empty">
+                <h3>Chưa có kết quả từng bộ</h3>
+                <p class="mb-0">Bài nộp này chưa được chấm xong.</p>
+              </div>
+            </div>
+          {% endif %}
+        </section>
+
+        {# ------------------------------------------- mã nguồn / nhật ký #}
+        <section class="card card--flush" aria-labelledby="src-title">
+          <div class="card__head">
+            <h2 id="src-title">Mã nguồn đã nộp</h2>
+            <span class="text-sm text-muted">
+              main.cpp · {{ source_lines }} dòng · {{ submission['source']|length }} byte
+            </span>
+          </div>
+
+          <div class="tabs" data-tabs role="tablist" aria-label="Nội dung bài nộp">
+            <button class="tab" role="tab" id="tab-source" aria-controls="panel-source" aria-selected="true">Mã nguồn</button>
+            <button class="tab" role="tab" id="tab-log" aria-controls="panel-log" aria-selected="false">Nhật ký dịch</button>
+            <button class="tab" role="tab" id="tab-judge" aria-controls="panel-judge" aria-selected="false">Thông tin chấm</button>
+          </div>
+
+          <div class="tabpanel card__body" id="panel-source" role="tabpanel" aria-labelledby="tab-source" tabindex="0">
+            <div class="viewer" data-code-view data-lang="cpp">
+              <div class="editor__bar">
+                <span class="editor__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span class="editor__lang">main.cpp</span>
+                <span class="editor__meta">C++17 · chỉ đọc</span>
+              </div>
+              <div class="viewer__body">
+                <div class="viewer__gutter" aria-hidden="true"></div>
+                <div class="viewer__code">
+<pre class="viewer__pre" data-highlight>{{ submission['source'] }}</pre>
+                </div>
+              </div>
+            </div>
+            <p class="hint mb-0">Mã nguồn được lưu nguyên văn tại thời điểm nộp và không thể sửa lại.</p>
+          </div>
+
+          <div class="tabpanel card__body" id="panel-log" role="tabpanel" aria-labelledby="tab-log" tabindex="0" hidden>
+            {% if submission['compile_log'] %}
+              <div class="viewer" data-code-view data-lang="text">
+                <div class="editor__bar">
+                  <span class="editor__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                  <span class="editor__lang">nhật ký dịch</span>
+                </div>
+                <div class="viewer__body">
+                  <div class="viewer__gutter" aria-hidden="true"></div>
+                  <div class="viewer__code">
+<pre class="viewer__pre viewer__pre--log">{{ submission['compile_log'] }}</pre>
+                  </div>
+                </div>
+              </div>
+              {% if v != 'CE' %}
+                <div class="alert alert--warn mt-4">
+                  <div>
+                    <p class="alert__title">Dịch thành công không có nghĩa là bài đúng</p>
+                    <p class="mb-0 text-sm">
+                      Trình biên dịch chỉ kiểm tra cú pháp, không kiểm tra kết quả. Bài này vẫn có thể
+                      sai ở một số bộ dữ liệu.
+                    </p>
+                  </div>
+                </div>
+              {% endif %}
+            {% else %}
+              <div class="empty">
+                <h3>Chưa có nhật ký dịch</h3>
+                <p class="mb-0">Bài nộp chưa được chấm xong.</p>
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="tabpanel card__body" id="panel-judge" role="tabpanel" aria-labelledby="tab-judge" tabindex="0" hidden>
+            <ul class="constraints">
+              <li><span class="k">Trình chấm</span><span>g++, chuẩn C++17</span></li>
+              <li><span class="k">Cờ dịch</span><span class="mono">-O2 -pipe -Wall -Wextra</span></li>
+              <li><span class="k">Giới hạn thời gian</span><span>{{ submission['time_limit_ms']|vn_seconds }} / bộ dữ liệu</span></li>
+              <li><span class="k">Giới hạn bộ nhớ</span><span>{{ submission['memory_limit_mb'] }} MB</span></li>
+              <li><span class="k">Chế độ chấm</span>
+                  <span>Chấm hết {{ total_tests }} bộ, điểm là tổng điểm các bộ đạt</span></li>
+              <li><span class="k">Thời điểm chấm</span><span>{{ submission['judged_at']|vn_datetime }}</span></li>
+              <li><span class="k">Thời gian chạy lớn nhất</span><span>{{ submission['time_ms']|vn_runtime(submission['time_limit_ms'], submission['verdict']) }}</span></li>
+              <li><span class="k">Bộ nhớ lớn nhất</span><span>{{ submission['memory_kb']|vn_memory }}</span></li>
+            </ul>
+          </div>
+        </section>
+
+      </div>
+
+      <div class="stack">
+
+        <section class="card" aria-labelledby="info-title">
+          <h2 id="info-title" class="mb-4" style="font-size:16px">Thông tin bài nộp</h2>
+          <ul class="constraints">
+            <li><span class="k">Đề bài</span><span>
+              <a href="{{ url_for('problem_detail', code=submission['problem_code']) }}">{{ submission['problem_code'] }} — {{ submission['problem_name'] }}</a>
+            </span></li>
+            <li><span class="k">Người nộp</span><span>{{ submission['full_name'] }}{% if submission['class_name'] %} · {{ submission['class_name'] }}{% endif %}</span></li>
+            <li><span class="k">Ngôn ngữ</span><span>C++17</span></li>
+            <li><span class="k">Thời điểm</span><span>{{ submission['created_at']|vn_datetime }}</span></li>
+            <li><span class="k">Trạng thái</span><span>{{ submission['status']|submission_status_text }}</span></li>
+            <li><span class="k">Thời gian chạy</span><span>{{ submission['time_ms']|vn_runtime(submission['time_limit_ms'], submission['verdict']) }} (lớn nhất)</span></li>
+            <li><span class="k">Bộ nhớ</span><span>{{ submission['memory_kb']|vn_memory }} (lớn nhất)</span></li>
+            <li><span class="k">Điểm</span><span><strong>{{ submission['score'] }}/{{ submission['max_score'] }}</strong></span></li>
+          </ul>
+        </section>
+
+        {% if fix_hints %}
+        <section class="card" aria-labelledby="fix-title">
+          <h2 id="fix-title" class="mb-3" style="font-size:16px">Gợi ý sửa lỗi</h2>
+          <ol class="text-sm" style="padding-left:20px;margin:0">
+            {#
+              `|safe` ở đây là có chủ ý và an toàn: các chuỗi này do hàm
+              _fix_hints() trong app.py soạn ra, chứa sẵn các thẻ <code> và
+              <strong> để câu gợi ý đọc được, và **không** chứa dữ liệu do
+              người dùng nhập. Nếu sau này có ai đưa dữ liệu người dùng vào
+              danh sách này thì phải bỏ `|safe` đi.
+            #}
+            {% for hint in fix_hints %}
+              <li class="mb-2">{{ hint|safe }}</li>
+            {% endfor %}
+          </ol>
+        </section>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+{% if submission['status'] in ('pending', 'judging') %}
+<script>
+/* Cùng cơ chế với trang đề bài: hỏi trạng thái cho tới khi chấm xong. */
+(function () {
+  var box = document.querySelector('[data-judge-waiting]');
+  if (!box) return;
+  var url = box.getAttribute('data-poll-url');
+  var deadline = Date.now() + 5 * 60 * 1000;
+  var timer = setInterval(function () {
+    if (Date.now() > deadline) { clearInterval(timer); return; }
+    fetch(url, { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && d.done) { clearInterval(timer); window.location.reload(); } })
+      .catch(function () {});
+  }, 2000);
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,21 @@
+# Phụ thuộc của Song Lo OJ.
+#
+# Cố ý giữ ở mức tối thiểu. Mỗi gói thêm vào là một thứ phải cập nhật vá bảo mật
+# trên máy chủ của trường, và giáo viên phụ trách không nên phải làm việc đó.
+#
+# Flask kéo theo Werkzeug, Jinja2, MarkupSafe, itsdangerous, click, blinker.
+# Werkzeug được dùng trực tiếp cho việc băm mật khẩu (xem auth.py) và Jinja2 cho
+# template, nên hai gói này không phải phụ thuộc "kéo theo" mà là phụ thuộc thật.
+Flask>=3.0,<4.0
+
+# Máy chủ WSGI cho môi trường chạy thật. Máy chủ phát triển của Flask không
+# chịu được tải và không nên đặt sau Internet.
+gunicorn>=21.2; sys_platform != "win32"
+
+# Ghi chú về các gói KHÔNG dùng, để sau này không ai thêm lại:
+#   * Không dùng SQLAlchemy — `sqlite3` có sẵn trong Python, và với quy mô một
+#     trường thì câu SQL viết thẳng dễ đọc hơn một tầng ánh xạ.
+#   * Không dùng Celery/Redis cho hàng đợi chấm bài — hàng đợi nằm ngay trong
+#     bảng `submissions`, trạng thái `pending` chính là hàng đợi. Thêm Redis
+#     nghĩa là thêm một dịch vụ nữa phải cài, chạy và sao lưu trên VPS trường.
+#   * Không dùng Docker để cách ly bài chấm — xem README.md phần bảo mật.

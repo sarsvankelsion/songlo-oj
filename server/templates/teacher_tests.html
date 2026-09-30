@@ -1,0 +1,248 @@
+{#
+  Quản lý bộ dữ liệu của một đề.
+
+  Trang này là chỗ giáo viên nhập dữ liệu vào – ra thật. Khác với trang chi tiết
+  đề của học sinh, ở đây nội dung của *cả* bộ dữ liệu công khai lẫn bộ ẩn đều
+  hiện đầy đủ: giáo viên là người soạn ra chúng, nên giấu đi là vô nghĩa.
+
+  Điểm cần lưu ý khi sửa: mỗi bộ dữ liệu ẩn vẫn được hiển thị y như bộ công
+  khai ở đây. Nếu sau này có ai thêm quyền "giáo viên tập sự" hay tương tự thì
+  phải chặn ở tầng route, không phải bằng cách ẩn ở template — dữ liệu đã nằm
+  trong HTML thì ẩn bằng CSS cũng vô ích.
+#}
+{% extends "base.html" %}
+{% block title %}Bộ dữ liệu {{ problem['code'] }} — Khu giáo viên | Trường THCS Sông Lô{% endblock %}
+
+{% block content %}
+  {# Đếm bộ ẩn một lần rồi dùng lại ở hai chỗ. `tests` là danh sách sqlite3.Row,
+     mà Row không cho truy cập bằng thuộc tính, nên phải đi qua map(attribute=…)
+     — Jinja tự lùi về phép tra theo khoá khi getattr thất bại. #}
+  {% set hidden_count = tests|map(attribute='is_hidden')|select|list|length %}
+
+  <div class="container" style="padding-top:24px">
+
+    <nav aria-label="Đường dẫn" class="text-sm text-muted mb-3">
+      <a href="{{ url_for('teacher') }}">Khu giáo viên</a> ›
+      <a href="{{ url_for('teacher_problems') }}">Soạn đề</a> ›
+      <span>{{ problem['code'] }}</span>
+    </nav>
+
+    <div class="row-between mb-4">
+      <div>
+        <h1 style="font-size:24px">Bộ dữ liệu — {{ problem['name'] }}</h1>
+        <div class="row mt-2">
+          <span class="mono text-muted text-sm">{{ problem['code'] }}</span>
+          <span class="{{ problem['difficulty']|difficulty_class }}">{{ problem['difficulty']|difficulty_text }}</span>
+          <span class="{{ problem['status']|problem_status_class }}">{{ problem['status']|problem_status_text }}</span>
+          <span class="tag">{{ tests|length }} bộ dữ liệu</span>
+          <span class="tag">{{ hidden_count }} bộ ẩn</span>
+        </div>
+      </div>
+      <div class="page-head__actions">
+        <a class="btn btn--outline btn--sm" href="{{ url_for('problem_detail', code=problem['code']) }}">Xem như học sinh</a>
+        <a class="btn btn--ghost btn--sm" href="{{ url_for('teacher_problems') }}">← Danh sách đề</a>
+      </div>
+    </div>
+
+    {# Cảnh báo sớm khi đề chưa đủ điều kiện công khai. Đây là lúc rẻ nhất để
+       sửa: đang ở đúng trang nhập dữ liệu, không phải quay lại sau. #}
+    {% if tests|length < 3 %}
+      <div class="alert alert--warn mb-4" role="note">
+        <div>
+          <p class="alert__title">Đề mới có {{ tests|length }} bộ dữ liệu</p>
+          <p class="mb-0 text-sm">
+            Nên có ít nhất 3 bộ. Với một bộ duy nhất, học sinh chỉ cần in ra đúng
+            kết quả của ví dụ là qua bài.
+          </p>
+        </div>
+      </div>
+    {% elif hidden_count == 0 %}
+      <div class="alert alert--warn mb-4" role="note">
+        <div>
+          <p class="alert__title">Chưa có bộ dữ liệu ẩn</p>
+          <p class="mb-0 text-sm">
+            Mọi bộ đang ở chế độ công khai, nghĩa là học sinh xem được cả dữ liệu
+            vào lẫn đáp án ở tab “Đề bài”. Đánh dấu ẩn cho ít nhất một bộ.
+          </p>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="grid grid-sidebar">
+
+      <div>
+        <section class="card card--flush mb-4" aria-labelledby="tl-title">
+          <div class="card__head">
+            <h2 id="tl-title">Danh sách bộ dữ liệu</h2>
+            <span class="text-sm text-muted">
+              Tổng <strong>{{ tests|length }}</strong> bộ ·
+              {{ problem['points_mode']|default('even') == 'custom' and 'điểm theo từng bộ' or 'chia đều 100 điểm' }}
+            </span>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table">
+              <caption class="sr-only">Bộ dữ liệu của đề {{ problem['code'] }}: thứ tự, nội dung vào, nội dung ra, điểm và chế độ ẩn</caption>
+              <thead>
+                <tr>
+                  <th scope="col" style="width:56px">TT</th>
+                  <th scope="col" style="width:34%">Dữ liệu vào</th>
+                  <th scope="col" style="width:34%">Dữ liệu ra</th>
+                  <th scope="col" class="num" data-numeric style="width:80px">Điểm</th>
+                  <th scope="col" style="width:96px">Chế độ</th>
+                  <th scope="col" style="width:96px"><span class="sr-only">Thao tác</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for t in tests %}
+                <tr>
+                  <td class="mono">{{ t['ordinal'] }}</td>
+                  <td>
+                    <pre class="tc-pre">{{ t['input'] if t['input'] else '—' }}</pre>
+                  </td>
+                  <td>
+                    <pre class="tc-pre">{{ t['output'] if t['output'] else '—' }}</pre>
+                  </td>
+                  <td class="num">{{ t['points'] if t['points'] else '—' }}</td>
+                  <td>
+                    {% if t['is_hidden'] %}
+                      <span class="badge badge--grey">Ẩn</span>
+                    {% else %}
+                      <span class="badge badge--green">Công khai</span>
+                    {% endif %}
+                    {% if t['note'] %}<p class="text-xs text-muted mb-0 mt-1">{{ t['note'] }}</p>{% endif %}
+                  </td>
+                  <td>
+                    <form method="post" action="{{ url_for('teacher_problem_tests', code=problem['code']) }}"
+                          data-confirm="Xoá bộ dữ liệu số {{ t['ordinal'] }}? Thao tác này không hoàn tác được.">
+                      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                      <input type="hidden" name="action" value="delete">
+                      <input type="hidden" name="ordinal" value="{{ t['ordinal'] }}">
+                      <button class="btn btn--ghost btn--sm" type="submit">Xoá</button>
+                    </form>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="6" class="text-muted">
+                    Đề này chưa có bộ dữ liệu nào. Dùng biểu mẫu bên dưới để thêm bộ đầu tiên.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card__foot">
+            <p class="text-sm text-muted mb-0">
+              Thứ tự được đánh lại tự động khi thêm bộ mới. Xoá một bộ không làm
+              thay đổi thứ tự của các bộ còn lại.
+            </p>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="ta-title">
+          <div class="card__head">
+            <h2 id="ta-title">Thêm bộ dữ liệu</h2>
+            <span class="text-sm text-muted">Bộ mới nhận số thứ tự {{ tests|length + 1 }}</span>
+          </div>
+
+          <div class="card__body">
+            <form method="post" action="{{ url_for('teacher_problem_tests', code=problem['code']) }}" novalidate>
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="add">
+
+              <div class="grid grid-2">
+                <div class="field">
+                  <label class="label" for="t-input">Dữ liệu vào <span class="req" aria-hidden="true">*</span></label>
+                  <textarea class="textarea mono" id="t-input" name="input" rows="8"
+                            spellcheck="false" placeholder="5&#10;1 2 3 4 5"></textarea>
+                </div>
+                <div class="field">
+                  <label class="label" for="t-output">Dữ liệu ra <span class="req" aria-hidden="true">*</span></label>
+                  <textarea class="textarea mono" id="t-output" name="output" rows="8"
+                            spellcheck="false" placeholder="15"></textarea>
+                </div>
+              </div>
+
+              <div class="grid grid-3">
+                <div class="field">
+                  <label class="label" for="t-points">Điểm cho bộ này</label>
+                  <input class="input" id="t-points" name="points" type="number" min="0" max="100" step="1" value="0">
+                  <p class="hint">
+                    Chỉ dùng khi đề chọn thang điểm “theo từng bộ”. Để trống hoặc 0
+                    nếu đề chia đều.
+                  </p>
+                </div>
+                <div class="field">
+                  <label class="label" for="t-note">Ghi chú</label>
+                  <input class="input" id="t-note" name="note" type="text"
+                         placeholder="Bộ lớn nhất, kiểm tra tràn số">
+                  <p class="hint">Chỉ giáo viên thấy. Giúp nhớ mỗi bộ dùng để bẫy gì.</p>
+                </div>
+                <div class="field">
+                  <label class="label" for="t-hidden">Chế độ hiển thị</label>
+                  <label class="check" for="t-hidden">
+                    <input type="checkbox" id="t-hidden" name="is_hidden" value="1" checked>
+                    <span>Bộ dữ liệu ẩn</span>
+                  </label>
+                  <p class="hint">
+                    Bộ ẩn không hiện dữ liệu cho học sinh; em chỉ thấy đúng hay sai.
+                  </p>
+                </div>
+              </div>
+
+              <div class="row">
+                <button class="btn btn--primary" type="submit">Thêm bộ dữ liệu</button>
+                <button class="btn btn--ghost" type="reset">Xoá biểu mẫu</button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
+
+      <aside>
+        <section class="card mb-4" aria-labelledby="lim-title">
+          <h3 id="lim-title" class="mb-4">Giới hạn của đề</h3>
+          <ul class="constraints">
+            <li><span class="k">Thời gian</span> <span>{{ problem['time_limit_ms']|vn_seconds }}</span></li>
+            <li><span class="k">Bộ nhớ</span> <span>{{ problem['memory_limit_mb'] }} MB</span></li>
+            <li><span class="k">Ngôn ngữ</span> <span class="mono">C++17</span></li>
+            <li><span class="k">Thang điểm</span>
+              <span>{{ problem['points_mode']|default('even') == 'custom' and 'Theo từng bộ' or 'Chia đều' }}</span>
+            </li>
+          </ul>
+          <p class="hint mb-0">
+            Giới hạn đặt ở trang soạn đề. Đổi giới hạn không cần chấm lại bài cũ —
+            điểm đã chấm giữ nguyên.
+          </p>
+        </section>
+
+        <section class="card mb-4" aria-labelledby="cmp-title">
+          <h3 id="cmp-title" class="mb-4">Cách so khớp</h3>
+          <ul class="constraints">
+            <li><span class="k">Trình dịch</span> <span class="mono">g++ -std=c++17 -O2</span></li>
+            <li><span class="k">Trắng cuối dòng</span> <span>bỏ qua</span></li>
+            <li><span class="k">Dòng trống cuối</span> <span>bỏ qua</span></li>
+            <li><span class="k">Trắng đầu dòng</span> <span>giữ nguyên</span></li>
+          </ul>
+          <p class="hint mb-0">
+            Khoảng trắng ở <em>đầu</em> dòng vẫn được tính, nên bài in bảng hoặc
+            hình phải căn đúng. Đây là chủ ý: bỏ luôn cả trắng đầu dòng sẽ khiến
+            những bài in sai định dạng vẫn được điểm tuyệt đối.
+          </p>
+        </section>
+
+        <section class="alert alert--info" role="note">
+          <div>
+            <p class="alert__title">Đừng để lộ đáp án</p>
+            <p class="mb-0 text-sm">
+              Một bộ dữ liệu công khai kèm đáp án cho sẵn là đủ để học sinh in ra
+              kết quả đúng mà không cần giải. Giữ phần lớn dữ liệu ở chế độ ẩn.
+            </p>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+{% endblock %}

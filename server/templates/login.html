@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Đăng nhập — Hệ thống chấm bài lập trình | Trường THCS Sông Lô{% endblock %}
+
+{% block content %}
+  <div class="container" style="padding-top:48px;padding-bottom:64px;max-width:1080px">
+
+    <div class="grid grid-2" style="align-items:start;gap:32px">
+
+      <section class="card" aria-labelledby="login-title">
+        <h1 id="login-title" style="font-size:22px">Đăng nhập</h1>
+        <p class="text-muted text-sm mt-2 mb-4">
+          Dùng tài khoản do giáo viên cấp. Học sinh không tự đăng ký được.
+        </p>
+
+        <form method="post" action="{{ url_for('login') }}" novalidate>
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
+
+          <div class="field">
+            <label class="label" for="username">
+              Tên đăng nhập <span class="req" aria-hidden="true">*</span>
+            </label>
+            <input class="input" id="username" name="username" type="text"
+                   value="{{ username or '' }}"
+                   autocomplete="username" autocapitalize="off" spellcheck="false"
+                   aria-describedby="username-hint" required autofocus>
+            <p class="hint" id="username-hint">Ví dụ: <code>an.nguyen9a</code></p>
+          </div>
+
+          <div class="field">
+            <label class="label" for="password">
+              Mật khẩu <span class="req" aria-hidden="true">*</span>
+            </label>
+            <input class="input" id="password" name="password" type="password"
+                   autocomplete="current-password"
+                   aria-describedby="password-hint" required>
+            <p class="hint" id="password-hint">Mật khẩu do giáo viên phát.</p>
+          </div>
+
+          <div class="field">
+            <label class="row" style="cursor:pointer;font-weight:400">
+              <input type="checkbox" id="remember" name="remember" value="1"
+                     style="width:18px;height:18px" checked>
+              <span class="text-sm">Giữ đăng nhập trên máy này</span>
+            </label>
+            <p class="hint">Chỉ nên bật khi dùng máy cá nhân. Ở phòng máy chung, hãy tắt và
+              bấm Đăng xuất sau khi dùng xong.</p>
+          </div>
+
+          <button class="btn btn--primary btn--block" type="submit">Đăng nhập</button>
+        </form>
+
+        <hr>
+
+        <p class="text-sm text-muted mb-0">
+          Quên mật khẩu? Liên hệ giáo viên phụ trách phòng máy để được cấp lại.
+        </p>
+      </section>
+
+      <aside class="stack">
+
+        <section class="card" aria-labelledby="info-title">
+          <h2 id="info-title" style="font-size:17px" class="mb-3">Dành cho học sinh</h2>
+          <ul class="side-list">
+            <li><div class="side-list__row"><span class="badge">1</span><span class="text-sm" style="flex:1">Nhận tài khoản từ giáo viên phụ trách</span></div></li>
+            <li><div class="side-list__row"><span class="badge">2</span><span class="text-sm" style="flex:1">Đổi mật khẩu trong lần đăng nhập đầu tiên</span></div></li>
+            <li><div class="side-list__row"><span class="badge">3</span><span class="text-sm" style="flex:1">Vào mục Đề bài để bắt đầu luyện tập</span></div></li>
+          </ul>
+        </section>
+
+        <section class="alert alert--info" role="note">
+          <div>
+            <p class="alert__title">Nộp bài bằng ngôn ngữ C++</p>
+            <p class="mb-0 text-sm">
+              Hệ thống hiện chỉ chấm C++17. Bài nộp được chấm tự động, có bộ dữ liệu ẩn
+              nên đừng chỉ làm cho qua ví dụ trong đề.
+            </p>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2 style="font-size:17px" class="mb-3">Hỗ trợ</h2>
+          <ul class="constraints">
+            <li><span class="k">Điện thoại</span> <span>0888 037 318</span></li>
+            <li><span class="k">Email</span> <span class="text-sm">thcssonglotamson@phutho.edu.vn</span></li>
+            <li><span class="k">Giờ hỗ trợ</span> <span>Trong giờ hành chính</span></li>
+          </ul>
+        </section>
+
+      </aside>
+    </div>
+  </div>
+{% endblock %}

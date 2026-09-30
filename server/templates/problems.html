@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Đề bài — Hệ thống chấm bài lập trình | Trường THCS Sông Lô{% endblock %}
+{% block description %}Danh sách đề bài luyện tập lập trình C++ dành cho học sinh Trường THCS Sông Lô.{% endblock %}
+
+{#
+  Bộ lọc chạy ở máy chủ qua GET, không phải bằng JavaScript.
+
+  Bản demo lọc bằng JS vì không có máy chủ. Ở đây có máy chủ, nên lọc phía máy
+  chủ là lựa chọn đúng: đường dẫn chia sẻ được (`/problems?difficulty=nang-cao`
+  gửi cho học sinh là mở đúng danh sách đã lọc), nút Quay lại của trình duyệt
+  hoạt động đúng, và không phụ thuộc JavaScript.
+
+  Ô tìm kiếm vẫn có `data-filter-search` để lọc tức thì trong trang đã tải —
+  đó là lớp tăng cường thêm, không phải cơ chế chính.
+#}
+
+{% macro filter_url(difficulty=None, topic=None, mine=None) %}
+  {{ url_for('problems',
+       q=filters.q or None,
+       topic=topic if topic is not none else (filters.topic or None),
+       difficulty=difficulty if difficulty is not none else (filters.difficulty or None),
+       mine=mine if mine is not none else (filters.mine or None)) }}
+{% endmacro %}
+
+{% block content %}
+  <div class="container">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">Đề bài</h1>
+        <p class="page-head__sub">Luyện tập theo chủ đề, nộp bài và xem kết quả chấm ngay.</p>
+      </div>
+      <span class="text-sm text-muted" aria-live="polite">
+        Hiển thị <strong data-filter-count>{{ problems|length }}</strong> / {{ total }} đề bài
+      </span>
+    </div>
+
+    <section class="card mb-4" aria-labelledby="filter-title">
+      <h2 id="filter-title" class="sr-only">Bộ lọc đề bài</h2>
+
+      <form method="get" action="{{ url_for('problems') }}">
+        <div class="grid grid-3">
+          <div class="field mb-0">
+            <label class="label" for="q">Tìm kiếm</label>
+            <input class="input" id="q" name="q" type="search" value="{{ filters.q }}"
+                   placeholder="Nhập mã đề hoặc tên bài…" data-filter-search autocomplete="off">
+            <p class="hint">Ví dụ: <code>SL014</code> hoặc <code>nguyên tố</code></p>
+          </div>
+
+          <div class="field mb-0">
+            <label class="label" for="topic">Chủ đề</label>
+            <select class="select" id="topic" name="topic">
+              <option value="">Tất cả chủ đề</option>
+              {% for t in topics %}
+                <option value="{{ t }}"{% if filters.topic == t %} selected{% endif %}>{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="field mb-0">
+            <label class="label" for="mine">Trạng thái của em</label>
+            <select class="select" id="mine" name="mine">
+              <option value=""{% if not filters.mine %} selected{% endif %}>Tất cả</option>
+              <option value="solved"{% if filters.mine == 'solved' %} selected{% endif %}>Đã giải đúng</option>
+              <option value="attempted"{% if filters.mine == 'attempted' %} selected{% endif %}>Đã nộp, chưa đúng</option>
+              <option value="unsolved"{% if filters.mine == 'unsolved' %} selected{% endif %}>Chưa giải đúng</option>
+            </select>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="row" role="group" aria-label="Lọc theo độ khó">
+          <span class="text-sm text-muted">Độ khó:</span>
+          <a class="btn btn--outline btn--sm" href="{{ filter_url(difficulty='') }}"
+             aria-pressed="{{ 'true' if not filters.difficulty else 'false' }}">Tất cả</a>
+          <a class="btn btn--outline btn--sm" href="{{ filter_url(difficulty='co-ban') }}"
+             aria-pressed="{{ 'true' if filters.difficulty == 'co-ban' else 'false' }}">Cơ bản</a>
+          <a class="btn btn--outline btn--sm" href="{{ filter_url(difficulty='trung-binh') }}"
+             aria-pressed="{{ 'true' if filters.difficulty == 'trung-binh' else 'false' }}">Trung bình</a>
+          <a class="btn btn--outline btn--sm" href="{{ filter_url(difficulty='nang-cao') }}"
+             aria-pressed="{{ 'true' if filters.difficulty == 'nang-cao' else 'false' }}">Nâng cao</a>
+          <span class="spacer"></span>
+          <button class="btn btn--primary btn--sm" type="submit">Lọc</button>
+          <a class="btn btn--ghost btn--sm" href="{{ url_for('problems') }}">Xoá lọc</a>
+        </div>
+      </form>
+    </section>
+
+    <section class="card card--flush" aria-labelledby="plist-title">
+      <div class="card__head">
+        <h2 id="plist-title">Danh sách đề bài</h2>
+        <p class="text-xs text-muted mb-0">Bấm vào tiêu đề cột để sắp xếp</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table" data-sortable>
+          <caption class="sr-only">Danh sách đề bài, có thể sắp xếp theo mã, tên, độ khó, tỉ lệ đúng và số người giải</caption>
+          <thead>
+            <tr>
+              <th scope="col" style="width:56px" data-nosort><span class="sr-only">Trạng thái</span>TT</th>
+              <th scope="col" style="width:90px">Mã</th>
+              <th scope="col">Tên bài</th>
+              <th scope="col" style="width:110px">Độ khó</th>
+              <th scope="col" style="width:150px">Chủ đề</th>
+              <th scope="col" class="num" style="width:110px" data-numeric>Tỉ lệ đúng</th>
+              <th scope="col" class="num" style="width:110px" data-numeric>Giải được</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in problems %}
+            <tr data-filter-row>
+              <td>
+                {% if p['my_state'] == 2 %}
+                  <span class="dots" role="img" aria-label="Đã giải đúng"><span class="dot dot--ac"></span></span>
+                {% elif p['my_state'] == 1 %}
+                  <span class="dots" role="img" aria-label="Đã nộp nhưng chưa đúng"><span class="dot dot--wa"></span></span>
+                {% else %}
+                  <span class="dots" role="img" aria-label="Chưa làm"><span class="dot dot--none"></span></span>
+                {% endif %}
+              </td>
+              <td class="mono" data-morph="problem-code-{{ p['code'] }}">{{ p['code'] }}</td>
+              <td><a href="{{ url_for('problem_detail', code=p['code']) }}">{{ p['name'] }}</a></td>
+              <td><span class="{{ p['difficulty']|difficulty_class }}">{{ p['difficulty']|difficulty_text }}</span></td>
+              <td class="text-muted">{{ p['topic'] or '—' }}</td>
+              <td class="num">{{ p['accept_rate'] }}%</td>
+              <td class="num">{{ p['solved_by'] }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <div data-filter-empty {% if problems %}hidden{% endif %}>
+          <div class="empty">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+            </svg>
+            <h3>Không tìm thấy đề bài nào</h3>
+            <p class="mb-0">Thử xoá bộ lọc hoặc tìm bằng từ khoá khác.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+{% endblock %}

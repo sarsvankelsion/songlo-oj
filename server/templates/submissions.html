@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}Bài nộp — Hệ thống chấm bài lập trình | Trường THCS Sông Lô{% endblock %}
+
+{% block content %}
+  <div class="container">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">Bài nộp</h1>
+        <p class="page-head__sub">
+          {% if is_teacher and scope == 'all' %}
+            Bài nộp của toàn trường. Bấm vào thời gian nộp để xem lại mã nguồn và kết quả từng bộ dữ liệu.
+          {% else %}
+            Toàn bộ bài nộp của em. Bấm vào thời gian nộp để xem lại mã nguồn, nhật ký dịch và kết quả từng bộ dữ liệu.
+          {% endif %}
+        </p>
+      </div>
+      <div class="page-head__actions">
+        {% if is_teacher %}
+          {% if scope == 'all' %}
+            <a class="btn btn--outline" href="{{ url_for('submissions', scope='mine') }}">Chỉ bài của tôi</a>
+          {% else %}
+            <a class="btn btn--outline" href="{{ url_for('submissions', scope='all') }}">Toàn trường</a>
+          {% endif %}
+        {% endif %}
+        <a class="btn btn--primary" href="{{ url_for('problems') }}">Nộp bài mới</a>
+      </div>
+    </div>
+
+    {% if scope == 'mine' %}
+    <section class="grid grid-4 mb-5" aria-label="Tổng quan bài nộp">
+      <div class="stat">
+        <p class="stat__label">Tổng bài nộp</p>
+        <p class="stat__value">{{ summary.total|vn_number }}</p>
+        <p class="stat__hint">Tính từ khi tạo tài khoản</p>
+      </div>
+      <div class="stat">
+        <p class="stat__label">Tỉ lệ đúng</p>
+        <p class="stat__value">{{ summary.accept_rate }}%</p>
+        <p class="stat__hint">{{ summary.accepted }} bài đạt điểm tối đa</p>
+      </div>
+      <div class="stat">
+        <p class="stat__label">Đề đã giải</p>
+        <p class="stat__value">{{ summary.solved }}</p>
+        <p class="stat__hint">Trên tổng số {{ summary.problems }} đề</p>
+      </div>
+      <div class="stat stat--accent">
+        <p class="stat__label">Còn lại hôm nay</p>
+        <p class="stat__value">—</p>
+        <p class="stat__hint">Hạn mức tính riêng cho từng đề</p>
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="card mb-5" aria-labelledby="flt-title">
+      <form method="get" action="{{ url_for('submissions') }}">
+        <input type="hidden" name="scope" value="{{ scope }}">
+        <div class="row-between mb-4">
+          <h2 id="flt-title" style="font-size:17.5px">Lọc bài nộp</h2>
+          <span class="text-sm text-muted" aria-live="polite">
+            Hiện <strong data-filter-count>{{ submissions|length }}</strong> bài nộp
+          </span>
+        </div>
+
+        <div class="grid grid-3">
+          <div class="field mb-0">
+            <label class="label" for="q">Tìm kiếm</label>
+            <input class="input" id="q" name="q" type="search" value="{{ filters.q }}"
+                   placeholder="Mã đề, tên bài hoặc tên học sinh…" data-filter-search autocomplete="off">
+            <p class="hint">Ví dụ: <code>SL014</code> hoặc <code>nguyên tố</code></p>
+          </div>
+          <div class="field mb-0">
+            <label class="label" for="verdict">Kết quả</label>
+            <select class="select" id="verdict" name="verdict">
+              <option value="">Tất cả kết quả</option>
+              <option value="AC"{% if filters.verdict == 'AC' %} selected{% endif %}>Đúng</option>
+              <option value="WA"{% if filters.verdict == 'WA' %} selected{% endif %}>Sai</option>
+              <option value="TLE"{% if filters.verdict == 'TLE' %} selected{% endif %}>Quá thời gian</option>
+              <option value="MLE"{% if filters.verdict == 'MLE' %} selected{% endif %}>Quá bộ nhớ</option>
+              <option value="RE"{% if filters.verdict == 'RE' %} selected{% endif %}>Lỗi khi chạy</option>
+              <option value="CE"{% if filters.verdict == 'CE' %} selected{% endif %}>Lỗi dịch</option>
+            </select>
+          </div>
+          <div class="field mb-0">
+            <label class="label" for="lang">Ngôn ngữ</label>
+            <select class="select" id="lang" name="lang">
+              <option value="">C++17 (g++)</option>
+            </select>
+            <p class="hint">Hệ thống hiện chỉ chấm C++17.</p>
+          </div>
+        </div>
+
+        <div class="row mt-4">
+          <button class="btn btn--primary btn--sm" type="submit">Lọc</button>
+          <a class="btn btn--ghost btn--sm" href="{{ url_for('submissions', scope=scope) }}">Xoá lọc</a>
+        </div>
+      </form>
+    </section>
+
+    <section class="card card--flush mb-5" aria-labelledby="list-title">
+      <div class="card__head">
+        <h2 id="list-title">Danh sách bài nộp</h2>
+        <span class="text-sm text-muted">Bấm vào tiêu đề cột để sắp xếp · tối đa 200 bài gần nhất</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table" data-sortable>
+          <caption class="sr-only">Danh sách bài nộp, sắp xếp được theo từng cột</caption>
+          <thead>
+            <tr>
+              <th scope="col" data-numeric style="width:150px">Thời gian</th>
+              {% if scope == 'all' %}<th scope="col" style="width:170px">Học sinh</th>{% endif %}
+              <th scope="col" style="width:80px">Mã</th>
+              <th scope="col">Tên bài</th>
+              <th scope="col" style="width:150px">Kết quả</th>
+              <th scope="col" class="num" data-numeric style="width:80px">Điểm</th>
+              <th scope="col" class="num" data-numeric style="width:100px">Chạy</th>
+              <th scope="col" class="num" data-numeric style="width:110px">Bộ nhớ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in submissions %}
+            <tr data-filter-row data-verdict="{{ s['verdict'] }}">
+              <td class="text-sm nowrap">
+                <a href="{{ url_for('submission_detail', submission_id=s['id']) }}">{{ s['created_at']|vn_day_month }}</a>
+              </td>
+              {% if scope == 'all' %}
+                {#
+                  Không gắn data-morph cho tên học sinh hay mã đề ở bảng này.
+
+                  Đây là một bản ghi nhật ký, nên cùng một học sinh nộp cùng một
+                  đề mười lần sẽ cho ra mười dòng trùng nhau. Hai dòng cùng một
+                  view-transition-name trong một trang khiến trình duyệt huỷ sạch
+                  hiệu ứng chuyển cảnh của cả trang, chứ không bỏ qua riêng dòng
+                  trùng. Và kể cả khi tên không trùng thì cũng chẳng có đích để
+                  morph tới: trang chi tiết bài nộp không hiển thị tên học sinh.
+
+                  Chỉ huy hiệu kết quả là morph được, vì mỗi dòng có một id bài
+                  nộp riêng và trang chi tiết dùng đúng id đó.
+                #}
+                <td><span>{{ s['full_name'] }}</span>
+                    {% if s['class_name'] %}<span class="tag">{{ s['class_name'] }}</span>{% endif %}</td>
+              {% endif %}
+              <td class="mono">{{ s['problem_code'] }}</td>
+              <td><a href="{{ url_for('problem_detail', code=s['problem_code']) }}">{{ s['problem_name'] }}</a></td>
+              <td>
+                <span class="{{ s['verdict']|verdict_class }}" data-morph="verdict-{{ s['id'] }}">
+                  {{ s['verdict']|verdict_text if s['is_finished'] else s['status']|submission_status_text }}
+                </span>
+              </td>
+              <td class="num">{{ s['score'] if s['is_finished'] else '—' }}</td>
+              <td class="num">{{ s['time_ms']|vn_seconds }}</td>
+              <td class="num">{{ s['memory_kb']|vn_memory }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <div data-filter-empty {% if submissions %}hidden{% endif %}>
+          <div class="empty">
+            <h3>Không tìm thấy bài nộp nào</h3>
+            <p class="mb-0">Thử bỏ bộ lọc hoặc đổi từ khoá tìm kiếm.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {% if scope == 'mine' and breakdown %}
+    <div class="grid grid-3">
+      <section class="card" aria-labelledby="vd-title">
+        <h3 id="vd-title" class="mb-4">Phân loại kết quả</h3>
+        <ul class="side-list">
+          {% for b in breakdown %}
+          <li>
+            <div class="side-list__row">
+              <span class="{{ b['verdict']|verdict_class }}">{{ b['verdict']|verdict_text }}</span>
+              <span class="text-sm" style="flex:1">{{ b['n'] }} bài</span>
+              <span class="text-sm text-muted">{{ b['n']|vn_percent(summary.total) }}</span>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="card" aria-labelledby="goal-title">
+        <h3 id="goal-title" class="mb-3">Tiến độ của em</h3>
+        <div class="row-between mb-2">
+          <span class="text-sm text-muted">Đề đã giải đúng</span>
+          <span class="text-sm"><strong>{{ summary.solved }} / {{ summary.problems }}</strong></span>
+        </div>
+        <div class="progress" role="progressbar" aria-valuenow="{{ summary.solved }}"
+             aria-valuemin="0" aria-valuemax="{{ summary.problems }}"
+             aria-label="Đã giải {{ summary.solved }} trên {{ summary.problems }} đề">
+          <div class="progress__bar" style="width:{{ (summary.solved / summary.problems * 100) if summary.problems else 0 }}%"></div>
+        </div>
+        <p class="hint">
+          {% if summary.problems and summary.solved >= summary.problems %}
+            Em đã giải hết đề đang mở. Giỏi lắm!
+          {% else %}
+            Còn {{ summary.problems - summary.solved }} đề nữa để hoàn thành toàn bộ.
+          {% endif %}
+        </p>
+      </section>
+
+      <section class="stack" aria-label="Lưu ý">
+        <div class="alert alert--warn" role="note">
+          <div>
+            <p class="alert__title">Giới hạn nộp bài</p>
+            <p class="mb-0 text-sm">
+              Mỗi học sinh được nộp tối đa 20 lượt mỗi ngày cho mỗi đề.
+            </p>
+          </div>
+        </div>
+        <div class="alert alert--info" role="note">
+          <div>
+            <p class="alert__title">Xem lại mã nguồn</p>
+            <p class="mb-0 text-sm">
+              Mã nguồn của mọi bài nộp được lưu lại. Bấm vào thời gian nộp để mở lại bài làm cũ.
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
+    {% endif %}
+
+  </div>
+{% endblock %}

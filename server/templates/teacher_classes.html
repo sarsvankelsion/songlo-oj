@@ -1,0 +1,228 @@
+{#
+  Lớp học & điểm — bản có dữ liệu thật.
+
+  Khác bản demo ở ba chỗ, đều là chủ ý:
+
+  1. Bộ chọn lớp là liên kết thật (`?class=9A`) chứ không phải nút trang trí.
+     Nhờ vậy giáo viên gửi được đường dẫn cho đồng nghiệp, và nút quay lại của
+     trình duyệt hoạt động đúng.
+  2. Hai nút "Xuất bảng điểm" và "Cấp tài khoản" của bản demo đã bỏ. Chúng chưa
+     có phần xử lý phía sau; để lại một nút bấm không làm gì là nói dối người
+     dùng. Khi nào có route thật thì thêm lại.
+  3. Bộ lọc trạng thái dùng đúng cơ chế `data-filter-*` sẵn có trong app.js, nên
+     không phát sinh thêm JavaScript.
+#}
+{% extends "base.html" %}
+{% block title %}Lớp học &amp; điểm — Khu giáo viên | Trường THCS Sông Lô{% endblock %}
+
+{% block content %}
+  <div class="container">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">Lớp học &amp; điểm</h1>
+        <p class="page-head__sub">Xem tiến độ từng học sinh trong lớp, số đề đã giải và tổng điểm đã tích lũy.</p>
+      </div>
+      <div class="page-head__actions">
+        <a class="btn btn--outline" href="{{ url_for('teacher_problems') }}">Soạn đề</a>
+        <a class="btn btn--primary" href="{{ url_for('leaderboard') }}">Bảng xếp hạng</a>
+      </div>
+    </div>
+
+    {% if not classes %}
+      <div class="card">
+        <div class="empty">
+          <h3>Chưa có lớp nào</h3>
+          <p class="mb-0">
+            Chưa có tài khoản học sinh nào được gắn tên lớp. Hãy tạo tài khoản
+            kèm tên lớp trước, rồi quay lại trang này.
+          </p>
+        </div>
+      </div>
+    {% else %}
+
+    <div class="row mb-5" role="group" aria-label="Chọn lớp">
+      <span class="text-sm text-muted">Lớp:</span>
+      {% for c in classes %}
+        <a class="btn btn--outline btn--sm" href="{{ url_for('teacher_classes', **{'class': c}) }}"
+           {% if c == class_name %}aria-current="page"{% endif %}>{{ c }}</a>
+      {% endfor %}
+      <span class="spacer"></span>
+      <span class="text-sm text-muted">Năm học 2026 – 2027 · Học kỳ I</span>
+    </div>
+
+    <section class="grid grid-4 mb-5" aria-label="Số liệu lớp {{ class_name }}">
+      <div class="stat">
+        <p class="stat__label">Sĩ số</p>
+        <p class="stat__value">{{ summary['size'] }}</p>
+        <p class="stat__hint">{{ summary['size'] - summary['idle'] }} em đã nộp bài lần nào</p>
+      </div>
+      <div class="stat">
+        <p class="stat__label">Điểm trung bình</p>
+        <p class="stat__value">{{ summary['avg']|vn_number }}</p>
+        <p class="stat__hint">Cao nhất lớp: {{ summary['best']|vn_number }} điểm</p>
+      </div>
+      <div class="stat">
+        <p class="stat__label">Điểm cao nhất</p>
+        <p class="stat__value">{{ summary['best']|vn_number }}</p>
+        <p class="stat__hint">Tổng điểm các đề đã giải</p>
+      </div>
+      <div class="stat stat--accent">
+        <p class="stat__label">Chưa nộp bài nào</p>
+        <p class="stat__value">{{ summary['idle'] }}</p>
+        <p class="stat__hint">Cần nhắc trong buổi học tới</p>
+      </div>
+    </section>
+
+    <div class="grid grid-sidebar">
+
+      <div>
+        <section class="card card--flush mb-4" aria-labelledby="ro-title">
+          <div class="card__head">
+            <h2 id="ro-title">Danh sách học sinh — lớp {{ class_name }}</h2>
+            <span class="text-sm text-muted">Hiện <strong data-filter-count>{{ students|length }}</strong> / {{ students|length }} em</span>
+          </div>
+
+          <div class="card__body" style="padding-bottom:16px">
+            <div class="grid grid-2" style="gap:16px">
+              <div class="field mb-0">
+                <label class="label" for="s-q">Tìm kiếm</label>
+                <input class="input" id="s-q" type="search" placeholder="Nhập họ tên hoặc tên đăng nhập…" data-filter-search>
+              </div>
+              <div class="field mb-0">
+                <label class="label" for="s-state">Trạng thái</label>
+                <select class="select" id="s-state" data-filter-select data-filter-key="state">
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="active">Đang hoạt động</option>
+                  <option value="idle">Chưa nộp bài</option>
+                  <option value="locked">Tài khoản bị khoá</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table" data-sortable>
+              <caption class="sr-only">Danh sách học sinh lớp {{ class_name }} kèm số đề đã giải và tổng điểm</caption>
+              <thead>
+                <tr>
+                  <th scope="col" style="width:56px">TT</th>
+                  <th scope="col">Học sinh</th>
+                  <th scope="col" class="num" data-numeric style="width:104px">Đã giải</th>
+                  <th scope="col" class="num" data-numeric style="width:110px">Tổng điểm</th>
+                  <th scope="col" class="num" data-numeric style="width:96px">Lượt nộp</th>
+                  <th scope="col" style="width:140px">Nộp gần nhất</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for s in students %}
+                  {# Một tài khoản bị khoá thì trạng thái "bị khoá" quan trọng hơn
+                     việc em ấy chưa nộp bài — nếu không, giáo viên sẽ đi nhắc một
+                     em vốn đã bị vô hiệu hoá từ trước. #}
+                  {% if not s['is_active'] %}
+                    {% set state = 'locked' %}
+                  {% elif s['attempts'] == 0 %}
+                    {% set state = 'idle' %}
+                  {% else %}
+                    {% set state = 'active' %}
+                  {% endif %}
+                <tr data-filter-row data-state="{{ state }}">
+                  <td class="mono">{{ loop.index }}</td>
+                  <td>
+                    <span class="row" style="gap:8px">
+                      <span class="nav__avatar" aria-hidden="true">{{ s['full_name']|avatar_initials }}</span>
+                      <span>
+                        <strong>{{ s['full_name'] }}</strong>
+                        <span class="text-xs text-muted mono" style="display:block">{{ s['username'] }}</span>
+                      </span>
+                    </span>
+                  </td>
+                  <td class="num">{{ s['solved'] }}</td>
+                  <td class="num">{{ s['total_score']|vn_number }}</td>
+                  <td class="num">{{ s['attempts'] }}</td>
+                  <td class="text-sm text-muted nowrap">
+                    {% if not s['is_active'] %}
+                      Tài khoản bị khoá
+                    {% elif s['last_at'] %}
+                      {{ s['last_at']|relative_time }}
+                    {% else %}
+                      Chưa nộp
+                    {% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="6" class="text-muted">Lớp {{ class_name }} chưa có học sinh nào.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+
+            <div data-filter-empty hidden>
+              <div class="empty">
+                <h3>Không tìm thấy học sinh nào</h3>
+                <p class="mb-0">Thử bỏ bộ lọc hoặc đổi từ khoá tìm kiếm.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card__foot">
+            <p class="text-sm text-muted mb-0">
+              “Đã giải” chỉ tính những đề đã đạt điểm tối đa. “Tổng điểm” cộng
+              điểm cao nhất của mỗi đề, nên nộp lại nhiều lần không làm tăng điểm.
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <aside>
+        <section class="card mb-4" aria-labelledby="top-title">
+          <h3 id="top-title" class="mb-4">Dẫn đầu lớp {{ class_name }}</h3>
+          {% set leaders = students[:3] %}
+          {% if leaders and leaders[0]['total_score'] %}
+            <ul class="side-list">
+              {% for s in leaders %}
+              <li>
+                <div class="side-list__row">
+                  <span class="rank rank--{{ loop.index }}">{{ loop.index }}</span>
+                  <span class="text-sm" style="flex:1" data-morph="user-name-{{ s['id'] }}">{{ s['full_name'] }}</span>
+                  <span class="text-sm text-muted" data-morph="user-score-{{ s['id'] }}">{{ s['total_score']|vn_number }}</span>
+                </div>
+              </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-sm text-muted mb-0">Lớp chưa có em nào đạt điểm.</p>
+          {% endif %}
+          <a class="btn btn--ghost btn--sm btn--block mt-3" href="{{ url_for('leaderboard', scope=class_name) }}">Xem bảng xếp hạng đầy đủ</a>
+        </section>
+
+        <section class="card mb-4" aria-labelledby="acc-title">
+          <h3 id="acc-title" class="mb-4">Tài khoản lớp</h3>
+          <ul class="constraints">
+            <li><span class="k">Sĩ số</span> <span>{{ summary['size'] }}</span></li>
+            <li><span class="k">Đang hoạt động</span> <span>{{ summary['size'] - summary['idle'] }}</span></li>
+            <li><span class="k">Chưa nộp bài</span> <span>{{ summary['idle'] }}</span></li>
+          </ul>
+          <p class="hint mb-0">
+            Tài khoản bị khoá vẫn hiện trong danh sách nhưng không đăng nhập được.
+          </p>
+        </section>
+
+        {% if summary['idle'] %}
+        <section class="alert alert--warn" role="note">
+          <div>
+            <p class="alert__title">{{ summary['idle'] }} học sinh chưa nộp bài</p>
+            <p class="mb-0 text-sm">
+              Nên kiểm tra tài khoản và hướng dẫn lại cách đăng nhập trong buổi
+              thực hành tới. Dùng ô tìm kiếm phía trên, hoặc lọc theo trạng thái
+              “Chưa nộp bài”, để ra danh sách.
+            </p>
+          </div>
+        </section>
+        {% endif %}
+      </aside>
+    </div>
+    {% endif %}
+  </div>
+{% endblock %}

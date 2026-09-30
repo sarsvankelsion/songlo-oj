@@ -1,0 +1,132 @@
+{#
+  Khung chung cho mọi trang.
+
+  Phần đầu trang, điều hướng và chân trang ở đây giữ nguyên đúng hệ lớp của bản
+  demo tĩnh, chỉ thay dữ liệu cứng bằng dữ liệu thật. Nhờ vậy CSS không phải
+  sửa gì và giao diện giữ được đúng thứ đã duyệt.
+
+  Khác biệt duy nhất so với bản demo: nút chuyển vai trò "Học sinh / Giáo viên"
+  được bỏ. Đó là thứ chỉ có ý nghĩa trong bản demo để xem thử cả hai giao diện;
+  ở hệ thống thật thì vai trò là thuộc tính của tài khoản đang đăng nhập, không
+  phải một nút bấm được.
+#}<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Hệ thống chấm bài lập trình | Trường THCS Sông Lô{% endblock %}</title>
+<meta name="description" content="{% block description %}Hệ thống chấm bài lập trình C++ dành cho học sinh Trường THCS Sông Lô, xã Tam Sơn, tỉnh Phú Thọ.{% endblock %}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+{#
+  Đặt chế độ màu trước lần vẽ đầu tiên. Nếu để việc này cho app.js thì trang sẽ
+  nháy trắng một nhịp trước khi chuyển sang nền tối.
+#}
+<script>(function(){try{var t=localStorage.getItem("sl-theme");if(!t)t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";if(t==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Bỏ qua điều hướng, tới nội dung chính</a>
+
+<header class="site-head">
+  <div class="container site-head__inner">
+    <img class="site-head__mark" src="{{ url_for('static', filename='img/logo.png') }}" alt="" width="52" height="52">
+    <div class="site-head__text">
+      <p class="site-head__dept">Sở Giáo dục và Đào tạo tỉnh Phú Thọ</p>
+      <p class="site-head__name">Trường THCS Sông Lô — Xã Tam Sơn</p>
+    </div>
+    <div class="site-head__tools">
+      <button class="theme-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Chuyển sang chế độ tối">
+        <svg class="theme-btn__moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+        <svg class="theme-btn__sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+      {% if current_user and is_teacher %}
+        <a class="btn btn--outline btn--sm" href="{{ url_for('teacher') }}">Khu giáo viên</a>
+      {% endif %}
+      {% if not current_user %}
+        <a class="btn btn--primary btn--sm" href="{{ url_for('login') }}">Đăng nhập</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Điều hướng chính">
+  <div class="container nav__inner">
+    <a class="nav__link" href="{{ url_for('index') }}"{% if active == 'index' %} aria-current="page"{% endif %}>Trang chủ</a>
+    <a class="nav__link" href="{{ url_for('problems') }}"{% if active == 'problems' %} aria-current="page"{% endif %}>Đề bài</a>
+    <a class="nav__link" href="{{ url_for('submissions') }}"{% if active == 'submissions' %} aria-current="page"{% endif %}>Bài nộp</a>
+    <a class="nav__link" href="{{ url_for('contests') }}"{% if active == 'contests' %} aria-current="page"{% endif %}>Kỳ thi</a>
+    <a class="nav__link" href="{{ url_for('leaderboard') }}"{% if active == 'leaderboard' %} aria-current="page"{% endif %}>Bảng xếp hạng</a>
+    {% if current_user %}
+      <span class="nav__user">
+        <span class="nav__avatar" aria-hidden="true" data-morph="avatar-{{ current_user['id'] }}">{{ current_user['full_name']|avatar_initials }}</span>
+        <span>{{ current_user['full_name'] }}</span>
+        {% if current_user['class_name'] %}<span class="tag tag--onnav">{{ current_user['class_name'] }}</span>{% endif %}
+        <form class="nav__logout" method="post" action="{{ url_for('logout') }}">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <button type="submit">Đăng xuất</button>
+        </form>
+      </span>
+    {% endif %}
+  </div>
+</nav>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="container flash-stack" role="status" aria-live="polite">
+      {% for category, message in messages %}
+        {% set cls = {'ok': 'alert--ok', 'warn': 'alert--warn', 'info': 'alert--info'}.get(category, 'alert--info') %}
+        <div class="alert {{ cls }}">
+          <div><p class="mb-0">{{ message }}</p></div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<main id="main">
+{% block content %}{% endblock %}
+</main>
+
+<footer class="site-foot">
+  <div class="container">
+    <div class="site-foot__grid">
+      <div>
+        <h4>Trường THCS Sông Lô</h4>
+        <ul>
+          <li>Xã Tam Sơn, tỉnh Phú Thọ</li>
+          <li>Điện thoại: 0888 037 318</li>
+          <li>Email: thcssonglotamson@phutho.edu.vn</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Hệ thống</h4>
+        <ul>
+          <li><a href="{{ url_for('problems') }}">Đề bài</a></li>
+          <li><a href="{{ url_for('submissions') }}">Bài nộp</a></li>
+          <li><a href="{{ url_for('contests') }}">Kỳ thi</a></li>
+          <li><a href="{{ url_for('leaderboard') }}">Bảng xếp hạng</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Hướng dẫn</h4>
+        <ul>
+          <li><a href="#">Cách nộp bài</a></li>
+          <li><a href="#">Quy chế kỳ thi</a></li>
+          <li><a href="#">Câu hỏi thường gặp</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="site-foot__bar">
+      Hệ thống chấm bài nội bộ · Trường THCS Sông Lô
+      {% if judge_queue is defined and judge_queue %}· {{ judge_queue }} bài đang chờ chấm{% endif %}
+    </p>
+  </div>
+</footer>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
