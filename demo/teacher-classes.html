@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lớp học &amp; điểm — Hệ thống chấm bài lập trình | Trường THCS Sông Lô</title>
+<meta name="description" content="Trang quản lý lớp học và điểm số dành cho giáo viên.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Bỏ qua điều hướng, tới nội dung chính</a>
+
+<header class="site-head">
+  <div class="container site-head__inner">
+    <div class="site-head__mark" aria-hidden="true">&lt;/&gt;</div>
+    <div class="site-head__text">
+      <p class="site-head__dept">Sở Giáo dục và Đào tạo tỉnh Phú Thọ</p>
+      <p class="site-head__name">Trường THCS Sông Lô — Xã Tam Sơn</p>
+    </div>
+    <div class="site-head__tools">
+      <div class="role-switch role-switch--light" role="group" aria-label="Chế độ xem bản demo">
+        <a href="index.html">Học sinh</a>
+        <a href="teacher.html" aria-current="page">Giáo viên</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Điều hướng chính">
+  <div class="container nav__inner">
+    <a class="nav__link" href="teacher.html">Tổng quan</a>
+    <a class="nav__link" href="teacher-problems.html">Soạn đề</a>
+    <a class="nav__link" href="teacher-classes.html" aria-current="page">Lớp học</a>
+    <a class="nav__link" href="contests.html">Kỳ thi</a>
+    <a class="nav__link" href="leaderboard.html">Bảng xếp hạng</a>
+    <span class="nav__user">
+      <span class="nav__avatar" aria-hidden="true">TH</span>
+      <span>Cô Phạm Thu Hằng</span>
+      <span class="tag tag--onnav">GV</span>
+      <a href="login.html">Đăng xuất</a>
+    </span>
+  </div>
+</nav>
+
+<main id="main">
+  <div class="container">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">Lớp học &amp; điểm</h1>
+        <p class="page-head__sub">Xem tiến độ từng học sinh, cấp tài khoản mới và xuất bảng điểm để lưu hồ sơ.</p>
+      </div>
+      <div class="page-head__actions">
+        <button class="btn btn--outline" type="button">Xuất bảng điểm</button>
+        <button class="btn btn--primary" type="button">Cấp tài khoản</button>
+      </div>
+    </div>
+
+    <!-- Class picker -->
+    <div class="row mb-5" role="group" aria-label="Chọn lớp">
+      <span class="text-sm text-muted">Lớp:</span>
+      <button class="btn btn--outline btn--sm" type="button" aria-pressed="true">9A</button>
+      <button class="btn btn--outline btn--sm" type="button" aria-pressed="false">9B</button>
+      <button class="btn btn--outline btn--sm" type="button" aria-pressed="false">8A</button>
+      <button class="btn btn--outline btn--sm" type="button" aria-pressed="false">8B</button>
+      <button class="btn btn--outline btn--sm" type="button" aria-pressed="false">7A</button>
+      <span class="spacer"></span>
+      <span class="text-sm text-muted">Năm học 2026 – 2027 · Học kỳ I</span>
+    </div>
+
+    <section class="grid grid-4 mb-5" aria-label="Số liệu lớp 9A">
+      <div class="stat">
+        <p class="stat__label">Sĩ số</p>
+        <p class="stat__value">37</p>
+        <p class="stat__hint">31 em đã đăng nhập lần đầu</p>
+      </div>
+      <div class="stat">
+        <p class="stat__label">Điểm trung bình</p>
+        <p class="stat__value">742</p>
+        <p class="stat__hint">Cao nhất lớp: 980 điểm</p>
+      </div>
+      <div class="stat">
+        <p class="stat__label">Đề đã giải</p>
+        <p class="stat__value">23</p>
+        <p class="stat__hint">Trung bình mỗi em 14 đề</p>
+      </div>
+      <div class="stat stat--accent">
+        <p class="stat__label">Chưa nộp bài nào</p>
+        <p class="stat__value">4</p>
+        <p class="stat__hint">Cần nhắc trong buổi học tới</p>
+      </div>
+    </section>
+
+    <div class="grid grid-sidebar">
+
+      <!-- ---------- MAIN ---------- -->
+      <div>
+        <section class="card card--flush mb-4" aria-labelledby="ro-title">
+          <div class="card__head">
+            <h2 id="ro-title">Danh sách học sinh — lớp 9A</h2>
+            <span class="text-sm text-muted">Hiện <strong data-filter-count>12</strong> / 37 em</span>
+          </div>
+
+          <div class="card__body" style="padding-bottom:16px">
+            <div class="grid grid-2" style="gap:16px">
+              <div class="field mb-0">
+                <label class="label" for="s-q">Tìm kiếm</label>
+                <input class="input" id="s-q" type="search" placeholder="Nhập họ tên hoặc tên đăng nhập…" data-filter-search>
+              </div>
+              <div class="field mb-0">
+                <label class="label" for="s-state">Trạng thái</label>
+                <select class="select" id="s-state" data-filter-select data-filter-key="state">
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="active">Đang hoạt động</option>
+                  <option value="idle">Chưa nộp bài</option>
+                  <option value="locked">Tài khoản bị khoá</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table" data-sortable>
+              <caption class="sr-only">Danh sách học sinh lớp 9A kèm số đề đã giải và điểm số</caption>
+              <thead>
+                <tr>
+                  <th scope="col" style="width:60px">TT</th>
+                  <th scope="col">Học sinh</th>
+                  <th scope="col" class="num" data-numeric style="width:110px">Đã giải</th>
+                  <th scope="col" class="num" data-numeric style="width:110px">Điểm tuần</th>
+                  <th scope="col" class="num" data-numeric style="width:110px">Tổng điểm</th>
+                  <th scope="col" style="width:130px">Nộp gần nhất</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-filter-row data-state="active">
+                  <td class="mono">1</td>
+                  <td><strong>Nguyễn Văn An</strong></td>
+                  <td class="num">41</td>
+                  <td class="num">980</td>
+                  <td class="num">4.120</td>
+                  <td class="text-sm text-muted nowrap">Hôm nay</td>
+                </tr>
+                <tr data-filter-row data-state="active">
+                  <td class="mono">2</td>
+                  <td><strong>Trần Thị Bình</strong></td>
+                  <td class="num">38</td>
+                  <td class="num">915</td>
+                  <td class="num">3.940</td>
+                  <td class="text-sm text-muted nowrap">Hôm nay</td>
+                </tr>
+                <tr data-filter-row data-state="active">
+                  <td class="mono">3</td>
+                  <td><strong>Vũ Thị Lan</strong></td>
+                  <td class="num">35</td>
+                  <td class="num">880</td>
+                  <td class="num">3.610</td>
+                  <td class="text-sm text-muted nowrap">Hôm nay</td>
+                </tr>
+                <tr data-filter-row data-state="active">
+                  <td class="mono">4</td>
+                  <td><strong>Nguyễn Đức Huy</strong></td>
+                  <td class="num">33</td>
+                  <td class="num">845</td>
+                  <td class="num">3.480</td>
+                  <td class="text-sm text-muted nowrap">Hôm nay</td>
+                </tr>
+                <tr data-filter-row data-state="active">
+                  <td class="mono">5</td>
+                  <td><strong>Phan Thị Mai</strong></td>
+                  <td class="num">30</td>
+                  <td class="num">790</td>
+                  <td class="num">3.260</td>
+                  <td class="text-sm text-muted nowrap">Hôm qua</td>
+                </tr>
+                <tr data-filter-row data-state="active">
+                  <td class="mono">6</td>
+                  <td><strong>Bùi Quang Minh</strong></td>
+                  <td class="num">28</td>
+                  <td class="num">735</td>
+                  <td class="num">3.010</td>
+                  <td class="text-sm text-muted nowrap">Hôm qua</td>
+                </tr>
+                <tr data-filter-row data-state="active">
+                  <td class="mono">7</td>
+                  <td><strong>Đặng Thu Trang</strong></td>
+                  <td class="num">26</td>
+                  <td class="num">690</td>
+                  <td class="num">2.870</td>
+                  <td class="text-sm text-muted nowrap">Hôm qua</td>
+                </tr>
+                <tr data-filter-row data-state="active">
+                  <td class="mono">8</td>
+                  <td><strong>Lý Hoàng Nam</strong></td>
+                  <td class="num">24</td>
+                  <td class="num">645</td>
+                  <td class="num">2.640</td>
+                  <td class="text-sm text-muted nowrap">2 ngày trước</td>
+                </tr>
+                <tr data-filter-row data-state="active">
+                  <td class="mono">9</td>
+                  <td><strong>Ngô Thị Hồng</strong></td>
+                  <td class="num">21</td>
+                  <td class="num">580</td>
+                  <td class="num">2.310</td>
+                  <td class="text-sm text-muted nowrap">2 ngày trước</td>
+                </tr>
+                <tr data-filter-row data-state="active">
+                  <td class="mono">10</td>
+                  <td><strong>Trịnh Văn Khánh</strong></td>
+                  <td class="num">19</td>
+                  <td class="num">520</td>
+                  <td class="num">2.080</td>
+                  <td class="text-sm text-muted nowrap">3 ngày trước</td>
+                </tr>
+                <tr data-filter-row data-state="idle">
+                  <td class="mono">11</td>
+                  <td><strong>Hoàng Minh Tuấn</strong></td>
+                  <td class="num">0</td>
+                  <td class="num">0</td>
+                  <td class="num">0</td>
+                  <td class="text-sm text-muted nowrap">Chưa nộp</td>
+                </tr>
+                <tr data-filter-row data-state="locked">
+                  <td class="mono">12</td>
+                  <td><strong>Lê Thị Ngọc</strong></td>
+                  <td class="num">7</td>
+                  <td class="num">0</td>
+                  <td class="num">640</td>
+                  <td class="text-sm text-muted nowrap">Tài khoản bị khoá</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div data-filter-empty hidden>
+              <div class="empty">
+                <h3>Không tìm thấy học sinh nào</h3>
+                <p class="mb-0">Thử bỏ bộ lọc hoặc đổi từ khoá tìm kiếm.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card__foot">
+            <nav class="pager" aria-label="Phân trang danh sách học sinh">
+              <button class="pager__btn" type="button" aria-label="Trang trước">‹</button>
+              <button class="pager__btn" type="button" aria-current="page">1</button>
+              <button class="pager__btn" type="button">2</button>
+              <button class="pager__btn" type="button">3</button>
+              <button class="pager__btn" type="button">4</button>
+              <button class="pager__btn" type="button" aria-label="Trang sau">›</button>
+            </nav>
+          </div>
+        </section>
+      </div>
+
+      <!-- ---------- SIDEBAR ---------- -->
+      <aside>
+
+        <section class="card mb-4" aria-labelledby="acc-title">
+          <h3 id="acc-title" class="mb-4">Tài khoản</h3>
+          <ul class="constraints">
+            <li><span class="k">Tổng tài khoản</span> <span>214</span></li>
+            <li><span class="k">Đang hoạt động</span> <span>196</span></li>
+            <li><span class="k">Chờ cấp</span> <span>6</span></li>
+            <li><span class="k">Bị khoá</span> <span>12</span></li>
+          </ul>
+          <div class="toolbar mt-4">
+            <button class="btn btn--outline btn--sm" type="button">Cấp hàng loạt</button>
+            <button class="btn btn--ghost btn--sm" type="button">Đặt lại mật khẩu</button>
+          </div>
+        </section>
+
+        <section class="card mb-4" aria-labelledby="top-title">
+          <h3 id="top-title" class="mb-4">Dẫn đầu lớp 9A</h3>
+          <ul class="side-list">
+            <li>
+              <div class="side-list__row">
+                <span class="rank rank--1">1</span>
+                <span class="text-sm" style="flex:1">Nguyễn Văn An</span>
+                <span class="text-sm text-muted">980</span>
+              </div>
+            </li>
+            <li>
+              <div class="side-list__row">
+                <span class="rank rank--2">2</span>
+                <span class="text-sm" style="flex:1">Trần Thị Bình</span>
+                <span class="text-sm text-muted">915</span>
+              </div>
+            </li>
+            <li>
+              <div class="side-list__row">
+                <span class="rank rank--3">3</span>
+                <span class="text-sm" style="flex:1">Vũ Thị Lan</span>
+                <span class="text-sm text-muted">880</span>
+              </div>
+            </li>
+          </ul>
+          <a class="btn btn--ghost btn--sm btn--block mt-3" href="leaderboard.html">Xem bảng xếp hạng đầy đủ</a>
+        </section>
+
+        <section class="alert alert--warn" role="note">
+          <div>
+            <p class="alert__title">4 học sinh chưa nộp bài</p>
+            <p class="mb-0 text-sm">
+              Nên kiểm tra tài khoản và hướng dẫn lại cách đăng nhập trong buổi thực hành tới.
+            </p>
+          </div>
+        </section>
+
+      </aside>
+    </div>
+  </div>
+</main>
+
+<footer class="site-foot">
+  <div class="container">
+    <div class="site-foot__grid">
+      <div>
+        <h4>Trường THCS Sông Lô</h4>
+        <ul>
+          <li>Xã Tam Sơn, tỉnh Phú Thọ</li>
+          <li>Điện thoại: 0888 037 318</li>
+          <li>Email: thcssonglotamson@phutho.edu.vn</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Quản trị</h4>
+        <ul>
+          <li><a href="teacher-problems.html">Soạn đề</a></li>
+          <li><a href="teacher-classes.html">Lớp học</a></li>
+          <li><a href="contests.html">Kỳ thi</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Hướng dẫn</h4>
+        <ul>
+          <li><a href="#">Cách soạn đề</a></li>
+          <li><a href="#">Quy chế kỳ thi</a></li>
+          <li><a href="#">Câu hỏi thường gặp</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="site-foot__bar">Bản demo giao diện · Dữ liệu trong trang là ví dụ, chưa nối với hệ thống chấm bài</p>
+  </div>
+</footer>
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>

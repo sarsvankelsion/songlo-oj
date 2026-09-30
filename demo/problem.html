@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SL001 · Tổng hai số nguyên — Hệ thống chấm bài lập trình | Trường THCS Sông Lô</title>
+<meta name="description" content="Đề bài Tổng hai số nguyên (SL001) và trình nộp bài C++ trực tuyến.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Bỏ qua điều hướng, tới nội dung chính</a>
+
+<header class="site-head">
+  <div class="container site-head__inner">
+    <div class="site-head__mark" aria-hidden="true">&lt;/&gt;</div>
+    <div class="site-head__text">
+      <p class="site-head__dept">Sở Giáo dục và Đào tạo tỉnh Phú Thọ</p>
+      <p class="site-head__name">Trường THCS Sông Lô — Xã Tam Sơn</p>
+    </div>
+    <div class="site-head__tools">
+      <div class="role-switch role-switch--light" role="group" aria-label="Chế độ xem bản demo">
+        <a href="index.html" aria-current="page">Học sinh</a>
+        <a href="teacher.html">Giáo viên</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Điều hướng chính">
+  <div class="container nav__inner">
+    <a class="nav__link" href="index.html">Trang chủ</a>
+    <a class="nav__link" href="problems.html" aria-current="page">Đề bài</a>
+    <a class="nav__link" href="submissions.html">Bài nộp</a>
+    <a class="nav__link" href="contests.html">Kỳ thi</a>
+    <a class="nav__link" href="leaderboard.html">Bảng xếp hạng</a>
+    <span class="nav__user">
+      <span class="nav__avatar" aria-hidden="true">NA</span>
+      <span>Nguyễn Văn An</span>
+      <span class="tag tag--onnav">9A</span>
+      <a href="login.html">Đăng xuất</a>
+    </span>
+  </div>
+</nav>
+
+<main id="main">
+  <div class="container" style="padding-top:24px">
+
+    <nav aria-label="Đường dẫn" class="text-sm text-muted mb-3">
+      <a href="index.html">Trang chủ</a> › <a href="problems.html">Đề bài</a> › <span>SL001</span>
+    </nav>
+
+    <div class="row-between mb-4">
+      <div>
+        <h1 style="font-size:24px">Tổng hai số nguyên</h1>
+        <div class="row mt-2">
+          <span class="mono text-muted text-sm">SL001</span>
+          <span class="badge badge--green">Cơ bản</span>
+          <span class="tag">Số học</span>
+          <span class="tag">Nhập xuất cơ bản</span>
+        </div>
+      </div>
+      <a class="btn btn--outline btn--sm" href="problems.html">← Danh sách đề</a>
+    </div>
+
+    <div class="grid grid-sidebar">
+
+      <!-- ================= MAIN ================= -->
+      <div>
+        <section class="card card--flush">
+
+          <div class="tabs" data-tabs role="tablist" aria-label="Nội dung đề bài">
+            <button class="tab" role="tab" id="tab-statement" aria-controls="panel-statement" aria-selected="true">Đề bài</button>
+            <button class="tab" role="tab" id="tab-submit" aria-controls="panel-submit" aria-selected="false">Nộp bài</button>
+            <button class="tab" role="tab" id="tab-result" aria-controls="panel-result" aria-selected="false">Kết quả chấm</button>
+          </div>
+
+          <!-- ---------- Statement ---------- -->
+          <div class="tabpanel card__body" id="panel-statement" role="tabpanel" aria-labelledby="tab-statement" tabindex="0">
+            <article class="statement">
+
+              <h3>Đề bài</h3>
+              <p>
+                Cho hai số nguyên <code>a</code> và <code>b</code>. Hãy tính tổng của chúng và in ra màn hình.
+              </p>
+
+              <h3>Dữ liệu vào</h3>
+              <p>Một dòng duy nhất chứa hai số nguyên <code>a</code> và <code>b</code>, cách nhau bởi một dấu cách.</p>
+
+              <h3>Dữ liệu ra</h3>
+              <p>Một số nguyên duy nhất là tổng <code>a + b</code>.</p>
+
+              <h3>Ví dụ</h3>
+
+              <div class="grid grid-2">
+                <div>
+                  <p class="label">Dữ liệu vào</p>
+                  <pre class="io-block">3 5</pre>
+                </div>
+                <div>
+                  <p class="label">Dữ liệu ra</p>
+                  <pre class="io-block">8</pre>
+                </div>
+              </div>
+
+              <div class="grid grid-2">
+                <div>
+                  <p class="label">Dữ liệu vào</p>
+                  <pre class="io-block">-12 7</pre>
+                </div>
+                <div>
+                  <p class="label">Dữ liệu ra</p>
+                  <pre class="io-block">-5</pre>
+                </div>
+              </div>
+
+              <h3>Giới hạn</h3>
+              <ul class="constraints">
+                <li><span class="k">Giá trị của a và b</span> <span>-10<sup>9</sup> ≤ a, b ≤ 10<sup>9</sup></span></li>
+                <li><span class="k">Thời gian</span> <span>1 giây cho mỗi bộ dữ liệu</span></li>
+                <li><span class="k">Bộ nhớ</span> <span>256 MB</span></li>
+                <li><span class="k">Số bộ dữ liệu</span> <span>10 bộ, trong đó 4 bộ ẩn</span></li>
+              </ul>
+
+              <div class="alert alert--warn" role="note">
+                <div>
+                  <p class="alert__title">Lưu ý về kiểu dữ liệu</p>
+                  <p class="mb-0">
+                    Tổng của hai số có thể vượt quá giới hạn của kiểu <code>int</code>. Hãy dùng kiểu
+                    <code>long long</code> để tránh tràn số.
+                  </p>
+                </div>
+              </div>
+
+              <h3>Gợi ý</h3>
+              <p>
+                Đọc hai số bằng <code>cin</code>, cộng lại rồi in ra bằng <code>cout</code>.
+                Không in thêm bất kỳ chữ nào khác ngoài kết quả.
+              </p>
+
+            </article>
+          </div>
+
+          <!-- ---------- Submit ---------- -->
+          <div class="tabpanel" id="panel-submit" role="tabpanel" aria-labelledby="tab-submit" tabindex="0" hidden>
+            <div class="card__body">
+
+              <form data-submit-form novalidate>
+
+                <div class="field">
+                  <label class="label" for="lang">Ngôn ngữ <span class="req" aria-hidden="true">*</span></label>
+                  <select class="select" id="lang" name="lang" required>
+                    <option selected>C++17 (g++ 13.2)</option>
+                  </select>
+                  <p class="hint">Hệ thống hiện chỉ hỗ trợ C++17.</p>
+                </div>
+
+                <div class="field">
+                  <label class="label" for="code">Mã nguồn <span class="req" aria-hidden="true">*</span></label>
+
+                  <div class="editor" data-editor>
+                    <div class="editor__bar">
+                      <span class="editor__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                      <span class="editor__lang">main.cpp</span>
+                      <span class="editor__meta" data-editor-lines>11 dòng</span>
+                    </div>
+                    <div class="editor__body">
+                      <div class="editor__gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</div>
+                      <div class="editor__code">
+                      <pre class="editor__hl" aria-hidden="true"></pre>
+                      <textarea class="editor__area" id="code" name="code" spellcheck="false" autocapitalize="off" autocomplete="off" wrap="off" aria-describedby="code-hint">#include &lt;iostream&gt;
+using namespace std;
+
+int main() {
+    long long a, b;
+    cin &gt;&gt; a &gt;&gt; b;
+    cout &lt;&lt; a + b &lt;&lt; endl;
+    return 0;
+}</textarea>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p class="hint" id="code-hint">
+                    Phím <kbd>Tab</kbd> chèn 4 dấu cách. Nhấn <kbd>Esc</kbd> để thoát khỏi ô soạn thảo.
+                  </p>
+                </div>
+
+                <div id="submit-status" hidden></div>
+
+                <div class="row">
+                  <button class="btn btn--primary" type="submit">Nộp bài</button>
+                  <button class="btn btn--ghost" type="reset">Xoá hết</button>
+                  <span class="spacer"></span>
+                  <span class="text-sm text-muted">Giới hạn: 20 lượt nộp mỗi ngày</span>
+                </div>
+
+              </form>
+            </div>
+          </div>
+
+          <!-- ---------- Result ---------- -->
+          <div class="tabpanel" id="panel-result" role="tabpanel" aria-labelledby="tab-result" tabindex="0" hidden>
+            <div class="card__body">
+
+              <div class="row-between mb-4">
+                <div>
+                  <span class="verdict verdict--ac" style="font-size:14px;padding:6px 14px">Đúng</span>
+                  <p class="text-sm text-muted mb-0 mt-2">10 / 10 bộ dữ liệu đúng · 100 điểm · 0,31 giây</p>
+                </div>
+                <div class="text-sm text-muted" style="text-align:right">
+                  Nộp lúc 21:14, 28/09/2026<br>
+                  Ngôn ngữ: C++17
+                </div>
+              </div>
+
+              <div class="table-wrap">
+                <table class="table table--compact">
+                  <caption class="sr-only">Kết quả chấm theo từng bộ dữ liệu</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col" style="width:80px">Bộ số</th>
+                      <th scope="col" style="width:130px">Kết quả</th>
+                      <th scope="col" class="num" style="width:110px">Thời gian</th>
+                      <th scope="col" class="num" style="width:110px">Bộ nhớ</th>
+                      <th scope="col" class="num" style="width:90px">Điểm</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td class="mono">#1</td><td><span class="verdict verdict--ac">Đúng</span></td><td class="num">0,02 s</td><td class="num">1,8 MB</td><td class="num">10</td></tr>
+                    <tr><td class="mono">#2</td><td><span class="verdict verdict--ac">Đúng</span></td><td class="num">0,02 s</td><td class="num">1,8 MB</td><td class="num">10</td></tr>
+                    <tr><td class="mono">#3</td><td><span class="verdict verdict--ac">Đúng</span></td><td class="num">0,03 s</td><td class="num">1,9 MB</td><td class="num">10</td></tr>
+                    <tr><td class="mono">#4</td><td><span class="verdict verdict--ac">Đúng</span></td><td class="num">0,03 s</td><td class="num">1,9 MB</td><td class="num">10</td></tr>
+                    <tr><td class="mono">#5</td><td><span class="verdict verdict--ac">Đúng</span></td><td class="num">0,04 s</td><td class="num">1,9 MB</td><td class="num">10</td></tr>
+                    <tr><td class="mono">#6</td><td><span class="verdict verdict--ac">Đúng</span></td><td class="num">0,03 s</td><td class="num">2,0 MB</td><td class="num">10</td></tr>
+                    <tr><td class="mono">#7 <span class="badge badge--grey">ẩn</span></td><td><span class="verdict verdict--ac">Đúng</span></td><td class="num">0,04 s</td><td class="num">2,0 MB</td><td class="num">10</td></tr>
+                    <tr><td class="mono">#8 <span class="badge badge--grey">ẩn</span></td><td><span class="verdict verdict--ac">Đúng</span></td><td class="num">0,03 s</td><td class="num">2,0 MB</td><td class="num">10</td></tr>
+                    <tr><td class="mono">#9 <span class="badge badge--grey">ẩn</span></td><td><span class="verdict verdict--ac">Đúng</span></td><td class="num">0,04 s</td><td class="num">2,1 MB</td><td class="num">10</td></tr>
+                    <tr><td class="mono">#10 <span class="badge badge--grey">ẩn</span></td><td><span class="verdict verdict--ac">Đúng</span></td><td class="num">0,03 s</td><td class="num">2,1 MB</td><td class="num">10</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <p class="text-sm text-muted mt-4 mb-0">
+                Kết quả của các bộ dữ liệu ẩn chỉ hiện trạng thái đúng hay sai, không hiện nội dung.
+              </p>
+
+            </div>
+          </div>
+
+        </section>
+      </div>
+
+      <!-- ================= SIDEBAR ================= -->
+      <aside>
+
+        <section class="card mb-4" aria-labelledby="meta-title">
+          <h3 id="meta-title" class="mb-3">Thông tin đề</h3>
+          <ul class="constraints">
+            <li><span class="k">Mã đề</span> <span class="mono">SL001</span></li>
+            <li><span class="k">Điểm tối đa</span> <span>100</span></li>
+            <li><span class="k">Thời gian</span> <span>1 giây</span></li>
+            <li><span class="k">Bộ nhớ</span> <span>256 MB</span></li>
+            <li><span class="k">Số bộ dữ liệu</span> <span>10 (4 bộ ẩn)</span></li>
+            <li><span class="k">Người soạn</span> <span>Tổ KHTN</span></li>
+          </ul>
+
+          <div class="mt-4">
+            <div class="row-between mb-2">
+              <span class="text-sm text-muted">Tiến độ của lớp 9A</span>
+              <span class="text-sm"><strong>68%</strong></span>
+            </div>
+            <div class="progress" role="progressbar" aria-valuenow="68" aria-valuemin="0" aria-valuemax="100" aria-label="Tỉ lệ học sinh lớp 9A đã giải đúng đề này">
+              <div class="progress__bar" style="width:68%"></div>
+            </div>
+            <p class="hint">25 / 37 học sinh đã giải đúng</p>
+          </div>
+        </section>
+
+        <section class="card card--flush mb-4" aria-labelledby="sub-title">
+          <div class="card__head">
+            <h3 id="sub-title">Bài nộp của em</h3>
+          </div>
+          <div class="card__body" style="padding-top:12px;padding-bottom:12px">
+            <ul class="side-list">
+              <li>
+                <div class="side-list__row">
+                  <span class="verdict verdict--ac">Đúng</span>
+                  <span class="text-sm" style="flex:1">100 điểm</span>
+                  <span class="text-xs text-muted">21:14</span>
+                </div>
+              </li>
+              <li>
+                <div class="side-list__row">
+                  <span class="verdict verdict--wa">Sai</span>
+                  <span class="text-sm" style="flex:1">40 điểm</span>
+                  <span class="text-xs text-muted">21:09</span>
+                </div>
+              </li>
+              <li>
+                <div class="side-list__row">
+                  <span class="verdict verdict--ce">Lỗi dịch</span>
+                  <span class="text-sm" style="flex:1">0 điểm</span>
+                  <span class="text-xs text-muted">21:06</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="alert alert--info" role="note">
+          <div>
+            <p class="alert__title">Cần trợ giúp?</p>
+            <p class="mb-0 text-sm">
+              Gặp lỗi khi nộp bài, liên hệ giáo viên phụ trách phòng máy hoặc gửi câu hỏi qua mục Liên hệ.
+            </p>
+          </div>
+        </section>
+
+      </aside>
+    </div>
+  </div>
+</main>
+
+<footer class="site-foot">
+  <div class="container">
+    <div class="site-foot__grid">
+      <div>
+        <h4>Trường THCS Sông Lô</h4>
+        <ul>
+          <li>Xã Tam Sơn, tỉnh Phú Thọ</li>
+          <li>Điện thoại: 0888 037 318</li>
+          <li>Email: thcssonglotamson@phutho.edu.vn</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Hệ thống</h4>
+        <ul>
+          <li><a href="problems.html">Đề bài</a></li>
+          <li><a href="contests.html">Kỳ thi</a></li>
+          <li><a href="leaderboard.html">Bảng xếp hạng</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Hướng dẫn</h4>
+        <ul>
+          <li><a href="#">Cách nộp bài</a></li>
+          <li><a href="#">Quy chế kỳ thi</a></li>
+          <li><a href="#">Câu hỏi thường gặp</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="site-foot__bar">Bản demo giao diện · Dữ liệu trong trang là ví dụ, chưa nối với hệ thống chấm bài</p>
+  </div>
+</footer>
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bảng xếp hạng — Hệ thống chấm bài lập trình | Trường THCS Sông Lô</title>
+<meta name="description" content="Bảng xếp hạng học sinh luyện tập lập trình C++ theo lớp và theo kỳ thi.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Bỏ qua điều hướng, tới nội dung chính</a>
+
+<header class="site-head">
+  <div class="container site-head__inner">
+    <div class="site-head__mark" aria-hidden="true">&lt;/&gt;</div>
+    <div class="site-head__text">
+      <p class="site-head__dept">Sở Giáo dục và Đào tạo tỉnh Phú Thọ</p>
+      <p class="site-head__name">Trường THCS Sông Lô — Xã Tam Sơn</p>
+    </div>
+    <div class="site-head__tools">
+      <div class="role-switch role-switch--light" role="group" aria-label="Chế độ xem bản demo">
+        <a href="index.html" aria-current="page">Học sinh</a>
+        <a href="teacher.html">Giáo viên</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Điều hướng chính">
+  <div class="container nav__inner">
+    <a class="nav__link" href="index.html">Trang chủ</a>
+    <a class="nav__link" href="problems.html">Đề bài</a>
+    <a class="nav__link" href="submissions.html">Bài nộp</a>
+    <a class="nav__link" href="contests.html">Kỳ thi</a>
+    <a class="nav__link" href="leaderboard.html" aria-current="page">Bảng xếp hạng</a>
+    <span class="nav__user">
+      <span class="nav__avatar" aria-hidden="true">NA</span>
+      <span>Nguyễn Văn An</span>
+      <span class="tag tag--onnav">9A</span>
+      <a href="login.html">Đăng xuất</a>
+    </span>
+  </div>
+</nav>
+
+<main id="main">
+  <div class="container">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">Bảng xếp hạng</h1>
+        <p class="page-head__sub">Xếp theo điểm luyện tập. Cập nhật ngay sau mỗi lần chấm xong.</p>
+      </div>
+
+      <div class="row">
+        <label class="label mb-0" for="scope" style="margin-bottom:0">Phạm vi</label>
+        <select class="select" id="scope" style="width:auto;min-width:170px">
+          <option>Toàn trường</option>
+          <option>Lớp 9A</option>
+          <option>Lớp 9B</option>
+          <option>Lớp 8A</option>
+          <option>Lớp 8B</option>
+          <option>Lớp 7A</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ============ TOP 3 ============ -->
+    <section class="grid grid-3 mb-5" aria-label="Ba học sinh dẫn đầu">
+      <div class="card" style="border-top:3px solid #B8860B">
+        <div class="row-between mb-2">
+          <span class="badge" style="background:#FBF3DC;color:#8A6508">Hạng 1</span>
+          <span class="text-xs text-muted">Lớp 9A</span>
+        </div>
+        <h2 style="font-size:17px">Nguyễn Văn An</h2>
+        <p class="stat__value" style="font-size:24px">980</p>
+        <p class="stat__hint">42 bài đã giải · 87 lần nộp</p>
+      </div>
+
+      <div class="card" style="border-top:3px solid #8A8A8A">
+        <div class="row-between mb-2">
+          <span class="badge badge--grey">Hạng 2</span>
+          <span class="text-xs text-muted">Lớp 9A</span>
+        </div>
+        <h2 style="font-size:17px">Trần Thị Bình</h2>
+        <p class="stat__value" style="font-size:24px">915</p>
+        <p class="stat__hint">39 bài đã giải · 76 lần nộp</p>
+      </div>
+
+      <div class="card" style="border-top:3px solid #A9662F">
+        <div class="row-between mb-2">
+          <span class="badge" style="background:#F7EBE1;color:#8A4F1F">Hạng 3</span>
+          <span class="text-xs text-muted">Lớp 8B</span>
+        </div>
+        <h2 style="font-size:17px">Lê Minh Châu</h2>
+        <p class="stat__value" style="font-size:24px">870</p>
+        <p class="stat__hint">36 bài đã giải · 71 lần nộp</p>
+      </div>
+    </section>
+
+    <!-- ============ BAR CHART ============ -->
+    <section class="card mb-4" aria-labelledby="chart-title">
+      <div class="card__head" style="padding:0 0 var(--sp-4);border-bottom:0">
+        <h2 id="chart-title">Điểm của mười học sinh dẫn đầu</h2>
+        <p class="text-xs text-muted mb-0">Bảng đầy đủ ở bên dưới</p>
+      </div>
+
+      <div role="img" aria-label="Biểu đồ cột ngang so sánh điểm của mười học sinh dẫn đầu. Bảng số liệu đầy đủ nằm ngay bên dưới.">
+        <div class="bar-row">
+          <span class="bar-row__name">Nguyễn Văn An</span>
+          <span class="bar-row__track"><span class="bar-row__fill bar-row__fill--1" style="width:100%"></span></span>
+          <span class="bar-row__val">980</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-row__name">Trần Thị Bình</span>
+          <span class="bar-row__track"><span class="bar-row__fill bar-row__fill--2" style="width:93%"></span></span>
+          <span class="bar-row__val">915</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-row__name">Lê Minh Châu</span>
+          <span class="bar-row__track"><span class="bar-row__fill bar-row__fill--3" style="width:89%"></span></span>
+          <span class="bar-row__val">870</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-row__name">Phạm Quốc Dũng</span>
+          <span class="bar-row__track"><span class="bar-row__fill" style="width:82%"></span></span>
+          <span class="bar-row__val">800</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-row__name">Hoàng Thu Hà</span>
+          <span class="bar-row__track"><span class="bar-row__fill" style="width:75%"></span></span>
+          <span class="bar-row__val">735</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-row__name">Đỗ Minh Khôi</span>
+          <span class="bar-row__track"><span class="bar-row__fill" style="width:71%"></span></span>
+          <span class="bar-row__val">698</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-row__name">Vũ Thảo Linh</span>
+          <span class="bar-row__track"><span class="bar-row__fill" style="width:66%"></span></span>
+          <span class="bar-row__val">645</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-row__name">Bùi Đức Mạnh</span>
+          <span class="bar-row__track"><span class="bar-row__fill" style="width:61%"></span></span>
+          <span class="bar-row__val">602</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-row__name">Ngô Phương Nhi</span>
+          <span class="bar-row__track"><span class="bar-row__fill" style="width:57%"></span></span>
+          <span class="bar-row__val">558</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-row__name">Trịnh Gia Phúc</span>
+          <span class="bar-row__track"><span class="bar-row__fill" style="width:52%"></span></span>
+          <span class="bar-row__val">514</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FULL TABLE ============ -->
+    <section class="card card--flush" aria-labelledby="lb-title">
+      <div class="card__head">
+        <h2 id="lb-title">Bảng xếp hạng đầy đủ</h2>
+        <p class="text-xs text-muted mb-0">Bấm vào tiêu đề cột để sắp xếp</p>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table" data-sortable>
+          <caption class="sr-only">Bảng xếp hạng học sinh, có thể sắp xếp theo hạng, tên, lớp, số bài giải được và điểm</caption>
+          <thead>
+            <tr>
+              <th scope="col" style="width:80px" data-numeric>Hạng</th>
+              <th scope="col">Học sinh</th>
+              <th scope="col" style="width:90px">Lớp</th>
+              <th scope="col" class="num" style="width:120px" data-numeric>Bài giải được</th>
+              <th scope="col" class="num" style="width:110px" data-numeric>Tỉ lệ đúng</th>
+              <th scope="col" class="num" style="width:100px" data-numeric>Điểm</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><span class="rank rank--1">1</span></td><td>Nguyễn Văn An</td><td><span class="tag">9A</span></td><td class="num">42</td><td class="num">78%</td><td class="num">980</td></tr>
+            <tr><td><span class="rank rank--2">2</span></td><td>Trần Thị Bình</td><td><span class="tag">9A</span></td><td class="num">39</td><td class="num">74%</td><td class="num">915</td></tr>
+            <tr><td><span class="rank rank--3">3</span></td><td>Lê Minh Châu</td><td><span class="tag">8B</span></td><td class="num">36</td><td class="num">71%</td><td class="num">870</td></tr>
+            <tr><td><span class="rank">4</span></td><td>Phạm Quốc Dũng</td><td><span class="tag">9B</span></td><td class="num">33</td><td class="num">68%</td><td class="num">800</td></tr>
+            <tr><td><span class="rank">5</span></td><td>Hoàng Thu Hà</td><td><span class="tag">7A</span></td><td class="num">29</td><td class="num">66%</td><td class="num">735</td></tr>
+            <tr><td><span class="rank">6</span></td><td>Đỗ Minh Khôi</td><td><span class="tag">9A</span></td><td class="num">27</td><td class="num">63%</td><td class="num">698</td></tr>
+            <tr><td><span class="rank">7</span></td><td>Vũ Thảo Linh</td><td><span class="tag">8A</span></td><td class="num">25</td><td class="num">61%</td><td class="num">645</td></tr>
+            <tr><td><span class="rank">8</span></td><td>Bùi Đức Mạnh</td><td><span class="tag">8A</span></td><td class="num">23</td><td class="num">58%</td><td class="num">602</td></tr>
+            <tr><td><span class="rank">9</span></td><td>Ngô Phương Nhi</td><td><span class="tag">7A</span></td><td class="num">21</td><td class="num">55%</td><td class="num">558</td></tr>
+            <tr><td><span class="rank">10</span></td><td>Trịnh Gia Phúc</td><td><span class="tag">9B</span></td><td class="num">19</td><td class="num">52%</td><td class="num">514</td></tr>
+            <tr><td><span class="rank">11</span></td><td>Lý Thanh Quỳnh</td><td><span class="tag">8B</span></td><td class="num">17</td><td class="num">49%</td><td class="num">470</td></tr>
+            <tr><td><span class="rank">12</span></td><td>Dương Hải Sơn</td><td><span class="tag">7A</span></td><td class="num">15</td><td class="num">46%</td><td class="num">428</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card__foot">
+        <nav class="pager" aria-label="Phân trang bảng xếp hạng">
+          <button class="pager__btn" type="button" aria-label="Trang trước" disabled>‹</button>
+          <button class="pager__btn" type="button" aria-current="page">1</button>
+          <button class="pager__btn" type="button">2</button>
+          <button class="pager__btn" type="button">3</button>
+          <button class="pager__btn" type="button" aria-label="Trang sau">›</button>
+        </nav>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer class="site-foot">
+  <div class="container">
+    <div class="site-foot__grid">
+      <div>
+        <h4>Trường THCS Sông Lô</h4>
+        <ul>
+          <li>Xã Tam Sơn, tỉnh Phú Thọ</li>
+          <li>Điện thoại: 0888 037 318</li>
+          <li>Email: thcssonglotamson@phutho.edu.vn</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Hệ thống</h4>
+        <ul>
+          <li><a href="problems.html">Đề bài</a></li>
+          <li><a href="contests.html">Kỳ thi</a></li>
+          <li><a href="leaderboard.html">Bảng xếp hạng</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Hướng dẫn</h4>
+        <ul>
+          <li><a href="#">Cách nộp bài</a></li>
+          <li><a href="#">Quy chế kỳ thi</a></li>
+          <li><a href="#">Câu hỏi thường gặp</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="site-foot__bar">Bản demo giao diện · Dữ liệu trong trang là ví dụ, chưa nối với hệ thống chấm bài</p>
+  </div>
+</footer>
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>

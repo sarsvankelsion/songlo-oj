@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Online Judge Trường THCS Sông Lô — Khảo sát DMOJ &amp; phương án tinh gọn</title>
+<style>
+  :root{
+    --blue:#1B18CC; --blue2:#186BCC; --blue-50:#E8E8FB;
+    --red:#DA251E; --red-50:#FCEBEB;
+    --green:#5CB85C; --green-50:#EAF6EA;
+    --amber:#F0AD4E; --amber-50:#FDF4E5;
+    --danger:#D9534F; --purple:#7F77DD; --grey:#888780;
+    --bg:#F5F5F5; --card:#FFFFFF; --text:#262626; --muted:#6B6B6B; --border:#E7E7E7;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-size:15px; line-height:1.65;
+  }
+  .wrap{max-width:1000px;margin:0 auto;padding:0 20px 80px}
+
+  /* ---------- HEADER ---------- */
+  header{background:var(--blue);color:#fff;margin-bottom:0}
+  .hdr-banner{position:relative;height:170px;overflow:hidden;background:#0E0C6B}
+  .hdr-banner img{width:100%;height:100%;object-fit:cover;display:block;opacity:.17}
+  .hdr-title{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;padding:0 20px;
+    background:linear-gradient(180deg,rgba(14,12,107,.70),rgba(14,12,107,.88))
+  }
+  .hdr-title .dept{
+    color:#FFD9D6;font-size:13px;letter-spacing:.06em;text-transform:uppercase;
+    font-weight:600;margin-bottom:6px;text-shadow:0 1px 3px rgba(0,0,0,.6)
+  }
+  .hdr-title h1{
+    margin:0;font-size:25px;font-weight:700;letter-spacing:.02em;
+    text-shadow:0 2px 6px rgba(0,0,0,.65);color:#fff
+  }
+  .hdr-title .sub{
+    margin-top:8px;font-size:13.5px;color:#E4E4FF;
+    background:rgba(0,0,0,.35);padding:4px 12px;border-radius:20px
+  }
+  .hdr-bar{background:var(--blue);padding:10px 0}
+  .hdr-bar .wrap{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-bottom:0}
+  .hdr-bar a{
+    color:#fff;text-decoration:none;font-size:13.5px;padding:6px 13px;
+    border-radius:5px;background:rgba(255,255,255,.09)
+  }
+  .hdr-bar a.on{background:#fff;color:var(--blue);font-weight:600}
+
+  /* ---------- SECTIONS ---------- */
+  section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:26px 28px;margin-top:22px}
+  h2{
+    font-size:19px;margin:0 0 6px;color:var(--blue);font-weight:700;
+    display:flex;align-items:center;gap:10px
+  }
+  h2 .n{
+    background:var(--blue);color:#fff;font-size:13px;width:26px;height:26px;
+    border-radius:7px;display:inline-flex;align-items:center;justify-content:center;
+    flex:none;font-weight:700
+  }
+  h3{font-size:15.5px;margin:24px 0 8px;color:var(--blue2);font-weight:600}
+  .lead{color:var(--muted);font-size:14px;margin:0 0 18px}
+  p{margin:10px 0}
+  code{
+    font-family:Consolas,"Courier New",monospace;font-size:12.8px;
+    background:#F1F1F5;color:#B3231D;padding:1.5px 5px;border-radius:4px
+  }
+  pre{
+    background:#1E1E2E;color:#D8D8E8;padding:16px 18px;border-radius:9px;
+    overflow-x:auto;font-family:Consolas,"Courier New",monospace;font-size:12.8px;
+    line-height:1.6;margin:12px 0
+  }
+  pre .c{color:#7C7C99}
+  pre .k{color:#7FDBFF}
+  pre .s{color:#A8E6A1}
+  pre .n{color:#FFB86C}
+
+  /* ---------- TABLE ---------- */
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th{
+    background:#F7F7FA;text-align:left;padding:10px 12px;font-weight:600;
+    border-bottom:2px solid var(--border);color:#333;font-size:13px
+  }
+  td{padding:10px 12px;border-bottom:1px solid #F0F0F2;vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#FAFAFD}
+
+  /* ---------- BADGES ---------- */
+  .b{display:inline-block;font-size:11.5px;font-weight:700;padding:2.5px 9px;border-radius:20px;white-space:nowrap;line-height:1.5}
+  .b.cut{background:var(--red-50);color:#A32D2D;border:1px solid #F0BEBE}
+  .b.off{background:var(--amber-50);color:#854F0B;border:1px solid #F3D9A8}
+  .b.keep{background:var(--green-50);color:#2F6B2F;border:1px solid #BFE0BF}
+  .b.info{background:var(--blue-50);color:#1B18CC;border:1px solid #C6C5F2}
+
+  /* ---------- CALLOUTS ---------- */
+  .note{border-left:4px solid var(--blue2);background:#F4F8FE;padding:13px 16px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13.8px}
+  .warn{border-left:4px solid var(--red);background:var(--red-50);padding:13px 16px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13.8px}
+  .ok{border-left:4px solid var(--green);background:var(--green-50);padding:13px 16px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13.8px}
+  .note b,.warn b,.ok b{font-weight:700}
+
+  /* ---------- METRIC CARDS ---------- */
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:16px 0}
+  .metric{background:#F7F7FA;border-radius:9px;padding:13px 15px}
+  .metric .lbl{font-size:12px;color:var(--muted);margin-bottom:4px}
+  .metric .val{font-size:20px;font-weight:700;color:var(--blue)}
+
+  /* ---------- ARCH DIAGRAM ---------- */
+  .arch{margin:18px 0;display:grid;grid-template-columns:1fr;gap:10px}
+  .tier{border:1.5px dashed #C9C9D6;border-radius:11px;padding:14px 16px;background:#FCFCFE}
+  .tier-h{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+  .nodes{display:flex;flex-wrap:wrap;gap:9px}
+  .node{
+    border-radius:8px;padding:9px 13px;font-size:12.8px;font-weight:600;
+    border:1.5px solid;background:#fff;min-width:120px
+  }
+  .node small{display:block;font-weight:400;font-size:11.5px;color:var(--muted);margin-top:2px}
+  .node.n-blue{border-color:#B5D4F4;background:#E6F1FB;color:#0C447C}
+  .node.n-green{border-color:#C0DD97;background:#EAF3DE;color:#27500A}
+  .node.n-amber{border-color:#FAC775;background:#FAEEDA;color:#633806}
+  .node.n-red{border-color:#F7C1C1;background:#FCEBEB;color:#791F1F;text-decoration:line-through;opacity:.75}
+  .node.n-grey{border-color:#D3D1C7;background:#F1EFE8;color:#444441}
+
+  /* ---------- PALETTE ---------- */
+  .pal{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:11px;margin:16px 0}
+  .sw{border:1px solid var(--border);border-radius:9px;overflow:hidden}
+  .sw .chip{height:58px}
+  .sw .meta{padding:8px 11px;font-size:11.8px;line-height:1.5}
+  .sw .meta b{display:block;font-size:12.5px;color:#333}
+  .sw .meta code{background:none;padding:0;color:var(--muted);font-size:11.5px}
+
+  /* ---------- VERDICT ROW ---------- */
+  .verdicts{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0}
+  .vd{font-size:11.8px;font-weight:700;padding:5px 11px;border-radius:6px;color:#fff}
+
+  /* ---------- MOCKUP ---------- */
+  .mock{border:1px solid var(--border);border-radius:11px;overflow:hidden;margin:18px 0;background:#fff}
+  .mock-top{background:#fff;padding:9px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted)}
+  .mock-top .login{background:var(--blue2);color:#fff;padding:4px 11px;border-radius:4px;font-weight:600;font-size:11.5px}
+  .mock-hero{position:relative;height:110px;overflow:hidden;background:#0E0C6B}
+  .mock-hero img{width:100%;height:100%;object-fit:cover;opacity:.17;display:block}
+  .mock-hero .t{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:17px;text-shadow:0 2px 6px rgba(0,0,0,.7);background:linear-gradient(180deg,rgba(14,12,107,.70),rgba(14,12,107,.88))}
+  .mock-nav{background:var(--blue);display:flex;gap:2px;padding:0 10px;flex-wrap:wrap}
+  .mock-nav span{color:#fff;font-size:11.8px;padding:9px 12px;font-weight:600}
+  .mock-nav span.a{background:rgba(255,255,255,.18)}
+  .mock-body{padding:14px}
+  .mock-h{font-size:13px;font-weight:700;color:var(--blue);margin-bottom:9px;padding-bottom:6px;border-bottom:2px solid var(--blue-50)}
+  .mock-table{width:100%;font-size:12px;border-collapse:collapse}
+  .mock-table th{background:#F7F7FA;padding:7px 9px;font-size:11.5px;border-bottom:1.5px solid var(--border);text-align:left;color:#555}
+  .mock-table td{padding:7px 9px;border-bottom:1px solid #F2F2F5;color:#444}
+  .rank{font-weight:700;color:var(--blue)}
+  .rank.g1{color:#C9A227}.rank.g2{color:#8C8C8C}.rank.g3{color:#B06A2C}
+
+  /* ---------- STEPS ---------- */
+  .steps{counter-reset:s;list-style:none;padding:0;margin:16px 0}
+  .steps li{counter-increment:s;position:relative;padding:0 0 16px 42px;font-size:14px}
+  .steps li::before{
+    content:counter(s);position:absolute;left:0;top:1px;width:26px;height:26px;
+    background:var(--blue);color:#fff;border-radius:50%;display:flex;
+    align-items:center;justify-content:center;font-size:12.5px;font-weight:700
+  }
+  .steps li::after{content:"";position:absolute;left:13px;top:29px;bottom:2px;width:1.5px;background:var(--border)}
+  .steps li:last-child::after{display:none}
+  .steps li b{color:#111}
+
+  footer{text-align:center;color:var(--muted);font-size:12.5px;padding:28px 20px 10px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:720px){.two{grid-template-columns:1fr}.hdr-title h1{font-size:18px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-banner">
+    <img src="assets/school-banner.png" alt="Sân trường THCS Sông Lô">
+    <div class="hdr-title">
+      <div class="dept">Trường THCS Sông Lô — Xã Tam Sơn — Tỉnh Phú Thọ</div>
+      <h1>Online Judge cho nhà trường</h1>
+      <div class="sub">Khảo sát DMOJ · Phương án tinh gọn · Nhận diện thương hiệu</div>
+    </div>
+  </div>
+  <div class="hdr-bar">
+    <div class="wrap">
+      <a href="#kq" class="on">Kết luận</a>
+      <a href="#kiemke">Kiểm kê DMOJ</a>
+      <a href="#tinhgon">Tinh gọn</a>
+      <a href="#config">Config mẫu</a>
+      <a href="#kientruc">Kiến trúc</a>
+      <a href="#nhandien">Nhận diện trường</a>
+      <a href="#mockup">Mockup</a>
+      <a href="#lotrinh">Lộ trình</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ================= KẾT LUẬN ================= -->
+<section id="kq">
+  <h2><span class="n">0</span>Kết luận nhanh</h2>
+  <p class="lead">Đọc mục này là đủ để ra quyết định. Các phần sau là căn cứ.</p>
+
+  <div class="ok">
+    <b>Dùng DMOJ là hướng đúng — nhưng nên dùng bản fork VNOJ, không phải DMOJ gốc.</b><br>
+    VNOJ (<code>VNOI-Admin/OJ</code>) là bản fork tiếng Việt của DMOJ, do cộng đồng VNOI duy trì, có tài liệu cài đặt tiếng Việt và đã được các câu lạc bộ tin học trong nước dùng thật. Dùng nó tiết kiệm được phần dịch giao diện và phần mò lỗi.
+  </div>
+
+  <div class="warn">
+    <b>Nhưng phải nói thẳng: DMOJ nặng hơn nhu cầu của trường rất nhiều.</b><br>
+    DMOJ là nền tảng thi đấu cấp quốc gia (dmoj.ca host hàng nghìn kỳ thi). Nó bắt buộc MariaDB + Redis + Celery + nginx + uWSGI + supervisor, hỗ trợ 60+ ngôn ngữ, có hệ thống rating Elo-MMR… Trường chỉ cần <b>C++ và vài lớp học</b>. Phần tinh gọn được thực chất nằm ở <b>ngôn ngữ chấm bài</b> (60+ → 1) và <b>vài tính năng xã hội</b>. Tầng dữ liệu và các dịch vụ phụ trợ <b>không cắt được</b> — đó là ràng buộc cứng của kiến trúc.
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><div class="lbl">Ngôn ngữ judge hỗ trợ</div><div class="val">60+ → 1</div></div>
+    <div class="metric"><div class="lbl">Tiến trình chạy nền</div><div class="val">6</div></div>
+    <div class="metric"><div class="lbl">Thành phần cắt bỏ</div><div class="val">2</div></div>
+    <div class="metric"><div class="lbl">Công tắc tắt tính năng có sẵn</div><div class="val">12</div></div>
+  </div>
+
+  <div class="note">
+    <b>Về hình ảnh và phong cách trường:</b> trường <b>không có logo/phiên hiệu chính thức nào được công bố trên mạng</b>. Website trường là một mẫu giao diện dùng chung của ngành giáo dục, "logo" thực chất là <b>ảnh chụp toàn cảnh sân trường</b> có chèn chữ. Vì vậy bộ nhận diện bên dưới được trích xuất trực tiếp từ mã CSS và ảnh thật của trang trường — đây là dữ liệu gốc, không phải phỏng đoán.
+  </div>
+</section>
+
+<!-- ================= KIỂM KÊ ================= -->
+<section id="kiemke">
+  <h2><span class="n">1</span>DMOJ gồm những gì</h2>
+  <p class="lead">Kiểm kê toàn bộ thành phần, dựa trên <code>dmoj/settings.py</code>, tài liệu cài đặt chính thức và README của repo.</p>
+
+  <table>
+    <thead><tr><th style="width:26%">Thành phần</th><th style="width:15%">Bắt buộc?</th><th>Vai trò &amp; ghi chú</th></tr></thead>
+    <tbody>
+      <tr><td><b>Django site</b> (<code>judge</code> app)</td><td><span class="b keep">Bắt buộc</span></td><td>Toàn bộ logic trong <b>một app duy nhất</b> tên <code>judge</code>: đề bài, bài nộp, kỳ thi, người dùng, tổ chức, bình luận, blog, ticket. Không tách module — muốn cắt phải tắt bằng cấu hình hoặc sửa template.</td></tr>
+      <tr><td><b>MariaDB / MySQL</b></td><td><span class="b keep">Bắt buộc</span></td><td>Tài liệu ghi rõ: <i>"chỉ được kiểm thử với MySQL, hầu như chắc chắn không chạy với thứ khác"</i>. Không thể thay bằng SQLite.</td></tr>
+      <tr><td><b>Redis</b></td><td><span class="b keep">Bắt buộc</span></td><td>Cache + broker cho Celery. VNOJ yêu cầu đổi <code>CACHES</code> sang Redis/memcached để đồng bộ cache giữa site và judge.</td></tr>
+      <tr><td><b>Celery worker</b></td><td><span class="b keep">Bắt buộc</span></td><td>Việc chạy nền: tính lại bảng xếp hạng kỳ thi, gửi mail, các tác vụ định kỳ. Không có thì bảng xếp hạng không cập nhật.</td></tr>
+      <tr><td><b>uWSGI + nginx</b></td><td><span class="b keep">Bắt buộc</span></td><td>uWSGI chạy Django, nginx làm reverse proxy + phục vụ file tĩnh.</td></tr>
+      <tr><td><b>Judge server</b> (<code>dmoj</code> CLI)</td><td><span class="b keep">Bắt buộc</span></td><td>Tiến trình riêng, chấm bài. Cách ly bằng seccomp, <b>chỉ chạy Linux/FreeBSD</b>. Debian là bản được hỗ trợ chính thức.</td></tr>
+      <tr><td><b>supervisor</b></td><td><span class="b keep">Bắt buộc</span></td><td>Quản lý tiến trình nền (site, celery, bridge).</td></tr>
+      <tr><td><b>Node.js 18</b></td><td><span class="b off">Chỉ lúc build</span></td><td>Dùng <code>sass</code>/<code>postcss</code> biên dịch CSS. <b>Không cần chạy thường trực</b> — build một lần rồi tắt.</td></tr>
+      <tr><td><b>websocket daemon</b> (Node)</td><td><span class="b cut">Bỏ được</span></td><td>Cập nhật trạng thái bài nộp trực tiếp. Mặc định <code>EVENT_DAEMON_USE = False</code> — DMOJ vốn đã tắt sẵn.</td></tr>
+      <tr><td><b>Mathoid / Texoid</b></td><td><span class="b cut">Bỏ được</span></td><td>Render công thức LaTeX. Mặc định <code>MATHOID_URL = False</code>. Đề C++ cơ bản không cần.</td></tr>
+      <tr><td><b>PDFOID</b></td><td><span class="b cut">Bỏ được</span></td><td>Xuất đề ra PDF. Mặc định <code>DMOJ_PDF_PDFOID_URL = None</code>.</td></tr>
+      <tr><td><b>Camo</b></td><td><span class="b cut">Bỏ được</span></td><td>Proxy ảnh qua HTTPS. Mặc định <code>DMOJ_CAMO_URL = None</code>.</td></tr>
+      <tr><td><b>MOSS</b> (Stanford)</td><td><span class="b cut">Bỏ được</span></td><td>Chống đạo văn mã nguồn — cần API key riêng của Stanford.</td></tr>
+      <tr><td><b>social_django</b></td><td><span class="b cut">Bỏ được</span></td><td>Đăng nhập Google/Facebook/GitHub. Tắt bằng <code>DMOJ_ENABLE_SOCIAL</code>.</td></tr>
+      <tr><td><b>martor</b> + <b>django_ace</b></td><td><span class="b keep">Nên giữ</span></td><td>Editor Markdown (soạn đề) và editor code (nộp bài). Cần cho giáo viên và học sinh.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>Điểm cần lưu ý về kiến trúc:</b> DMOJ <b>không được thiết kế theo module</b>. Gần như toàn bộ tính năng nằm trong một Django app tên <code>judge</code>. Vì vậy "tinh gọn" ở đây nghĩa là <b>tắt bằng cấu hình và ẩn trên giao diện</b>, chứ không phải gỡ bỏ mã nguồn. Đây là lý do bảng ở mục 2 chia làm ba nhóm thay vì một danh sách xoá.
+  </div>
+
+  <h3>Thông tin repo</h3>
+  <table>
+    <tbody>
+      <tr><td style="width:30%">Giấy phép</td><td><b>AGPL-3.0</b> — dùng nội bộ thì tự do; nếu đem sửa rồi cho trường khác dùng qua mạng, <b>phải công khai mã nguồn đã sửa</b>.</td></tr>
+      <tr><td>Mức độ phổ biến</td><td>1.189 sao, 458 bản fork, cập nhật gần nhất 18/09/2026 — dự án còn sống, không phải hàng bỏ.</td></tr>
+      <tr><td>Ngôn ngữ</td><td>Python (Django) + Node.js (chỉ phần websocket/giao diện)</td></tr>
+      <tr><td>Hệ điều hành</td><td>Judge: Linux, FreeBSD. <b>Windows không còn được hỗ trợ</b> (chỉ tới bản v1.4.0).</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ================= TINH GỌN ================= -->
+<section id="tinhgon">
+  <h2><span class="n">2</span>Tinh gọn: cắt gì, giữ gì</h2>
+  <p class="lead">Ba nhóm. Mỗi dòng đều ghi rõ <b>cách làm</b> và <b>đánh đổi</b> — không có lựa chọn miễn phí.</p>
+
+  <h3><span class="b cut">Nhóm A</span> &nbsp;Cắt hẳn — đúng 2 thành phần</h3>
+  <table>
+    <thead><tr><th style="width:22%">Thành phần</th><th style="width:32%">Cách làm</th><th>Đánh đổi</th></tr></thead>
+    <tbody>
+      <tr><td><b>MOSS</b> (Stanford)</td><td>Không nhập API key vào cấu hình. Không cần cài đặt gì.</td><td>Không tự phát hiện đạo văn mã nguồn. Với lớp học nhỏ, giáo viên đọc là biết.</td></tr>
+      <tr><td><b>Camo proxy</b></td><td>Không cài dịch vụ. Để <code>DMOJ_CAMO_URL = None</code>.</td><td>Ảnh ngoài nhúng trong đề có thể bị trình duyệt cảnh báo nội dung hỗn hợp HTTP/HTTPS. Không ảnh hưởng việc chấm bài.</td></tr>
+    </tbody>
+  </table>
+  <div class="ok">
+    <b>Mọi thành phần còn lại đều giữ</b> — kể cả những dịch vụ phụ trợ như websocket, LaTeX, PDF. Nghĩa là vẫn cần cài Node service, Mathoid và PDFOID. Danh sách đầy đủ ở nhóm C.
+  </div>
+
+  <h3><span class="b off">Nhóm B</span> &nbsp;Tắt bằng cấu hình — có sẵn công tắc trong DMOJ</h3>
+  <table>
+    <thead><tr><th style="width:32%">Cấu hình</th><th style="width:14%">Mặc định</th><th>Đặt thành &amp; tác dụng</th></tr></thead>
+    <tbody>
+      <tr><td><code>DMOJ_ENABLE_COMMENTS</code></td><td><code>True</code></td><td><code>False</code> — tắt bình luận dưới đề bài. Tránh việc học sinh bàn đáp án công khai.</td></tr>
+      <tr><td><code>DMOJ_ENABLE_SOCIAL</code></td><td><code>True</code></td><td><code>False</code> — tắt đăng nhập Google/Facebook/GitHub. Bỏ được cả bước cấu hình OAuth.</td></tr>
+      <tr><td><code>REGISTRATION_OPEN</code></td><td><code>True</code></td><td><code>False</code> — <b>quan trọng</b>: chỉ giáo viên tạo tài khoản, học sinh không tự đăng ký. Phù hợp môi trường trường học.</td></tr>
+      <tr><td><code>DMOJ_REQUIRE_STAFF_2FA</code></td><td><code>True</code></td><td><code>False</code> — bỏ yêu cầu xác thực 2 lớp cho tài khoản giáo viên. Xem cảnh báo ở mục 7.</td></tr>
+      <tr><td><code>DEFAULT_USER_LANGUAGE</code></td><td><code>'PY3'</code></td><td><code>'CPP17'</code> — <b>đổi quan trọng</b>: ô nộp bài mặc định là C++17 thay vì Python.</td></tr>
+      <tr><td><code>SITE_NAME</code> / <code>SITE_LONG_NAME</code></td><td><code>'DMOJ'</code></td><td>Đổi thành tên trường — hiển thị ở tiêu đề tab và phần đầu trang.</td></tr>
+      <tr><td><code>SITE_ADMIN_EMAIL</code></td><td><code>''</code></td><td><code>thcssonglotamson@phutho.edu.vn</code> — địa chỉ nhận thông báo lỗi hệ thống.</td></tr>
+      <tr><td><code>DMOJ_RATING_COLORS</code></td><td><code>True</code></td><td>Giữ <code>False</code> nếu không tổ chức thi có tính điểm xếp hạng.</td></tr>
+      <tr><td><code>ENABLE_FTS</code></td><td><code>False</code></td><td>Giữ <code>False</code>. VNOJ cũng khuyến nghị tắt để tránh lỗi tìm kiếm toàn văn.</td></tr>
+      <tr><td><code>DMOJ_PROBLEM_MAX_TIME_LIMIT</code></td><td><code>60</code> giây</td><td>Hạ xuống <code>10</code> — chặn đề có giới hạn thời gian vô lý, bảo vệ máy chấm.</td></tr>
+      <tr><td><code>DMOJ_PROBLEM_MAX_MEMORY_LIMIT</code></td><td><code>1048576</code> KB</td><td>Hạ xuống <code>262144</code> (256 MB) — đủ cho mọi bài THCS, tránh treo máy.</td></tr>
+      <tr><td><code>DMOJ_SUBMISSION_RATELIMIT</code></td><td><code>500</code>/ngày</td><td>Giữ nguyên hoặc hạ. Chống spam nộp bài.</td></tr>
+    </tbody>
+  </table>
+
+  <h3><span class="b keep">Nhóm C</span> &nbsp;Giữ lại — đây chính là thứ trường cần</h3>
+  <table>
+    <thead><tr><th style="width:26%">Tính năng</th><th>Vì sao giữ</th></tr></thead>
+    <tbody>
+      <tr><td><b>Tài khoản + phân quyền</b></td><td>DMOJ có sẵn hệ thống quyền chi tiết (giáo viên / học sinh / quản trị). Khớp đúng yêu cầu.</td></tr>
+      <tr><td><b>Đề bài + test ẩn</b></td><td>Hỗ trợ nhiều bộ test, test ẩn, chấm theo từng phần, báo điểm từng test. Là lõi của hệ thống.</td></tr>
+      <tr><td><b>Bảng xếp hạng</b></td><td>Có sẵn cả bảng xếp hạng luyện tập lẫn bảng xếp hạng theo kỳ thi.</td></tr>
+      <tr><td><b>Kỳ thi có đếm ngược</b></td><td>DMOJ hỗ trợ ICPC / IOI / AtCoder / ECOO. Trường chỉ cần IOI (tính điểm từng bài).</td></tr>
+      <tr><td><b>Lớp học</b> (<code>judge.Class</code>)</td><td><b>Điểm mạnh bị nhiều người bỏ qua:</b> DMOJ có sẵn khái niệm "lớp" và "tổ chức". Gán học sinh vào lớp 6A, 7B… rồi giao đề riêng cho từng lớp — đúng cách trường vận hành.</td></tr>
+      <tr><td><b>Nhập đề hàng loạt</b></td><td>Đề lưu dạng thư mục + <code>init.yml</code>. Giáo viên có thể chuẩn bị đề ngoài máy rồi tải lên, không phải gõ lại.</td></tr>
+      <tr><td><b>Song ngữ giao diện</b></td><td>Có sẵn hệ thống dịch (<code>locale/</code>). VNOJ đã có tiếng Việt.</td></tr>
+      <tr><td><b>websocket daemon</b></td><td><b>Giữ.</b> Trạng thái bài nộp tự cập nhật ngay khi chấm xong, không phải bấm F5. Cần cài Node service (<code>qu</code>, <code>ws</code>, <code>simplesets</code>) và để <code>EVENT_DAEMON_USE = True</code>.</td></tr>
+      <tr><td><b>Mathoid / Texoid</b></td><td><b>Giữ.</b> Render công thức LaTeX trong đề bài. Cần dựng thêm dịch vụ Mathoid. Đáng giữ nếu sau này ra đề có công thức toán.</td></tr>
+      <tr><td><b>PDFOID</b></td><td><b>Giữ.</b> Xuất đề ra PDF để in phát cho học sinh. Cần dựng thêm dịch vụ PDFOID.</td></tr>
+      <tr><td><b>URL shortener</b> (VNOJ)</td><td><b>Giữ.</b> Link rút gọn khi chia sẻ đề cho lớp.</td></tr>
+      <tr><td><b>S3 storage</b> (VNOJ)</td><td><b>Giữ.</b> Tuỳ chọn lưu dữ liệu test lên S3. Không bật thì vẫn dùng ổ đĩa thường, không ảnh hưởng gì.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    <b>Ràng buộc cứng, không tinh gọn được:</b> MariaDB, Redis, Celery, nginx, uWSGI và judge server. Và vì đã giữ websocket, Mathoid, PDFOID nên cộng thêm 3 dịch vụ phụ trợ nữa — tổng khoảng <b>6 tiến trình nền cộng 3 dịch vụ ngoài</b>. Muốn bỏ bớt thì phải viết lại kiến trúc, tức là không còn là DMOJ nữa. Nếu khối lượng vận hành này là quá nhiều cho một trường, xem phương án nhẹ hơn ở mục 7.
+  </div>
+</section>
+
+<!-- ================= CONFIG ================= -->
+<section id="config">
+  <h2><span class="n">3</span>Cấu hình mẫu</h2>
+  <p class="lead">Dán vào <code>dmoj/local_settings.py</code>. DMOJ tự đọc file này, không cần sửa <code>settings.py</code>.</p>
+
+<pre><span class="c"># ── Nhận diện nhà trường ────────────────────────────────</span>
+<span class="k">SITE_NAME</span>       = <span class="s">'THCS Sông Lô'</span>
+<span class="k">SITE_LONG_NAME</span>  = <span class="s">'Trường THCS Sông Lô — Xã Tam Sơn, Tỉnh Phú Thọ'</span>
+<span class="k">SITE_ADMIN_EMAIL</span> = <span class="s">'thcssonglotamson@phutho.edu.vn'</span>
+<span class="k">ALLOWED_HOSTS</span>   = [<span class="s">'oj.thcssonglotamson.phutho.edu.vn'</span>, <span class="s">'10.0.0.5'</span>]
+<span class="k">DEFAULT_USER_LANGUAGE</span> = <span class="s">'CPP17'</span>   <span class="c"># trường chỉ dùng C++</span>
+
+<span class="c"># ── Tắt tính năng thừa ──────────────────────────────────</span>
+<span class="k">REGISTRATION_OPEN</span>      = <span class="n">False</span>   <span class="c"># chỉ giáo viên tạo tài khoản</span>
+<span class="k">DMOJ_ENABLE_COMMENTS</span>   = <span class="n">False</span>   <span class="c"># không bình luận dưới đề</span>
+<span class="k">DMOJ_ENABLE_SOCIAL</span>     = <span class="n">False</span>   <span class="c"># bỏ đăng nhập Google/FB/GitHub</span>
+<span class="k">DMOJ_REQUIRE_STAFF_2FA</span> = <span class="n">False</span>   <span class="c"># xem cảnh báo bảo mật ở mục 7</span>
+<span class="k">DMOJ_RATING_COLORS</span>     = <span class="n">False</span>
+<span class="k">ENABLE_FTS</span>             = <span class="n">False</span>   <span class="c"># VNOJ khuyến nghị tắt</span>
+
+<span class="c"># ── Hai thành phần duy nhất bị cắt ──────────────────────</span>
+<span class="k">DMOJ_CAMO_URL</span>          = <span class="n">None</span>    <span class="c"># không dùng Camo</span>
+<span class="c"># MOSS: chỉ cần không khai báo MOSS_API_KEY nào là đã tắt</span>
+
+<span class="c"># ── Giữ lại: websocket, LaTeX, PDF ──────────────────────</span>
+<span class="k">EVENT_DAEMON_USE</span>       = <span class="n">True</span>    <span class="c"># bật cập nhật trạng thái trực tiếp</span>
+<span class="k">EVENT_DAEMON_POST</span>      = (<span class="s">'127.0.0.1'</span>, <span class="n">15101</span>)
+<span class="k">EVENT_DAEMON_GET</span>       = <span class="s">'http://127.0.0.1:15100/event/'</span>
+<span class="k">EVENT_DAEMON_POLL</span>      = <span class="s">'http://127.0.0.1:15102/channels/'</span>
+<span class="k">MATHOID_URL</span>            = <span class="s">'http://127.0.0.1:10044'</span>   <span class="c"># dịch vụ LaTeX</span>
+<span class="k">DMOJ_PDF_PDFOID_URL</span>    = <span class="s">'http://127.0.0.1:10045'</span>   <span class="c"># xuất đề ra PDF</span>
+
+<span class="c"># ── Giới hạn tài nguyên chấm bài ────────────────────────</span>
+<span class="k">DMOJ_PROBLEM_MAX_TIME_LIMIT</span>   = <span class="n">10</span>       <span class="c"># giây</span>
+<span class="k">DMOJ_PROBLEM_MAX_MEMORY_LIMIT</span> = <span class="n">262144</span>   <span class="c"># 256 MB</span>
+<span class="k">DMOJ_SUBMISSION_RATELIMIT</span>     = <span class="n">200</span>      <span class="c"># bài/ngày/người</span>
+
+<span class="c"># ── Cơ sở dữ liệu ───────────────────────────────────────</span>
+<span class="k">DATABASES</span> = {
+    <span class="s">'default'</span>: {
+        <span class="s">'ENGINE'</span>: <span class="s">'django.db.backends.mysql'</span>,
+        <span class="s">'NAME'</span>: <span class="s">'dmoj'</span>,
+        <span class="s">'USER'</span>: <span class="s">'dmoj'</span>,
+        <span class="s">'PASSWORD'</span>: <span class="s">'&lt;mật khẩu mạnh, không dùng mặc định&gt;'</span>,
+        <span class="s">'HOST'</span>: <span class="s">'127.0.0.1'</span>,
+        <span class="s">'PORT'</span>: <span class="s">'3306'</span>,
+        <span class="s">'OPTIONS'</span>: {<span class="s">'charset'</span>: <span class="s">'utf8mb4'</span>},
+    }
+}
+
+<span class="c"># ── Bắt buộc với VNOJ: nơi chứa dữ liệu test ────────────</span>
+<span class="k">DMOJ_PROBLEM_DATA_ROOT</span> = <span class="s">'/srv/oj/problems'</span>
+
+<span class="c"># ── Cache dùng chung giữa site và judge (VNOJ yêu cầu) ──</span>
+<span class="k">CACHES</span> = {
+    <span class="s">'default'</span>: {
+        <span class="s">'BACKEND'</span>: <span class="s">'django_redis.cache.RedisCache'</span>,
+        <span class="s">'LOCATION'</span>: <span class="s">'redis://127.0.0.1:6379/0'</span>,
+    }
+}
+
+<span class="k">DEBUG</span> = <span class="n">False</span>   <span class="c"># BẮT BUỘC tắt trước khi cho học sinh dùng</span></pre>
+
+  <h3>Giới hạn judge chỉ chạy C++</h3>
+  <p>Trong file <code>judge.yml</code> của máy chấm, chỉ khai báo đúng runtime cần dùng. Không cài Java, Python, Pascal… — image nhỏ hơn nhiều và khởi động nhanh hơn.</p>
+<pre><span class="k">id</span>: <span class="s">songlo-judge-01</span>
+<span class="k">key</span>: <span class="s">&lt;khoá trùng với khoá khai báo trên web&gt;</span>
+
+<span class="k">runtime</span>:
+  <span class="k">cpp17</span>:
+    <span class="k">gcc</span>: <span class="s">/usr/bin/g++</span>
+    <span class="k">args</span>: [<span class="s">'-std=c++17'</span>, <span class="s">'-O2'</span>, <span class="s">'-static'</span>]
+  <span class="c"># cpp20: nếu muốn cho học sinh dùng chuẩn mới</span>
+
+<span class="k">problem_storage_globs</span>:
+  - <span class="s">/srv/oj/problems/**/</span></pre>
+
+  <div class="note">
+    VNOJ còn yêu cầu chép <code>testlib.h</code> vào thư mục include của <code>g++</code> trên máy chấm, để hỗ trợ các bài dùng trình sinh test / chấm đặc biệt. Nên làm sẵn, đừng đợi đến lúc cần.
+  </div>
+</section>
+
+<!-- ================= KIẾN TRÚC ================= -->
+<section id="kientruc">
+  <h2><span class="n">4</span>Kiến trúc sau khi tinh gọn</h2>
+  <p class="lead">Một máy VPS Linux là đủ cho quy mô một trường. Chỉ hai khối đỏ là phần đã cắt.</p>
+
+  <div class="arch">
+    <div class="tier">
+      <div class="tier-h">Tầng truy cập</div>
+      <div class="nodes">
+        <div class="node n-blue">Học sinh<small>Trình duyệt, LAN hoặc Internet</small></div>
+        <div class="node n-blue">Giáo viên<small>Tạo đề, tạo lớp, xem điểm</small></div>
+      </div>
+    </div>
+    <div class="tier">
+      <div class="tier-h">Tầng web — 1 máy VPS Debian</div>
+      <div class="nodes">
+        <div class="node n-green">nginx<small>Cổng 80/443, file tĩnh</small></div>
+        <div class="node n-green">uWSGI<small>Chạy Django</small></div>
+        <div class="node n-green">Celery worker<small>Tính lại bảng xếp hạng</small></div>
+        <div class="node n-green">supervisor<small>Giữ tiến trình sống</small></div>
+        <div class="node n-green">websocket daemon<small>Cập nhật trạng thái trực tiếp</small></div>
+      </div>
+    </div>
+    <div class="tier">
+      <div class="tier-h">Tầng dữ liệu</div>
+      <div class="nodes">
+        <div class="node n-blue">MariaDB<small>Đề bài, bài nộp, người dùng</small></div>
+        <div class="node n-blue">Redis<small>Cache + hàng đợi Celery</small></div>
+        <div class="node n-grey">Ổ đĩa<small>/srv/oj/problems — test case</small></div>
+      </div>
+    </div>
+    <div class="tier">
+      <div class="tier-h">Tầng chấm bài — cách ly</div>
+      <div class="nodes">
+        <div class="node n-amber">Judge daemon<small>dmoj CLI, seccomp sandbox</small></div>
+        <div class="node n-amber">Chỉ C++17<small>g++, cpp17 duy nhất</small></div>
+        <div class="node n-blue">Mathoid + PDFOID<small>LaTeX và xuất PDF</small></div>
+        <div class="node n-red">MOSS + Camo<small>Đã cắt</small></div>
+      </div>
+    </div>
+  </div>
+
+  <p><b>Luồng chấm bài:</b> Học sinh nộp → Django ghi vào MariaDB → Celery đưa vào hàng đợi → judge daemon nhận qua bridge → chạy trong sandbox seccomp với giới hạn thời gian/bộ nhớ → trả kết quả về → Django cập nhật trạng thái và bảng xếp hạng.</p>
+</section>
+
+<!-- ================= NHẬN DIỆN ================= -->
+<section id="nhandien">
+  <h2><span class="n">5</span>Nhận diện nhà trường</h2>
+  <p class="lead">Trích xuất trực tiếp từ <code>style.css</code>, HTML và ảnh thật của <code>thcssonglotamson.phutho.edu.vn</code>.</p>
+
+  <div class="note">
+    <b>Phát hiện cần nói rõ:</b> nhà trường <b>chưa công bố logo hay phiên hiệu chính thức</b> ở bất kỳ đâu trên mạng. Phần đầu trang hiện tại là <b>một ảnh chụp toàn cảnh sân trường</b> có chèn dòng chữ xanh. Website dùng mẫu giao diện chung của ngành giáo dục, nên phần lớn mã màu trong CSS là màu mặc định của Bootstrap, không phải màu thương hiệu riêng.
+  </div>
+
+  <p>Vì vậy bộ màu dưới đây lấy từ <b>những chỗ thực sự mang tính nhận diện</b>: thanh menu, dòng tên trường, và dòng tên cơ quan chủ quản.</p>
+
+  <div class="pal">
+    <div class="sw"><div class="chip" style="background:#1B18CC"></div><div class="meta"><b>Xanh chủ đạo</b><code>#1B18CC</code><br>Thanh menu, nút chính, liên kết</div></div>
+    <div class="sw"><div class="chip" style="background:#186BCC"></div><div class="meta"><b>Xanh tên trường</b><code>#186BCC</code><br>Tiêu đề, dòng tên trường</div></div>
+    <div class="sw"><div class="chip" style="background:#DA251E"></div><div class="meta"><b>Đỏ cờ</b><code>#DA251E</code><br>Dòng cơ quan chủ quản, nhấn mạnh</div></div>
+    <div class="sw"><div class="chip" style="background:#F5F5F5;border-bottom:1px solid #E7E7E7"></div><div class="meta"><b>Nền trang</b><code>#F5F5F5</code><br>Nền chung, vùng phân cách</div></div>
+    <div class="sw"><div class="chip" style="background:#262626"></div><div class="meta"><b>Chữ chính</b><code>#262626</code><br>Nội dung, đoạn văn</div></div>
+    <div class="sw"><div class="chip" style="background:#FFFFFF;border-bottom:1px solid #E7E7E7"></div><div class="meta"><b>Nền thẻ</b><code>#FFFFFF</code><br>Khối nội dung, bảng</div></div>
+  </div>
+
+  <h3>Ánh xạ màu trạng thái chấm bài</h3>
+  <p>Bảng màu Bootstrap mà trang trường đang dùng trùng khớp tự nhiên với các kết quả chấm bài của DMOJ. Dùng lại đúng bộ này thì giao diện vừa quen mắt vừa đúng chuẩn.</p>
+  <div class="verdicts">
+    <span class="vd" style="background:#5CB85C">AC — Đúng</span>
+    <span class="vd" style="background:#D9534F">WA — Sai kết quả</span>
+    <span class="vd" style="background:#F0AD4E">TLE — Quá thời gian</span>
+    <span class="vd" style="background:#F0AD4E">MLE — Quá bộ nhớ</span>
+    <span class="vd" style="background:#7F77DD">RTE — Lỗi khi chạy</span>
+    <span class="vd" style="background:#888780">CE — Lỗi biên dịch</span>
+  </div>
+
+  <h3>Ảnh dùng được</h3>
+  <table>
+    <tbody>
+      <tr><td style="width:26%"><b>Ảnh đầu trang</b></td><td>Ảnh chụp toàn cảnh sân trường — dãy nhà ba tầng, tường vàng kem, mái ngói đỏ, sân gạch, cây xanh. Dùng làm ảnh nền phần đầu trang web chấm bài, phủ lớp màu xanh mờ để chữ trắng nổi lên. <b>Đã lưu sẵn</b> tại <code>assets/school-banner.png</code>.</td></tr>
+      <tr><td><b>Dòng chữ chuẩn</b></td><td><code>TRƯỜNG THCS SÔNG LÔ — XÃ TAM SƠN — TỈNH PHÚ THỌ</code> — dùng đúng định dạng này để đồng bộ với website trường.</td></tr>
+      <tr><td><b>Thông tin liên hệ</b></td><td>Điện thoại <code>0888037318</code> · Email <code>thcssonglotamson@phutho.edu.vn</code> · Website <code>thcssonglotamson.phutho.edu.vn</code></td></tr>
+      <tr><td><b>Phông chữ</b></td><td>Trang trường dùng bộ phông hệ thống (<code>Segoe UI</code> / <code>Roboto</code> / <code>Arial</code>) — không dùng phông riêng. Giữ nguyên như vậy cho đồng bộ, không cần tải phông ngoài.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>Đề xuất:</b> nếu muốn có logo chính thức, nên xin trực tiếp từ nhà trường — xin file gốc (ảnh vector hoặc PNG nền trong) chứ đừng cắt từ ảnh chụp màn hình. Đây cũng là việc nên làm trước khi công bố web, để tránh dùng sai phiên hiệu.
+  </div>
+</section>
+
+<!-- ================= MOCKUP ================= -->
+<section id="mockup">
+  <h2><span class="n">6</span>Giao diện dự kiến</h2>
+  <p class="lead">Dựng bằng đúng bảng màu ở mục 5, để hình dung trước khi bắt tay vào code.</p>
+
+  <div class="mock">
+    <div class="mock-top">
+      <span>Trường THCS Sông Lô — Hệ thống chấm bài lập trình</span>
+      <span class="login">Đăng nhập</span>
+    </div>
+    <div class="mock-hero">
+      <img src="assets/school-banner.png" alt="Sân trường">
+      <div class="t">HỆ THỐNG CHẤM BÀI LẬP TRÌNH</div>
+    </div>
+    <div class="mock-nav">
+      <span class="a">Trang chủ</span><span>Đề bài</span><span>Kỳ thi</span><span>Bảng xếp hạng</span><span>Lớp học</span><span>Bài nộp</span>
+    </div>
+    <div class="mock-body">
+      <div class="mock-h">Bảng xếp hạng — Lớp 9A</div>
+      <table class="mock-table">
+        <thead><tr><th style="width:60px">Hạng</th><th>Học sinh</th><th style="width:90px">Giải được</th><th style="width:100px">Điểm</th></tr></thead>
+        <tbody>
+          <tr><td><span class="rank g1">1</span></td><td>Nguyễn Văn An</td><td>12 / 15</td><td><b>980</b></td></tr>
+          <tr><td><span class="rank g2">2</span></td><td>Trần Thị Bình</td><td>11 / 15</td><td><b>915</b></td></tr>
+          <tr><td><span class="rank g3">3</span></td><td>Lê Minh Châu</td><td>10 / 15</td><td><b>870</b></td></tr>
+          <tr><td><span class="rank">4</span></td><td>Phạm Quốc Dũng</td><td>9 / 15</td><td><b>800</b></td></tr>
+          <tr><td><span class="rank">5</span></td><td>Hoàng Thu Hà</td><td>8 / 15</td><td><b>735</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p><b>Nguyên tắc thiết kế:</b> giữ đúng cấu trúc thị giác mà học sinh đã quen từ website trường — dải xanh đậm ở trên, ảnh sân trường làm nền, nội dung trên nền trắng. Không sáng tạo lại từ đầu, vì mục tiêu là học sinh nhìn vào biết ngay đây là hệ thống của trường mình.</p>
+</section>
+
+<!-- ================= LỘ TRÌNH ================= -->
+<section id="lotrinh">
+  <h2><span class="n">7</span>Lộ trình và cảnh báo</h2>
+
+  <h3>Lộ trình đề xuất</h3>
+  <ol class="steps">
+    <li><b>Dựng thử trên máy ảo Linux.</b> Cài VNOJ theo tài liệu, chấm thử một bài C++ đơn giản. Mục tiêu: xác nhận toàn bộ chuỗi hoạt động, chưa cần đẹp. <span class="b info">1–2 buổi</span></li>
+    <li><b>Tinh gọn theo mục 2 và 3.</b> Dán cấu hình, tắt tính năng thừa, giới hạn judge chỉ còn C++17. Chấm lại bài cũ để chắc không hỏng gì. <span class="b info">1 buổi</span></li>
+    <li><b>Thay nhận diện.</b> Thay ảnh đầu trang, đổi màu thanh menu sang <code>#1B18CC</code>, đổi tên hệ thống. <span class="b info">1 buổi</span></li>
+    <li><b>Chuẩn bị nội dung.</b> Tạo tài khoản giáo viên, tạo các lớp, nhập khoảng 10 bài C++ đầu tiên kèm test. <span class="b info">2–3 buổi</span></li>
+    <li><b>Chạy thử nội bộ.</b> Cho một lớp dùng thật, thu phản hồi, sửa. <span class="b info">1 tuần</span></li>
+    <li><b>Sao lưu và bàn giao.</b> Đặt lịch sao lưu MariaDB hằng ngày, viết một trang hướng dẫn ngắn cho giáo viên. <span class="b info">1 buổi</span></li>
+  </ol>
+
+  <h3>Cảnh báo</h3>
+  <div class="warn">
+    <b>1. Bảo mật tài khoản giáo viên.</b> Tắt xác thực 2 lớp làm việc đăng nhập đơn giản hơn, nhưng tài khoản giáo viên có quyền tạo đề và xem toàn bộ bài nộp. Nếu máy chủ mở ra Internet, nên bật lại và dùng mật khẩu dài. Nếu chỉ chạy trong mạng nội bộ của trường, mức rủi ro thấp hơn nhiều.
+  </div>
+  <div class="warn">
+    <b>2. Giấy phép AGPL-3.0.</b> Dùng nội bộ thì thoải mái. Nhưng nếu sau này chỉnh sửa rồi cho trường khác dùng qua mạng, <b>bắt buộc phải công khai mã nguồn đã sửa</b>. Đây là điều kiện của giấy phép, không phải khuyến nghị.
+  </div>
+  <div class="warn">
+    <b>3. An toàn khi chấm bài.</b> Mã học sinh chạy trên máy chủ. DMOJ có sandbox seccomp, nhưng <b>không nên chạy judge chung máy với dữ liệu quan trọng của trường</b>. Nếu có thể, tách judge sang một máy ảo riêng.
+  </div>
+  <div class="note">
+    <b>4. Sao lưu.</b> DMOJ không tự sao lưu. Cần đặt lịch <code>mysqldump</code> hằng ngày cho cơ sở dữ liệu và <code>rsync</code> thư mục <code>/srv/oj/problems</code>. Mất thư mục test là mất toàn bộ đề.
+  </div>
+
+  <h3>Nếu thấy DMOJ vẫn quá nặng</h3>
+  <table>
+    <thead><tr><th style="width:22%">Phương án</th><th style="width:30%">Chi phí</th><th>Đánh đổi</th></tr></thead>
+    <tbody>
+      <tr><td><b>VNOJ</b><br><span class="b keep">Đề xuất</span></td><td>Trung bình — vẫn cần MariaDB, Redis, Celery, nginx, uWSGI.</td><td>Đầy đủ tính năng, tiếng Việt có sẵn, cộng đồng trong nước hỗ trợ được. Nhưng vận hành phức tạp, cần người biết Linux.</td></tr>
+      <tr><td><b>HydroOJ</b></td><td>Thấp hơn — Node.js + MongoDB, ít tiến trình hơn.</td><td>Cài nhanh hơn, có tiếng Việt. Nhưng hệ sinh thái bài tập và tài liệu tiếng Việt ít hơn DMOJ/VNOJ.</td></tr>
+      <tr><td><b>Dùng dịch vụ có sẵn</b></td><td>Rất thấp — không cần máy chủ.</td><td>Không kiểm soát được dữ liệu học sinh, phụ thuộc Internet, khó tuỳ biến theo trường. Nhưng chạy được ngay hôm nay.</td></tr>
+    </tbody>
+  </table>
+  <p class="lead" style="margin-top:14px">Nếu mục tiêu là <b>có sản phẩm dùng được trong vài tuần</b>, VNOJ là lựa chọn cân bằng nhất. Nếu mục tiêu là <b>học cách vận hành hệ thống</b>, DMOJ/VNOJ vẫn là lựa chọn đúng vì tài liệu đầy đủ và cộng đồng lớn.</p>
+</section>
+
+<footer>
+  Báo cáo khảo sát kỹ thuật · Trường THCS Sông Lô, xã Tam Sơn, tỉnh Phú Thọ<br>
+  Nguồn: <code>github.com/DMOJ/online-judge</code> · <code>github.com/VNOI-Admin/OJ</code> · <code>docs.dmoj.ca</code> · <code>thcssonglotamson.phutho.edu.vn</code>
+</footer>
+
+</div>
+</body>
+</html>

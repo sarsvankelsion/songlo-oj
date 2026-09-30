@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soạn đề &amp; bộ dữ liệu — Hệ thống chấm bài lập trình | Trường THCS Sông Lô</title>
+<meta name="description" content="Trang soạn đề dành cho giáo viên: tạo đề, nhập bộ dữ liệu và đánh dấu bộ dữ liệu ẩn.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Bỏ qua điều hướng, tới nội dung chính</a>
+
+<header class="site-head">
+  <div class="container site-head__inner">
+    <div class="site-head__mark" aria-hidden="true">&lt;/&gt;</div>
+    <div class="site-head__text">
+      <p class="site-head__dept">Sở Giáo dục và Đào tạo tỉnh Phú Thọ</p>
+      <p class="site-head__name">Trường THCS Sông Lô — Xã Tam Sơn</p>
+    </div>
+    <div class="site-head__tools">
+      <div class="role-switch role-switch--light" role="group" aria-label="Chế độ xem bản demo">
+        <a href="index.html">Học sinh</a>
+        <a href="teacher.html" aria-current="page">Giáo viên</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Điều hướng chính">
+  <div class="container nav__inner">
+    <a class="nav__link" href="teacher.html">Tổng quan</a>
+    <a class="nav__link" href="teacher-problems.html" aria-current="page">Soạn đề</a>
+    <a class="nav__link" href="teacher-classes.html">Lớp học</a>
+    <a class="nav__link" href="contests.html">Kỳ thi</a>
+    <a class="nav__link" href="leaderboard.html">Bảng xếp hạng</a>
+    <span class="nav__user">
+      <span class="nav__avatar" aria-hidden="true">TH</span>
+      <span>Cô Phạm Thu Hằng</span>
+      <span class="tag tag--onnav">GV</span>
+      <a href="login.html">Đăng xuất</a>
+    </span>
+  </div>
+</nav>
+
+<main id="main">
+  <div class="container">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">Soạn đề &amp; bộ dữ liệu</h1>
+        <p class="page-head__sub">Tạo đề, nhập bộ dữ liệu vào – ra và đánh dấu những bộ dữ liệu không cho học sinh xem.</p>
+      </div>
+      <div class="page-head__actions">
+        <a class="btn btn--outline" href="problems.html">Xem như học sinh</a>
+        <a class="btn btn--primary" href="#form-title">Tạo đề mới</a>
+      </div>
+    </div>
+
+    <!-- ============ PROBLEM LIST ============ -->
+    <section class="card card--flush mb-5" aria-labelledby="pl-title">
+      <div class="card__head">
+        <h2 id="pl-title">Danh sách đề</h2>
+        <span class="text-sm text-muted">Hiện <strong data-filter-count>10</strong> / 128 đề</span>
+      </div>
+
+      <div class="card__body" style="padding-bottom:16px">
+        <div class="grid grid-3">
+          <div class="field mb-0">
+            <label class="label" for="p-q">Tìm kiếm</label>
+            <input class="input" id="p-q" type="search" placeholder="Nhập mã đề hoặc tên bài…" data-filter-search autocomplete="off">
+          </div>
+          <div class="field mb-0">
+            <label class="label" for="p-status">Trạng thái</label>
+            <select class="select" id="p-status" data-filter-select data-filter-key="status">
+              <option value="all">Tất cả trạng thái</option>
+              <option value="live">Đã công khai</option>
+              <option value="draft">Bản nháp</option>
+              <option value="review">Chờ duyệt</option>
+            </select>
+          </div>
+          <div class="field mb-0">
+            <label class="label" for="p-diff">Độ khó</label>
+            <select class="select" id="p-diff" data-filter-select data-filter-key="diff">
+              <option value="all">Tất cả độ khó</option>
+              <option value="easy">Cơ bản</option>
+              <option value="mid">Trung bình</option>
+              <option value="hard">Nâng cao</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table" data-sortable>
+          <caption class="sr-only">Danh sách đề bài kèm trạng thái, số bộ dữ liệu và thao tác quản trị</caption>
+          <thead>
+            <tr>
+              <th scope="col" style="width:80px">Mã</th>
+              <th scope="col">Tên bài</th>
+              <th scope="col" style="width:120px">Độ khó</th>
+              <th scope="col" class="num" data-numeric style="width:130px">Bộ dữ liệu</th>
+              <th scope="col" style="width:140px">Trạng thái</th>
+              <th scope="col" style="width:170px">Người soạn</th>
+              <th scope="col" style="width:150px"><span class="sr-only">Thao tác</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-filter-row data-status="live" data-diff="easy">
+              <td class="mono">SL001</td>
+              <td><a href="problem.html">Tổng hai số nguyên</a></td>
+              <td><span class="badge badge--green">Cơ bản</span></td>
+              <td class="num">10 <span class="text-xs text-muted">(4 ẩn)</span></td>
+              <td><span class="badge badge--green">Đã công khai</span></td>
+              <td class="text-sm">Tổ KHTN</td>
+              <td>
+                <div class="toolbar">
+                  <a class="btn btn--ghost btn--sm" href="#form-title">Sửa</a>
+                  <button class="btn btn--ghost btn--sm" type="button">Xoá</button>
+                </div>
+              </td>
+            </tr>
+            <tr data-filter-row data-status="live" data-diff="easy">
+              <td class="mono">SL002</td>
+              <td><a href="problem.html">Kiểm tra số nguyên tố</a></td>
+              <td><span class="badge badge--green">Cơ bản</span></td>
+              <td class="num">12 <span class="text-xs text-muted">(5 ẩn)</span></td>
+              <td><span class="badge badge--green">Đã công khai</span></td>
+              <td class="text-sm">Tổ KHTN</td>
+              <td>
+                <div class="toolbar">
+                  <a class="btn btn--ghost btn--sm" href="#form-title">Sửa</a>
+                  <button class="btn btn--ghost btn--sm" type="button">Xoá</button>
+                </div>
+              </td>
+            </tr>
+            <tr data-filter-row data-status="live" data-diff="easy">
+              <td class="mono">SL003</td>
+              <td><a href="problem.html">Tính giai thừa</a></td>
+              <td><span class="badge badge--green">Cơ bản</span></td>
+              <td class="num">8 <span class="text-xs text-muted">(3 ẩn)</span></td>
+              <td><span class="badge badge--green">Đã công khai</span></td>
+              <td class="text-sm">Tổ KHTN</td>
+              <td>
+                <div class="toolbar">
+                  <a class="btn btn--ghost btn--sm" href="#form-title">Sửa</a>
+                  <button class="btn btn--ghost btn--sm" type="button">Xoá</button>
+                </div>
+              </td>
+            </tr>
+            <tr data-filter-row data-status="live" data-diff="mid">
+              <td class="mono">SL014</td>
+              <td><a href="problem.html">Dãy con tăng dài nhất</a></td>
+              <td><span class="badge">Trung bình</span></td>
+              <td class="num">15 <span class="text-xs text-muted">(7 ẩn)</span></td>
+              <td><span class="badge badge--green">Đã công khai</span></td>
+              <td class="text-sm">Cô Phạm Thu Hằng</td>
+              <td>
+                <div class="toolbar">
+                  <a class="btn btn--ghost btn--sm" href="#form-title">Sửa</a>
+                  <button class="btn btn--ghost btn--sm" type="button">Xoá</button>
+                </div>
+              </td>
+            </tr>
+            <tr data-filter-row data-status="review" data-diff="mid">
+              <td class="mono">SL016</td>
+              <td><a href="problem.html">Sàng số nguyên tố</a></td>
+              <td><span class="badge">Trung bình</span></td>
+              <td class="num">11 <span class="text-xs text-muted">(5 ẩn)</span></td>
+              <td><span class="badge badge--red">Chờ duyệt</span></td>
+              <td class="text-sm">Thầy Nguyễn Đức Long</td>
+              <td>
+                <div class="toolbar">
+                  <a class="btn btn--ghost btn--sm" href="#form-title">Duyệt</a>
+                  <button class="btn btn--ghost btn--sm" type="button">Từ chối</button>
+                </div>
+              </td>
+            </tr>
+            <tr data-filter-row data-status="live" data-diff="mid">
+              <td class="mono">SL021</td>
+              <td><a href="problem.html">Đếm cặp nghịch thế</a></td>
+              <td><span class="badge">Trung bình</span></td>
+              <td class="num">14 <span class="text-xs text-muted">(6 ẩn)</span></td>
+              <td><span class="badge badge--green">Đã công khai</span></td>
+              <td class="text-sm">Cô Phạm Thu Hằng</td>
+              <td>
+                <div class="toolbar">
+                  <a class="btn btn--ghost btn--sm" href="#form-title">Sửa</a>
+                  <button class="btn btn--ghost btn--sm" type="button">Xoá</button>
+                </div>
+              </td>
+            </tr>
+            <tr data-filter-row data-status="draft" data-diff="mid">
+              <td class="mono">SL027</td>
+              <td><a href="problem.html">Tìm kiếm nhị phân trên mảng</a></td>
+              <td><span class="badge">Trung bình</span></td>
+              <td class="num">9 <span class="text-xs text-muted">(4 ẩn)</span></td>
+              <td><span class="badge badge--grey">Bản nháp</span></td>
+              <td class="text-sm">Tổ KHTN</td>
+              <td>
+                <div class="toolbar">
+                  <a class="btn btn--ghost btn--sm" href="#form-title">Sửa</a>
+                  <button class="btn btn--ghost btn--sm" type="button">Xoá</button>
+                </div>
+              </td>
+            </tr>
+            <tr data-filter-row data-status="live" data-diff="hard">
+              <td class="mono">SL033</td>
+              <td><a href="problem.html">Đường đi ngắn nhất trên lưới</a></td>
+              <td><span class="badge badge--red">Nâng cao</span></td>
+              <td class="num">20 <span class="text-xs text-muted">(10 ẩn)</span></td>
+              <td><span class="badge badge--green">Đã công khai</span></td>
+              <td class="text-sm">Cô Phạm Thu Hằng</td>
+              <td>
+                <div class="toolbar">
+                  <a class="btn btn--ghost btn--sm" href="#form-title">Sửa</a>
+                  <button class="btn btn--ghost btn--sm" type="button">Xoá</button>
+                </div>
+              </td>
+            </tr>
+            <tr data-filter-row data-status="review" data-diff="hard">
+              <td class="mono">SL041</td>
+              <td><a href="problem.html">Cây khung nhỏ nhất</a></td>
+              <td><span class="badge badge--red">Nâng cao</span></td>
+              <td class="num">16 <span class="text-xs text-muted">(8 ẩn)</span></td>
+              <td><span class="badge badge--red">Chờ duyệt</span></td>
+              <td class="text-sm">Thầy Nguyễn Đức Long</td>
+              <td>
+                <div class="toolbar">
+                  <a class="btn btn--ghost btn--sm" href="#form-title">Duyệt</a>
+                  <button class="btn btn--ghost btn--sm" type="button">Từ chối</button>
+                </div>
+              </td>
+            </tr>
+            <tr data-filter-row data-status="draft" data-diff="easy">
+              <td class="mono">SL045</td>
+              <td><a href="problem.html">Đổi cơ số</a></td>
+              <td><span class="badge badge--green">Cơ bản</span></td>
+              <td class="num">6 <span class="text-xs text-muted">(2 ẩn)</span></td>
+              <td><span class="badge badge--grey">Bản nháp</span></td>
+              <td class="text-sm">Tổ KHTN</td>
+              <td>
+                <div class="toolbar">
+                  <a class="btn btn--ghost btn--sm" href="#form-title">Sửa</a>
+                  <button class="btn btn--ghost btn--sm" type="button">Xoá</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div data-filter-empty hidden>
+          <div class="empty">
+            <h3>Không có đề nào khớp bộ lọc</h3>
+            <p class="mb-0">Thử bỏ bộ lọc hoặc đổi từ khoá tìm kiếm.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SUPPORT PANELS ============ -->
+    <div class="grid grid-3 mb-5">
+
+      <section class="card" aria-labelledby="ck-title">
+        <h3 id="ck-title" class="mb-4">Trước khi công khai</h3>
+        <ul class="constraints">
+          <li><span class="k">Mã đề</span> <span class="mono">SL046</span></li>
+          <li><span class="k">Bộ dữ liệu</span> <span>5 (3 ẩn)</span></li>
+          <li><span class="k">Lời giải mẫu</span> <span class="badge badge--grey">Chưa có</span></li>
+          <li><span class="k">Người duyệt</span> <span>Tổ KHTN</span></li>
+        </ul>
+        <div class="alert alert--warn mt-4" role="note">
+          <div>
+            <p class="alert__title">Còn thiếu lời giải mẫu</p>
+            <p class="mb-0 text-sm">Nên có ít nhất một lời giải mẫu để kiểm tra lại bộ dữ liệu trước khi mở đề.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="guide-title">
+        <h3 id="guide-title" class="mb-4">Quy ước đặt tên</h3>
+        <ul class="constraints">
+          <li><span class="k">Bộ công khai</span> <span class="mono">01.inp</span></li>
+          <li><span class="k">Bộ ẩn</span> <span class="mono">03_hidden.inp</span></li>
+          <li><span class="k">Lời giải mẫu</span> <span class="mono">sol.cpp</span></li>
+          <li><span class="k">Trình sinh dữ liệu</span> <span class="mono">gen.cpp</span></li>
+        </ul>
+        <p class="hint mb-0">Hệ thống tự tách bộ dữ liệu ẩn khi nhập tệp zip.</p>
+      </section>
+
+      <section class="stack" aria-label="Lưu ý">
+        <div class="alert alert--info" role="note">
+          <div>
+            <p class="alert__title">Giới hạn số bộ dữ liệu</p>
+            <p class="mb-0 text-sm">Mỗi đề nên có tối đa 30 bộ dữ liệu để thời gian chấm không quá lâu vào giờ cao điểm.</p>
+          </div>
+        </div>
+        <div class="alert alert--warn" role="note">
+          <div>
+            <p class="alert__title">Bộ dữ liệu ẩn</p>
+            <p class="mb-0 text-sm">Học sinh chỉ thấy trạng thái đúng hoặc sai, không thấy nội dung dữ liệu vào và ra.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============ CREATE FORM ============ -->
+    <section class="card" aria-labelledby="form-title">
+      <div class="card__head">
+        <h2 id="form-title">Soạn đề mới</h2>
+        <span class="badge badge--grey">Bản nháp</span>
+      </div>
+
+      <div class="card__body">
+        <form novalidate>
+
+          <div class="grid grid-2">
+            <div class="field">
+              <label class="label" for="p-code">Mã đề <span class="req" aria-hidden="true">*</span></label>
+              <input class="input mono" id="p-code" name="code" type="text" value="SL046" required>
+              <p class="hint">Không trùng với mã đề đã có. Học sinh dùng mã này để tra cứu.</p>
+            </div>
+            <div class="field">
+              <label class="label" for="p-name">Tên bài <span class="req" aria-hidden="true">*</span></label>
+              <input class="input" id="p-name" name="name" type="text" placeholder="Ví dụ: Đếm số nguyên tố trong đoạn" required>
+            </div>
+          </div>
+
+          <div class="grid grid-3">
+            <div class="field">
+              <label class="label" for="p-level">Độ khó</label>
+              <select class="select" id="p-level" name="level">
+                <option>Cơ bản</option>
+                <option selected>Trung bình</option>
+                <option>Nâng cao</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="label" for="p-topic">Chủ đề</label>
+              <select class="select" id="p-topic" name="topic">
+                <option>Số học</option>
+                <option>Chuỗi ký tự</option>
+                <option selected>Mảng và dãy số</option>
+                <option>Quy hoạch động</option>
+                <option>Đồ thị và lưới</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="label" for="p-lang">Ngôn ngữ cho phép</label>
+              <select class="select" id="p-lang" name="lang">
+                <option selected>C++17 (g++ 13.2)</option>
+                <option>C++17 và Python 3.12</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-3">
+            <div class="field">
+              <label class="label" for="p-time">Giới hạn thời gian</label>
+              <input class="input" id="p-time" name="time" type="text" value="1 giây">
+              <p class="hint">Mặc định 1 giây cho mỗi bộ dữ liệu.</p>
+            </div>
+            <div class="field">
+              <label class="label" for="p-mem">Giới hạn bộ nhớ</label>
+              <input class="input" id="p-mem" name="mem" type="text" value="256 MB">
+            </div>
+            <div class="field">
+              <label class="label" for="p-points">Thang điểm</label>
+              <select class="select" id="p-points" name="points">
+                <option selected>100 điểm, chia đều</option>
+                <option>Theo điểm từng bộ dữ liệu</option>
+                <option>Thang điểm IOI</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="label" for="p-statement">Đề bài <span class="req" aria-hidden="true">*</span></label>
+            <textarea class="textarea" id="p-statement" name="statement" rows="10" style="min-height:220px" placeholder="Mô tả yêu cầu, dữ liệu vào, dữ liệu ra, ví dụ và giới hạn…">Cho dãy số nguyên a gồm n phần tử. Đếm số lượng số nguyên tố có trong dãy.
+
+Dữ liệu vào:
+Dòng đầu ghi số nguyên n (1 ≤ n ≤ 10^5).
+Dòng thứ hai ghi n số nguyên a[i] (|a[i]| ≤ 10^6).
+
+Dữ liệu ra:
+Một số nguyên duy nhất là số lượng số nguyên tố trong dãy.
+
+Ví dụ:
+Dữ liệu vào:
+5
+1 2 3 4 5
+Dữ liệu ra:
+3</textarea>
+            <p class="hint">Hỗ trợ văn bản thuần. Công thức toán viết dạng <code>a[i]</code> hoặc <code>10^6</code>.</p>
+          </div>
+
+          <hr>
+
+          <div class="row-between mb-4">
+            <div>
+              <h3 class="mb-2">Bộ dữ liệu</h3>
+              <p class="text-sm text-muted mb-0">Bộ dữ liệu ẩn vẫn được chấm nhưng học sinh chỉ thấy trạng thái đúng hoặc sai.</p>
+            </div>
+            <div class="toolbar">
+              <button class="btn btn--outline btn--sm" type="button">Thêm bộ dữ liệu</button>
+            </div>
+          </div>
+
+          <div class="table-wrap mb-5">
+            <table class="table table--compact">
+              <caption class="sr-only">Bộ dữ liệu của đề đang soạn</caption>
+              <thead>
+                <tr>
+                  <th scope="col" style="width:60px">#</th>
+                  <th scope="col" style="width:170px">Tệp vào</th>
+                  <th scope="col" style="width:170px">Tệp ra</th>
+                  <th scope="col" class="num" style="width:90px">Điểm</th>
+                  <th scope="col" style="width:140px">Chế độ</th>
+                  <th scope="col" style="width:110px"><span class="sr-only">Thao tác</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono">1</td>
+                  <td class="mono text-sm">01.inp</td>
+                  <td class="mono text-sm">01.out</td>
+                  <td class="num">10</td>
+                  <td><span class="badge badge--green">Công khai</span></td>
+                  <td><button class="btn btn--ghost btn--sm" type="button">Sửa</button></td>
+                </tr>
+                <tr>
+                  <td class="mono">2</td>
+                  <td class="mono text-sm">02.inp</td>
+                  <td class="mono text-sm">02.out</td>
+                  <td class="num">10</td>
+                  <td><span class="badge badge--green">Công khai</span></td>
+                  <td><button class="btn btn--ghost btn--sm" type="button">Sửa</button></td>
+                </tr>
+                <tr>
+                  <td class="mono">3</td>
+                  <td class="mono text-sm">03.inp</td>
+                  <td class="mono text-sm">03.out</td>
+                  <td class="num">10</td>
+                  <td><span class="badge badge--grey">Ẩn</span></td>
+                  <td><button class="btn btn--ghost btn--sm" type="button">Sửa</button></td>
+                </tr>
+                <tr>
+                  <td class="mono">4</td>
+                  <td class="mono text-sm">04.inp</td>
+                  <td class="mono text-sm">04.out</td>
+                  <td class="num">10</td>
+                  <td><span class="badge badge--grey">Ẩn</span></td>
+                  <td><button class="btn btn--ghost btn--sm" type="button">Sửa</button></td>
+                </tr>
+                <tr>
+                  <td class="mono">5</td>
+                  <td class="mono text-sm">05.inp</td>
+                  <td class="mono text-sm">05.out</td>
+                  <td class="num">10</td>
+                  <td><span class="badge badge--grey">Ẩn</span></td>
+                  <td><button class="btn btn--ghost btn--sm" type="button">Sửa</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="dropzone mb-5">
+            <strong>Kéo tệp .zip vào đây</strong>
+            hoặc chọn tệp từ máy
+            <p class="mb-0 mt-2 text-xs">Cấu trúc: <code>01.inp</code>, <code>01.out</code>, <code>02.inp</code>, <code>02.out</code>… Đặt tên có hậu tố <code>_hidden</code> cho bộ dữ liệu ẩn.</p>
+          </div>
+
+          <div class="row">
+            <button class="btn btn--primary" type="submit">Lưu đề</button>
+            <button class="btn btn--outline" type="button">Chạy thử với lời giải mẫu</button>
+            <span class="spacer"></span>
+            <button class="btn btn--ghost" type="reset">Xoá biểu mẫu</button>
+          </div>
+
+        </form>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer class="site-foot">
+  <div class="container">
+    <div class="site-foot__grid">
+      <div>
+        <h4>Trường THCS Sông Lô</h4>
+        <ul>
+          <li>Xã Tam Sơn, tỉnh Phú Thọ</li>
+          <li>Điện thoại: 0888 037 318</li>
+          <li>Email: thcssonglotamson@phutho.edu.vn</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Quản trị</h4>
+        <ul>
+          <li><a href="teacher-problems.html">Soạn đề</a></li>
+          <li><a href="teacher-classes.html">Lớp học</a></li>
+          <li><a href="contests.html">Kỳ thi</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Hướng dẫn</h4>
+        <ul>
+          <li><a href="#">Cách soạn đề</a></li>
+          <li><a href="#">Quy chế kỳ thi</a></li>
+          <li><a href="#">Câu hỏi thường gặp</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="site-foot__bar">Bản demo giao diện · Dữ liệu trong trang là ví dụ, chưa nối với hệ thống chấm bài</p>
+  </div>
+</footer>
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>

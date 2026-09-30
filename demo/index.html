@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trang chủ — Hệ thống chấm bài lập trình | Trường THCS Sông Lô</title>
+<meta name="description" content="Hệ thống chấm bài lập trình C++ dành cho học sinh Trường THCS Sông Lô, xã Tam Sơn, tỉnh Phú Thọ.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Bỏ qua điều hướng, tới nội dung chính</a>
+
+<header class="site-head">
+  <div class="container site-head__inner">
+    <div class="site-head__mark" aria-hidden="true">&lt;/&gt;</div>
+    <div class="site-head__text">
+      <p class="site-head__dept">Sở Giáo dục và Đào tạo tỉnh Phú Thọ</p>
+      <p class="site-head__name">Trường THCS Sông Lô — Xã Tam Sơn</p>
+    </div>
+    <div class="site-head__tools">
+      <div class="role-switch role-switch--light" role="group" aria-label="Chế độ xem bản demo">
+        <a href="index.html" aria-current="page">Học sinh</a>
+        <a href="teacher.html">Giáo viên</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Điều hướng chính">
+  <div class="container nav__inner">
+    <a class="nav__link" href="index.html" aria-current="page">Trang chủ</a>
+    <a class="nav__link" href="problems.html">Đề bài</a>
+    <a class="nav__link" href="submissions.html">Bài nộp</a>
+    <a class="nav__link" href="contests.html">Kỳ thi</a>
+    <a class="nav__link" href="leaderboard.html">Bảng xếp hạng</a>
+    <span class="nav__user">
+      <span class="nav__avatar" aria-hidden="true">NA</span>
+      <span>Nguyễn Văn An</span>
+      <span class="tag tag--onnav">9A</span>
+      <a href="login.html">Đăng xuất</a>
+    </span>
+  </div>
+</nav>
+
+<main id="main">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="hero__media" aria-hidden="true">
+      <img src="assets/img/campus-b.jpg" alt="">
+    </div>
+    <div class="hero__grid" aria-hidden="true"></div>
+    <div class="hero__scrim" aria-hidden="true"></div>
+
+    <div class="container hero__inner">
+      <div class="hero__content">
+        <p class="hero__eyebrow">Trường THCS Sông Lô · Xã Tam Sơn · Tỉnh Phú Thọ</p>
+        <h1 class="hero__title">Hệ thống chấm bài lập trình</h1>
+        <p class="hero__sub">
+          Luyện tập và thi đấu môn Tin học với ngôn ngữ C++. Bài nộp được chấm tự động,
+          có bộ dữ liệu ẩn và bảng xếp hạng cập nhật theo tuần.
+        </p>
+        <div class="hero__actions">
+          <a class="btn btn--light btn--lg" href="problems.html">Vào luyện tập</a>
+          <a class="btn btn--glass btn--lg" href="contests.html">Xem kỳ thi</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="container">
+
+    <!-- ============ STATS ============ -->
+    <section class="grid grid-4 hero-stats" aria-label="Số liệu hệ thống">
+      <div class="stat">
+        <p class="stat__label">Đề bài</p>
+        <p class="stat__value">128</p>
+        <p class="stat__hint">24 đề mới trong tháng này</p>
+      </div>
+      <div class="stat">
+        <p class="stat__label">Lượt nộp bài</p>
+        <p class="stat__value">3.482</p>
+        <p class="stat__hint">Tỉ lệ đúng 61%</p>
+      </div>
+      <div class="stat">
+        <p class="stat__label">Học sinh tham gia</p>
+        <p class="stat__value">214</p>
+        <p class="stat__hint">Thuộc 8 lớp</p>
+      </div>
+      <div class="stat stat--accent">
+        <p class="stat__label">Kỳ thi đang mở</p>
+        <p class="stat__value">2</p>
+        <p class="stat__hint">1 kỳ thi sắp bắt đầu</p>
+      </div>
+    </section>
+
+    <!-- ============ MAIN + SIDEBAR ============ -->
+    <div class="grid grid-sidebar mt-5">
+
+      <!-- ---------- LEFT ---------- -->
+      <div>
+
+        <!-- Upcoming contest -->
+        <section class="card mb-5" aria-labelledby="cd-title">
+          <div class="row-between mb-4">
+            <div>
+              <span class="badge badge--red">Sắp diễn ra</span>
+              <h2 id="cd-title" class="mt-2" style="font-size:19px">Kỳ thi chọn đội tuyển Tin học cấp trường</h2>
+              <p class="text-muted text-sm mb-0 mt-2">
+                Thứ Sáu, 20/11/2026 · 08:00 – 11:00 · Lớp 8 và lớp 9 · 4 bài · Thang điểm IOI
+              </p>
+            </div>
+          </div>
+
+          <div class="row-between">
+            <div class="countdown" data-countdown="2026-11-20T08:00:00+07:00" role="timer" aria-label="Thời gian còn lại tới khi kỳ thi bắt đầu">
+              <div class="countdown__unit"><span class="countdown__num" data-cd="d">00</span><span class="countdown__lbl">Ngày</span></div>
+              <div class="countdown__unit"><span class="countdown__num" data-cd="h">00</span><span class="countdown__lbl">Giờ</span></div>
+              <div class="countdown__unit"><span class="countdown__num" data-cd="m">00</span><span class="countdown__lbl">Phút</span></div>
+              <div class="countdown__unit"><span class="countdown__num" data-cd="s">00</span><span class="countdown__lbl">Giây</span></div>
+            </div>
+            <div class="row">
+              <span class="text-sm text-muted" data-countdown-status>Chưa mở đăng ký</span>
+              <a class="btn btn--outline btn--sm" href="contests.html">Chi tiết</a>
+            </div>
+          </div>
+        </section>
+
+        <!-- New problems -->
+        <section class="card card--flush" aria-labelledby="np-title">
+          <div class="card__head">
+            <h2 id="np-title">Đề bài mới nhất</h2>
+            <a class="btn btn--ghost btn--sm" href="problems.html">Xem tất cả</a>
+          </div>
+          <div class="table-wrap">
+            <table class="table">
+              <caption class="sr-only">Danh sách năm đề bài mới nhất kèm độ khó và số người giải được</caption>
+              <thead>
+                <tr>
+                  <th scope="col" style="width:80px">Mã</th>
+                  <th scope="col">Tên bài</th>
+                  <th scope="col" style="width:130px">Độ khó</th>
+                  <th scope="col" class="num" style="width:110px">Giải được</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono">SL001</td>
+                  <td><a href="problem.html">Tổng hai số nguyên</a></td>
+                  <td><span class="badge badge--green">Cơ bản</span></td>
+                  <td class="num">196</td>
+                </tr>
+                <tr>
+                  <td class="mono">SL002</td>
+                  <td><a href="problem.html">Kiểm tra số nguyên tố</a></td>
+                  <td><span class="badge badge--green">Cơ bản</span></td>
+                  <td class="num">174</td>
+                </tr>
+                <tr>
+                  <td class="mono">SL014</td>
+                  <td><a href="problem.html">Dãy con tăng dài nhất</a></td>
+                  <td><span class="badge">Trung bình</span></td>
+                  <td class="num">63</td>
+                </tr>
+                <tr>
+                  <td class="mono">SL021</td>
+                  <td><a href="problem.html">Đếm cặp nghịch thế</a></td>
+                  <td><span class="badge">Trung bình</span></td>
+                  <td class="num">41</td>
+                </tr>
+                <tr>
+                  <td class="mono">SL033</td>
+                  <td><a href="problem.html">Đường đi ngắn nhất trên lưới</a></td>
+                  <td><span class="badge badge--red">Nâng cao</span></td>
+                  <td class="num">12</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Campus -->
+        <section class="card card--flush mt-5" aria-labelledby="campus-title">
+          <div class="card__head">
+            <h2 id="campus-title">Cơ sở vật chất</h2>
+            <span class="text-sm text-muted">Phòng máy và khuôn viên nhà trường</span>
+          </div>
+          <div class="card__body">
+            <div class="campus">
+              <figure>
+                <img src="assets/img/campus-a.jpg" alt="Dãy phòng học và cây xanh trong khuôn viên Trường THCS Sông Lô">
+                <figcaption>Dãy phòng học chính</figcaption>
+              </figure>
+              <figure>
+                <img src="assets/img/campus-b.jpg" alt="Sân trường và khu nhà hiệu bộ của Trường THCS Sông Lô">
+                <figcaption>Sân trường và khu nhà hiệu bộ</figcaption>
+              </figure>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- ---------- SIDEBAR ---------- -->
+      <aside>
+
+        <!-- Leaderboard preview -->
+        <section class="card card--flush mb-4" aria-labelledby="lb-title">
+          <div class="card__head">
+            <h3 id="lb-title">Bảng xếp hạng tuần</h3>
+            <a class="btn btn--ghost btn--sm" href="leaderboard.html">Tất cả</a>
+          </div>
+          <div class="table-wrap">
+            <table class="table table--compact">
+              <caption class="sr-only">Năm học sinh dẫn đầu bảng xếp hạng tuần này</caption>
+              <thead>
+                <tr>
+                  <th scope="col" style="width:48px">Hạng</th>
+                  <th scope="col">Học sinh</th>
+                  <th scope="col" class="num" style="width:70px">Điểm</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="rank rank--1">1</span></td>
+                  <td>Nguyễn Văn An <span class="tag">9A</span></td>
+                  <td class="num">980</td>
+                </tr>
+                <tr>
+                  <td><span class="rank rank--2">2</span></td>
+                  <td>Trần Thị Bình <span class="tag">9A</span></td>
+                  <td class="num">915</td>
+                </tr>
+                <tr>
+                  <td><span class="rank rank--3">3</span></td>
+                  <td>Lê Minh Châu <span class="tag">8B</span></td>
+                  <td class="num">870</td>
+                </tr>
+                <tr>
+                  <td><span class="rank">4</span></td>
+                  <td>Phạm Quốc Dũng <span class="tag">9B</span></td>
+                  <td class="num">800</td>
+                </tr>
+                <tr>
+                  <td><span class="rank">5</span></td>
+                  <td>Hoàng Thu Hà <span class="tag">7A</span></td>
+                  <td class="num">735</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Recent submissions -->
+        <section class="card card--flush mb-4" aria-labelledby="rs-title">
+          <div class="card__head">
+            <h3 id="rs-title">Bài nộp gần đây</h3>
+          </div>
+          <div class="card__body" style="padding-top:12px;padding-bottom:12px">
+            <ul class="side-list">
+              <li>
+                <div class="side-list__row">
+                  <span class="verdict verdict--ac">Đúng</span>
+                  <span class="text-sm" style="flex:1">SL014 · Trần Thị Bình</span>
+                </div>
+              </li>
+              <li>
+                <div class="side-list__row">
+                  <span class="verdict verdict--wa">Sai</span>
+                  <span class="text-sm" style="flex:1">SL021 · Lê Minh Châu</span>
+                </div>
+              </li>
+              <li>
+                <div class="side-list__row">
+                  <span class="verdict verdict--tle">Quá giờ</span>
+                  <span class="text-sm" style="flex:1">SL033 · Nguyễn Văn An</span>
+                </div>
+              </li>
+              <li>
+                <div class="side-list__row">
+                  <span class="verdict verdict--ce">Lỗi dịch</span>
+                  <span class="text-sm" style="flex:1">SL002 · Phạm Quốc Dũng</span>
+                </div>
+              </li>
+              <li>
+                <div class="side-list__row">
+                  <span class="verdict verdict--pending">Đang chấm</span>
+                  <span class="text-sm" style="flex:1">SL014 · Hoàng Thu Hà</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+          <div class="card__foot">
+            <a href="submissions.html">Xem tất cả bài nộp →</a>
+          </div>
+        </section>
+
+        <!-- Notice -->
+        <section class="alert alert--info" role="note">
+          <div>
+            <p class="alert__title">Nội quy phòng máy</p>
+            <p class="mb-0 text-sm">
+              Không sao chép mã nguồn của bạn khác. Hệ thống có kiểm tra trùng lặp mã nguồn.
+            </p>
+          </div>
+        </section>
+
+      </aside>
+    </div>
+  </div>
+</main>
+
+<footer class="site-foot">
+  <div class="container">
+    <div class="site-foot__grid">
+      <div>
+        <h4>Trường THCS Sông Lô</h4>
+        <ul>
+          <li>Xã Tam Sơn, tỉnh Phú Thọ</li>
+          <li>Điện thoại: 0888 037 318</li>
+          <li>Email: thcssonglotamson@phutho.edu.vn</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Hệ thống</h4>
+        <ul>
+          <li><a href="problems.html">Đề bài</a></li>
+          <li><a href="submissions.html">Bài nộp</a></li>
+          <li><a href="contests.html">Kỳ thi</a></li>
+          <li><a href="leaderboard.html">Bảng xếp hạng</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Hướng dẫn</h4>
+        <ul>
+          <li><a href="#">Cách nộp bài</a></li>
+          <li><a href="#">Quy chế kỳ thi</a></li>
+          <li><a href="#">Câu hỏi thường gặp</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="site-foot__bar">Bản demo giao diện · Dữ liệu trong trang là ví dụ, chưa nối với hệ thống chấm bài</p>
+  </div>
+</footer>
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>

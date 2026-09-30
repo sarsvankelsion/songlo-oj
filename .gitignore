@@ -1,0 +1,15 @@
+# Ảnh chụp màn hình và hồ sơ Chrome tạm — không đưa vào repo
+_shots/
+
+# Tệp tạm khi kiểm tra giao diện
+_probe.html
+
+# Hệ điều hành
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Trình soạn thảo
+.vscode/
+.idea/
+*.swp

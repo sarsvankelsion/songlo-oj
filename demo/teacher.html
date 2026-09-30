@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tổng quan giáo viên — Hệ thống chấm bài lập trình | Trường THCS Sông Lô</title>
+<meta name="description" content="Trang quản trị dành cho giáo viên: theo dõi lớp, đề bài, bài nộp và kỳ thi.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Bỏ qua điều hướng, tới nội dung chính</a>
+
+<header class="site-head">
+  <div class="container site-head__inner">
+    <div class="site-head__mark" aria-hidden="true">&lt;/&gt;</div>
+    <div class="site-head__text">
+      <p class="site-head__dept">Sở Giáo dục và Đào tạo tỉnh Phú Thọ</p>
+      <p class="site-head__name">Trường THCS Sông Lô — Xã Tam Sơn</p>
+    </div>
+    <div class="site-head__tools">
+      <div class="role-switch role-switch--light" role="group" aria-label="Chế độ xem bản demo">
+        <a href="index.html">Học sinh</a>
+        <a href="teacher.html" aria-current="page">Giáo viên</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Điều hướng chính">
+  <div class="container nav__inner">
+    <a class="nav__link" href="teacher.html" aria-current="page">Tổng quan</a>
+    <a class="nav__link" href="teacher-problems.html">Soạn đề</a>
+    <a class="nav__link" href="teacher-classes.html">Lớp học</a>
+    <a class="nav__link" href="contests.html">Kỳ thi</a>
+    <a class="nav__link" href="leaderboard.html">Bảng xếp hạng</a>
+    <span class="nav__user">
+      <span class="nav__avatar" aria-hidden="true">TH</span>
+      <span>Cô Phạm Thu Hằng</span>
+      <span class="tag tag--onnav">GV</span>
+      <a href="login.html">Đăng xuất</a>
+    </span>
+  </div>
+</nav>
+
+<main id="main">
+  <div class="container">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">Tổng quan giáo viên</h1>
+        <p class="page-head__sub">Theo dõi hoạt động của học sinh, tình trạng đề bài và các kỳ thi đang mở.</p>
+      </div>
+      <div class="page-head__actions">
+        <a class="btn btn--outline" href="teacher-classes.html">Xem điểm</a>
+        <a class="btn btn--primary" href="teacher-problems.html">Tạo đề mới</a>
+      </div>
+    </div>
+
+    <section class="grid grid-4 mb-5" aria-label="Số liệu toàn trường">
+      <div class="stat">
+        <p class="stat__label">Học sinh</p>
+        <p class="stat__value">214</p>
+        <p class="stat__hint">Thuộc 8 lớp · 6 tài khoản chờ cấp</p>
+      </div>
+      <div class="stat">
+        <p class="stat__label">Đề bài</p>
+        <p class="stat__value">128</p>
+        <p class="stat__hint">5 đề đang chờ duyệt</p>
+      </div>
+      <div class="stat">
+        <p class="stat__label">Lượt nộp hôm nay</p>
+        <p class="stat__value">42</p>
+        <p class="stat__hint">Trung bình tuần: 96 lượt/ngày</p>
+      </div>
+      <div class="stat stat--accent">
+        <p class="stat__label">Kỳ thi đang mở</p>
+        <p class="stat__value">2</p>
+        <p class="stat__hint">1 kỳ thi bắt đầu trong 51 ngày</p>
+      </div>
+    </section>
+
+    <div class="grid grid-sidebar">
+
+      <!-- ---------- MAIN ---------- -->
+      <div>
+
+        <section class="card card--flush mb-5" aria-labelledby="cls-title">
+          <div class="card__head">
+            <h2 id="cls-title">Lớp đang phụ trách</h2>
+            <a class="btn btn--ghost btn--sm" href="teacher-classes.html">Quản lý lớp</a>
+          </div>
+          <div class="table-wrap">
+            <table class="table" data-sortable>
+              <caption class="sr-only">Tiến độ luyện tập theo từng lớp</caption>
+              <thead>
+                <tr>
+                  <th scope="col" style="width:90px">Lớp</th>
+                  <th scope="col" class="num" data-numeric style="width:110px">Sĩ số</th>
+                  <th scope="col" class="num" data-numeric style="width:120px">Đã giải</th>
+                  <th scope="col" style="width:220px">Tiến độ tuần</th>
+                  <th scope="col" class="num" data-numeric style="width:110px">Lượt nộp</th>
+                  <th scope="col" style="width:120px">Cập nhật</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>9A</strong></td>
+                  <td class="num">37</td>
+                  <td class="num">31</td>
+                  <td>
+                    <div class="row" style="gap:10px">
+                      <div class="progress" style="flex:1" role="progressbar" aria-valuenow="84" aria-valuemin="0" aria-valuemax="100" aria-label="Lớp 9A hoàn thành 84 phần trăm mục tiêu tuần">
+                        <div class="progress__bar progress__bar--ac" style="width:84%"></div>
+                      </div>
+                      <span class="text-xs text-muted">84%</span>
+                    </div>
+                  </td>
+                  <td class="num">1.204</td>
+                  <td class="text-sm text-muted">2 giờ trước</td>
+                </tr>
+                <tr>
+                  <td><strong>9B</strong></td>
+                  <td class="num">35</td>
+                  <td class="num">26</td>
+                  <td>
+                    <div class="row" style="gap:10px">
+                      <div class="progress" style="flex:1" role="progressbar" aria-valuenow="71" aria-valuemin="0" aria-valuemax="100" aria-label="Lớp 9B hoàn thành 71 phần trăm mục tiêu tuần">
+                        <div class="progress__bar" style="width:71%"></div>
+                      </div>
+                      <span class="text-xs text-muted">71%</span>
+                    </div>
+                  </td>
+                  <td class="num">986</td>
+                  <td class="text-sm text-muted">3 giờ trước</td>
+                </tr>
+                <tr>
+                  <td><strong>8A</strong></td>
+                  <td class="num">33</td>
+                  <td class="num">28</td>
+                  <td>
+                    <div class="row" style="gap:10px">
+                      <div class="progress" style="flex:1" role="progressbar" aria-valuenow="78" aria-valuemin="0" aria-valuemax="100" aria-label="Lớp 8A hoàn thành 78 phần trăm mục tiêu tuần">
+                        <div class="progress__bar progress__bar--ac" style="width:78%"></div>
+                      </div>
+                      <span class="text-xs text-muted">78%</span>
+                    </div>
+                  </td>
+                  <td class="num">742</td>
+                  <td class="text-sm text-muted">5 giờ trước</td>
+                </tr>
+                <tr>
+                  <td><strong>8B</strong></td>
+                  <td class="num">31</td>
+                  <td class="num">19</td>
+                  <td>
+                    <div class="row" style="gap:10px">
+                      <div class="progress" style="flex:1" role="progressbar" aria-valuenow="52" aria-valuemin="0" aria-valuemax="100" aria-label="Lớp 8B hoàn thành 52 phần trăm mục tiêu tuần">
+                        <div class="progress__bar" style="width:52%"></div>
+                      </div>
+                      <span class="text-xs text-muted">52%</span>
+                    </div>
+                  </td>
+                  <td class="num">418</td>
+                  <td class="text-sm text-muted">Hôm qua</td>
+                </tr>
+                <tr>
+                  <td><strong>7A</strong></td>
+                  <td class="num">29</td>
+                  <td class="num">14</td>
+                  <td>
+                    <div class="row" style="gap:10px">
+                      <div class="progress" style="flex:1" role="progressbar" aria-valuenow="38" aria-valuemin="0" aria-valuemax="100" aria-label="Lớp 7A hoàn thành 38 phần trăm mục tiêu tuần">
+                        <div class="progress__bar" style="width:38%"></div>
+                      </div>
+                      <span class="text-xs text-muted">38%</span>
+                    </div>
+                  </td>
+                  <td class="num">132</td>
+                  <td class="text-sm text-muted">Hôm qua</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card card--flush" aria-labelledby="sub-title">
+          <div class="card__head">
+            <h2 id="sub-title">Bài nộp gần đây</h2>
+            <span class="text-sm text-muted">Cập nhật tự động</span>
+          </div>
+          <div class="table-wrap">
+            <table class="table table--compact">
+              <caption class="sr-only">Mười bài nộp gần đây nhất của học sinh toàn trường</caption>
+              <thead>
+                <tr>
+                  <th scope="col" style="width:110px">Thời gian</th>
+                  <th scope="col">Học sinh</th>
+                  <th scope="col" style="width:80px">Mã</th>
+                  <th scope="col" style="width:140px">Kết quả</th>
+                  <th scope="col" class="num" style="width:80px">Điểm</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="text-sm text-muted">21:14</td>
+                  <td>Nguyễn Văn An <span class="tag">9A</span></td>
+                  <td class="mono">SL001</td>
+                  <td><span class="verdict verdict--ac">Đúng</span></td>
+                  <td class="num">100</td>
+                </tr>
+                <tr>
+                  <td class="text-sm text-muted">21:11</td>
+                  <td>Trần Thị Bình <span class="tag">9A</span></td>
+                  <td class="mono">SL014</td>
+                  <td><span class="verdict verdict--ac">Đúng</span></td>
+                  <td class="num">100</td>
+                </tr>
+                <tr>
+                  <td class="text-sm text-muted">21:08</td>
+                  <td>Lê Minh Châu <span class="tag">8B</span></td>
+                  <td class="mono">SL021</td>
+                  <td><span class="verdict verdict--wa">Sai</span></td>
+                  <td class="num">60</td>
+                </tr>
+                <tr>
+                  <td class="text-sm text-muted">21:05</td>
+                  <td>Phạm Quốc Dũng <span class="tag">9B</span></td>
+                  <td class="mono">SL002</td>
+                  <td><span class="verdict verdict--ce">Lỗi dịch</span></td>
+                  <td class="num">0</td>
+                </tr>
+                <tr>
+                  <td class="text-sm text-muted">21:02</td>
+                  <td>Hoàng Thu Hà <span class="tag">7A</span></td>
+                  <td class="mono">SL014</td>
+                  <td><span class="verdict verdict--pending">Đang chấm</span></td>
+                  <td class="num">—</td>
+                </tr>
+                <tr>
+                  <td class="text-sm text-muted">20:58</td>
+                  <td>Đỗ Minh Khang <span class="tag">8A</span></td>
+                  <td class="mono">SL033</td>
+                  <td><span class="verdict verdict--tle">Quá thời gian</span></td>
+                  <td class="num">20</td>
+                </tr>
+                <tr>
+                  <td class="text-sm text-muted">20:51</td>
+                  <td>Vũ Thị Lan <span class="tag">9A</span></td>
+                  <td class="mono">SL016</td>
+                  <td><span class="verdict verdict--ac">Đúng</span></td>
+                  <td class="num">100</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card__foot">
+            <a href="submissions.html">Xem toàn bộ bài nộp →</a>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- ---------- SIDEBAR ---------- -->
+      <aside>
+
+        <section class="card mb-4" aria-labelledby="todo-title">
+          <h3 id="todo-title" class="mb-4">Việc cần xử lý</h3>
+          <ul class="side-list">
+            <li>
+              <div class="side-list__row">
+                <span class="badge badge--red">5</span>
+                <span class="text-sm" style="flex:1">Đề chờ duyệt</span>
+                <a class="text-sm" href="teacher-problems.html">Duyệt</a>
+              </div>
+            </li>
+            <li>
+              <div class="side-list__row">
+                <span class="badge">6</span>
+                <span class="text-sm" style="flex:1">Tài khoản chờ cấp</span>
+                <a class="text-sm" href="teacher-classes.html">Cấp</a>
+              </div>
+            </li>
+            <li>
+              <div class="side-list__row">
+                <span class="badge badge--grey">12</span>
+                <span class="text-sm" style="flex:1">Bài nộp bị đánh dấu</span>
+                <a class="text-sm" href="submissions.html">Xem</a>
+              </div>
+            </li>
+            <li>
+              <div class="side-list__row">
+                <span class="badge badge--grey">1</span>
+                <span class="text-sm" style="flex:1">Kỳ thi chưa có đề</span>
+                <a class="text-sm" href="contests.html">Mở</a>
+              </div>
+            </li>
+          </ul>
+        </section>
+
+        <section class="card mb-4" aria-labelledby="cd-title">
+          <h3 id="cd-title" class="mb-3">Kỳ thi sắp tới</h3>
+          <p class="text-sm text-muted">Kỳ thi chọn đội tuyển Tin học cấp trường</p>
+          <div class="countdown mb-3" data-countdown="2026-11-20T08:00:00+07:00" role="timer" aria-label="Thời gian còn lại tới khi kỳ thi bắt đầu">
+            <div class="countdown__unit"><span class="countdown__num" data-cd="d">00</span><span class="countdown__lbl">Ngày</span></div>
+            <div class="countdown__unit"><span class="countdown__num" data-cd="h">00</span><span class="countdown__lbl">Giờ</span></div>
+            <div class="countdown__unit"><span class="countdown__num" data-cd="m">00</span><span class="countdown__lbl">Phút</span></div>
+            <div class="countdown__unit"><span class="countdown__num" data-cd="s">00</span><span class="countdown__lbl">Giây</span></div>
+          </div>
+          <p class="text-sm text-muted mb-3" data-countdown-status>Đã đăng ký: 72 học sinh</p>
+          <a class="btn btn--outline btn--block btn--sm" href="contests.html">Quản lý kỳ thi</a>
+        </section>
+
+        <section class="alert alert--info" role="note">
+          <div>
+            <p class="alert__title">Nhắc nhở</p>
+            <p class="mb-0 text-sm">
+              Kiểm tra lại bộ dữ liệu ẩn của các đề mới trước khi mở cho học sinh làm bài.
+            </p>
+          </div>
+        </section>
+
+      </aside>
+    </div>
+  </div>
+</main>
+
+<footer class="site-foot">
+  <div class="container">
+    <div class="site-foot__grid">
+      <div>
+        <h4>Trường THCS Sông Lô</h4>
+        <ul>
+          <li>Xã Tam Sơn, tỉnh Phú Thọ</li>
+          <li>Điện thoại: 0888 037 318</li>
+          <li>Email: thcssonglotamson@phutho.edu.vn</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Quản trị</h4>
+        <ul>
+          <li><a href="teacher-problems.html">Soạn đề</a></li>
+          <li><a href="teacher-classes.html">Lớp học</a></li>
+          <li><a href="contests.html">Kỳ thi</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Hướng dẫn</h4>
+        <ul>
+          <li><a href="#">Cách soạn đề</a></li>
+          <li><a href="#">Quy chế kỳ thi</a></li>
+          <li><a href="#">Câu hỏi thường gặp</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="site-foot__bar">Bản demo giao diện · Dữ liệu trong trang là ví dụ, chưa nối với hệ thống chấm bài</p>
+  </div>
+</footer>
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>

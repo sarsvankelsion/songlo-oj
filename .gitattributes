@@ -1,0 +1,9 @@
+# Chuẩn hoá xuống dòng: kho lưu LF, Windows vẫn checkout CRLF
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff2 binary

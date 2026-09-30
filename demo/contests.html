@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kỳ thi — Hệ thống chấm bài lập trình | Trường THCS Sông Lô</title>
+<meta name="description" content="Danh sách kỳ thi lập trình của Trường THCS Sông Lô: đang diễn ra, sắp diễn ra và đã kết thúc.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Bỏ qua điều hướng, tới nội dung chính</a>
+
+<header class="site-head">
+  <div class="container site-head__inner">
+    <div class="site-head__mark" aria-hidden="true">&lt;/&gt;</div>
+    <div class="site-head__text">
+      <p class="site-head__dept">Sở Giáo dục và Đào tạo tỉnh Phú Thọ</p>
+      <p class="site-head__name">Trường THCS Sông Lô — Xã Tam Sơn</p>
+    </div>
+    <div class="site-head__tools">
+      <div class="role-switch role-switch--light" role="group" aria-label="Chế độ xem bản demo">
+        <a href="index.html" aria-current="page">Học sinh</a>
+        <a href="teacher.html">Giáo viên</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Điều hướng chính">
+  <div class="container nav__inner">
+    <a class="nav__link" href="index.html">Trang chủ</a>
+    <a class="nav__link" href="problems.html">Đề bài</a>
+    <a class="nav__link" href="submissions.html">Bài nộp</a>
+    <a class="nav__link" href="contests.html" aria-current="page">Kỳ thi</a>
+    <a class="nav__link" href="leaderboard.html">Bảng xếp hạng</a>
+    <span class="nav__user">
+      <span class="nav__avatar" aria-hidden="true">NA</span>
+      <span>Nguyễn Văn An</span>
+      <span class="tag tag--onnav">9A</span>
+      <a href="login.html">Đăng xuất</a>
+    </span>
+  </div>
+</nav>
+
+<main id="main">
+  <div class="container">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">Kỳ thi</h1>
+        <p class="page-head__sub">Tham gia kỳ thi do giáo viên tổ chức. Điểm thi được tính riêng, không ảnh hưởng điểm luyện tập.</p>
+      </div>
+    </div>
+
+    <!-- ============ FEATURED: LIVE ============ -->
+    <section class="card mb-5" aria-labelledby="live-title" style="border-left:4px solid var(--red-600)">
+      <div class="row-between mb-4">
+        <div>
+          <span class="badge badge--red">Đang diễn ra</span>
+          <h2 id="live-title" class="mt-2" style="font-size:20px">Kiểm tra chất lượng môn Tin học — Lớp 9</h2>
+          <p class="text-muted text-sm mb-0 mt-2">
+            Lớp 9A và 9B · 3 bài · Thang điểm IOI · Đang trong thời gian làm bài
+          </p>
+        </div>
+        <div class="row">
+          <div class="countdown" data-countdown-relative="47m" role="timer" aria-label="Thời gian còn lại của kỳ thi đang diễn ra">
+            <div class="countdown__unit"><span class="countdown__num" data-cd="h">00</span><span class="countdown__lbl">Giờ</span></div>
+            <div class="countdown__unit"><span class="countdown__num" data-cd="m">00</span><span class="countdown__lbl">Phút</span></div>
+            <div class="countdown__unit"><span class="countdown__num" data-cd="s">00</span><span class="countdown__lbl">Giây</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-4 mb-4">
+        <div class="stat"><p class="stat__label">Bài đã làm</p><p class="stat__value">1 / 3</p></div>
+        <div class="stat"><p class="stat__label">Điểm hiện tại</p><p class="stat__value">100</p></div>
+        <div class="stat"><p class="stat__label">Hạng của em</p><p class="stat__value">12</p><p class="stat__hint">trong 74 học sinh</p></div>
+        <div class="stat"><p class="stat__label">Lượt nộp còn lại</p><p class="stat__value">17</p></div>
+      </div>
+
+      <div class="row">
+        <a class="btn btn--primary" href="problem.html">Vào làm bài</a>
+        <a class="btn btn--outline" href="leaderboard.html">Bảng xếp hạng kỳ thi</a>
+      </div>
+    </section>
+
+    <!-- ============ LIST ============ -->
+    <div class="tabs mb-4" data-tabs role="tablist" aria-label="Phân loại kỳ thi">
+      <button class="tab" role="tab" id="tab-upcoming" aria-controls="panel-upcoming" aria-selected="true">Sắp diễn ra</button>
+      <button class="tab" role="tab" id="tab-past" aria-controls="panel-past" aria-selected="false">Đã kết thúc</button>
+    </div>
+
+    <!-- Upcoming -->
+    <div class="tabpanel" id="panel-upcoming" role="tabpanel" aria-labelledby="tab-upcoming" tabindex="0">
+      <div class="stack">
+
+        <article class="card">
+          <div class="row-between">
+            <div>
+              <span class="badge">Sắp diễn ra</span>
+              <h3 class="mt-2" style="font-size:18px">Kỳ thi chọn đội tuyển Tin học cấp trường</h3>
+              <p class="text-muted text-sm mb-0 mt-2">
+                Thứ Sáu, 20/11/2026 · 08:00 – 11:00 · Lớp 8 và lớp 9 · 4 bài · Thang điểm IOI
+              </p>
+            </div>
+            <div class="row">
+              <div class="countdown" data-countdown="2026-11-20T08:00:00+07:00" role="timer" aria-label="Thời gian còn lại tới khi kỳ thi bắt đầu">
+                <div class="countdown__unit"><span class="countdown__num" data-cd="d">00</span><span class="countdown__lbl">Ngày</span></div>
+                <div class="countdown__unit"><span class="countdown__num" data-cd="h">00</span><span class="countdown__lbl">Giờ</span></div>
+                <div class="countdown__unit"><span class="countdown__num" data-cd="m">00</span><span class="countdown__lbl">Phút</span></div>
+                <div class="countdown__unit"><span class="countdown__num" data-cd="s">00</span><span class="countdown__lbl">Giây</span></div>
+              </div>
+              <a class="btn btn--outline btn--sm" href="problem.html">Chi tiết</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="row-between">
+            <div>
+              <span class="badge">Sắp diễn ra</span>
+              <h3 class="mt-2" style="font-size:18px">Giao lưu Tin học khối 7 và khối 8</h3>
+              <p class="text-muted text-sm mb-0 mt-2">
+                Thứ Bảy, 05/12/2026 · 14:00 – 16:00 · Lớp 7A, 8A, 8B · 5 bài · Xếp hạng theo lớp
+              </p>
+            </div>
+            <div class="row">
+              <a class="btn btn--outline btn--sm" href="problem.html">Chi tiết</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="row-between">
+            <div>
+              <span class="badge">Chưa mở đăng ký</span>
+              <h3 class="mt-2" style="font-size:18px">Thi thử cấp huyện — vòng 1</h3>
+              <p class="text-muted text-sm mb-0 mt-2">
+                Dự kiến tháng 01/2027 · Toàn trường · Đề theo cấu trúc thi cấp huyện
+              </p>
+            </div>
+            <div class="row">
+              <button class="btn btn--outline btn--sm" type="button" disabled aria-disabled="true">Chưa mở</button>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </div>
+
+    <!-- Past -->
+    <div class="tabpanel" id="panel-past" role="tabpanel" aria-labelledby="tab-past" tabindex="0" hidden>
+      <div class="card card--flush">
+        <div class="table-wrap">
+          <table class="table" data-sortable>
+            <caption class="sr-only">Các kỳ thi đã kết thúc, kèm thời gian và số học sinh tham gia</caption>
+            <thead>
+              <tr>
+                <th scope="col">Tên kỳ thi</th>
+                <th scope="col" style="width:150px">Thời gian</th>
+                <th scope="col" class="num" style="width:130px" data-numeric>Tham gia</th>
+                <th scope="col" class="num" style="width:120px" data-numeric>Điểm của em</th>
+                <th scope="col" style="width:110px">Kết quả</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Khảo sát chất lượng đầu năm — Tin học 9</td>
+                <td class="text-muted">15/09/2026</td>
+                <td class="num">72</td>
+                <td class="num">270</td>
+                <td><a href="leaderboard.html">Xem</a></td>
+              </tr>
+              <tr>
+                <td>Ôn tập thuật toán cơ bản — Khối 8</td>
+                <td class="text-muted">08/09/2026</td>
+                <td class="num">58</td>
+                <td class="num">220</td>
+                <td><a href="leaderboard.html">Xem</a></td>
+              </tr>
+              <tr>
+                <td>Chào mừng năm học mới — Toàn trường</td>
+                <td class="text-muted">05/09/2026</td>
+                <td class="num">186</td>
+                <td class="num">300</td>
+                <td><a href="leaderboard.html">Xem</a></td>
+              </tr>
+              <tr>
+                <td>Thi thử cấp huyện — vòng thử nghiệm</td>
+                <td class="text-muted">20/05/2026</td>
+                <td class="num">41</td>
+                <td class="num">185</td>
+                <td><a href="leaderboard.html">Xem</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer class="site-foot">
+  <div class="container">
+    <div class="site-foot__grid">
+      <div>
+        <h4>Trường THCS Sông Lô</h4>
+        <ul>
+          <li>Xã Tam Sơn, tỉnh Phú Thọ</li>
+          <li>Điện thoại: 0888 037 318</li>
+          <li>Email: thcssonglotamson@phutho.edu.vn</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Hệ thống</h4>
+        <ul>
+          <li><a href="problems.html">Đề bài</a></li>
+          <li><a href="contests.html">Kỳ thi</a></li>
+          <li><a href="leaderboard.html">Bảng xếp hạng</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Hướng dẫn</h4>
+        <ul>
+          <li><a href="#">Cách nộp bài</a></li>
+          <li><a href="#">Quy chế kỳ thi</a></li>
+          <li><a href="#">Câu hỏi thường gặp</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="site-foot__bar">Bản demo giao diện · Dữ liệu trong trang là ví dụ, chưa nối với hệ thống chấm bài</p>
+  </div>
+</footer>
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>
