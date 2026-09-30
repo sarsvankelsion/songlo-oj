@@ -177,6 +177,34 @@ sudo apt install -y certbot python3-certbot-nginx
 sudo certbot --nginx -d songlo.example.edu.vn
 ```
 
+### Khi chưa có tên miền
+
+Muốn cho xem thử từ ngoài trước khi có tên miền thì dùng quick tunnel của
+cloudflared. **Phải trỏ `--config` vào một tệp riêng**:
+
+```bash
+mkdir -p /etc/songlo
+cat > /etc/songlo/cloudflared.yml <<'YML'
+url: http://127.0.0.1:8000
+protocol: http2
+YML
+cloudflared tunnel --config /etc/songlo/cloudflared.yml --url http://127.0.0.1:8000
+```
+
+Vì sao không được bỏ `--config`: nếu trên máy đã có tunnel có tên từ trước,
+`/root/.cloudflared/config.yml` sẽ chứa `tunnel:` và `credentials-file:`.
+cloudflared đọc tệp đó **kể cả khi đã truyền `--url`**, nên nó không tạo quick
+tunnel mà đăng ký thêm một connector vào chính tunnel có tên của bạn. Ingress
+của tunnel đó chỉ có hostname bạn đã cấu hình, nên mọi hostname khác trả **404**
+— và bạn vừa vô tình thêm một connector vào hệ thống đang chạy thật. Triệu chứng
+phân biệt: dòng `Settings:` trong `journalctl` có `credentials-file:`.
+
+`--protocol http2` là bắt buộc trên máy chủ chặn UDP 7844; cloudflared vẫn chạy
+được qua QUIC nếu cổng đó mở, nhưng precheck sẽ báo *degraded transport*.
+
+Địa chỉ `*.trycloudflare.com` **đổi mỗi lần khởi động lại**, nên chỉ dùng để xem
+thử. Khi đã có tên miền thì dùng nginx và certbot ở trên.
+
 ## 7. Kiểm tra sau khi dựng
 
 ```bash
