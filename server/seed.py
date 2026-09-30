@@ -30,6 +30,7 @@ nhập đầu tiên.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -706,7 +707,19 @@ def seed_submissions(conn, user_ids: dict[str, int], problem_ids: dict[str, int]
 # ==========================================================================
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Tạo dữ liệu mẫu cho Song Lo OJ")
-    parser.add_argument("--database", default="server/var/songlo.db")
+
+    # Đường dẫn mặc định suy ra từ SONGLO_VAR, đúng như `app.py` và `worker.py`.
+    #
+    # Trước đây chỗ này ghi cứng "server/var/songlo.db". Hệ quả khi dựng theo
+    # deploy/README.md — nơi SONGLO_VAR trỏ tới /var/lib/songlo: lệnh seed tạo
+    # CSDL **trong cây mã nguồn**, còn tiến trình web lại mở CSDL ở
+    # /var/lib/songlo. Hai tệp khác nhau. Web không thấy lược đồ, không thấy
+    # tài khoản nào, và tệp chứa dữ liệu học sinh thật nằm lẫn trong thư mục
+    # mã nguồn — đúng thứ mà .gitignore đang cố ngăn.
+    var_dir = Path(os.environ.get("SONGLO_VAR", Path(__file__).resolve().parent / "var"))
+
+    parser.add_argument("--database", default=os.environ.get("SONGLO_DB", str(var_dir / "songlo.db")),
+                        help="đường dẫn tệp CSDL SQLite")
     parser.add_argument("--reset", action="store_true",
                         help="xoá CSDL hiện có rồi tạo lại từ đầu")
     parser.add_argument("--no-submissions", action="store_true",

@@ -85,6 +85,7 @@ không hạ được quyền — xem `deploy/README.md` để biết vì sao má
 ```bash
 python _tools/smoke.py             # mở thử mọi tuyến đường, bắt lỗi template
 python _tools/test_edit_problem.py # kiểm thử chức năng sửa đề (trên bản sao CSDL)
+python _tools/test_paths.py        # ba tiến trình có suy ra cùng một CSDL không
 python _tools/render_pages.py      # render các trang cần đăng nhập ra demo/_render/
 python _tools/shoot.py --url http://127.0.0.1:8814 --theme light   # chụp ảnh từng trang
 node _tools/check_morph.js _shots/dom_*.html                       # tên morph có trùng không
@@ -96,6 +97,15 @@ thì mỗi lần kiểm thử lại để lại rác. Nó kiểm 33 điều, tro
 không thể chứng minh bằng cách đọc mã — rằng lưu thất bại thì CSDL không đổi và
 biểu mẫu giữ nguyên chữ đã gõ, rằng giá trị lạ trong ô chọn bị thay bằng mặc định
 chứ không lọt vào CSDL, và rằng công khai một đề chưa có bộ dữ liệu thì bị chặn.
+
+`test_paths.py` tồn tại vì một lỗi đã thật sự xảy ra lúc dựng trên máy chủ Linux.
+`app.py` và `worker.py` suy ra đường dẫn CSDL từ `SONGLO_VAR`, còn `seed.py` ghi
+cứng `server/var/songlo.db`. Làm đúng theo `deploy/README.md` — nơi `SONGLO_VAR`
+trỏ tới `/var/lib/songlo` — thì lệnh seed tạo CSDL **trong cây mã nguồn**, còn
+tiến trình web mở một CSDL khác, rỗng, không lược đồ, không tài khoản. Không bộ
+kiểm tra nào đang có bắt được, vì mọi script khác đều chạy mà không đặt
+`SONGLO_VAR` — và khi đó cả ba đường lại trùng nhau. Script này đặt biến rồi chạy
+thật cả ba, và kiểm cả rằng `server/var/` không bị đụng tới.
 
 `render_pages.py` tồn tại vì `chrome --headless --screenshot` không đăng nhập được:
 các trang của giáo viên — đúng những trang nhiều cột nhất, dễ tràn ngang nhất —
@@ -160,6 +170,7 @@ Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.h
 ├── _tools/                   Script kiểm tra và sinh ảnh chụp
 │   ├── smoke.py              Mở thử 46 tuyến đường theo ba vai trò
 │   ├── test_edit_problem.py  Kiểm thử chức năng sửa đề, trên bản sao CSDL
+│   ├── test_paths.py         Ba tiến trình có suy ra cùng một đường dẫn CSDL không
 │   ├── render_pages.py       Render các trang cần đăng nhập ra HTML tĩnh
 │   ├── shoot.py              Chụp ảnh từng trang (đo chiều cao trước khi chụp)
 │   └── check_morph.js        Kiểm tra tên morph trên DOM đã render
