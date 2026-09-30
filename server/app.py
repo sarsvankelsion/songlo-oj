@@ -24,7 +24,7 @@ from flask import (
 )
 
 from . import auth, db, formatting
-from .judge import VERDICT_LABEL
+from .judge import COMPILE_FLAGS, VERDICT_LABEL
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
@@ -809,6 +809,10 @@ def _register_routes(app: Flask) -> None:
             classes=classes,
             recent=recent,
             next_contest=next_contest,
+            # Không truyền thì Jinja coi là undefined: `contest_phase == 'open'`
+            # sai, và thẻ này lặng lẽ rơi vào nhánh "sắp tới" kể cả khi kỳ thi
+            # đang diễn ra. Truyền tường minh, giống route trang chủ.
+            contest_phase=_contest_phase(next_contest) if next_contest else None,
         )
 
     @app.route("/teacher/problems", methods=["GET", "POST"])
@@ -840,6 +844,7 @@ def _register_routes(app: Flask) -> None:
             active="teacher",
             problems=rows,
             topics=_topics(conn),
+            compile_flags="g++ " + " ".join(COMPILE_FLAGS),
         )
 
     @app.route("/teacher/problems/<code>/tests", methods=["GET", "POST"])
@@ -869,6 +874,7 @@ def _register_routes(app: Flask) -> None:
             active="teacher",
             problem=problem,
             tests=tests,
+            compile_flags="g++ " + " ".join(COMPILE_FLAGS),
         )
 
     @app.route("/teacher/classes")
@@ -881,7 +887,7 @@ def _register_routes(app: Flask) -> None:
             class_name = classes[0]
 
         students = []
-        summary = {"size": 0, "avg": 0, "best": 0, "idle": 0}
+        summary = {"size": 0, "avg": 0, "best": 0, "idle": 0, "active": 0}
         if class_name:
             rows = db.query(
                 conn,
@@ -910,6 +916,12 @@ def _register_routes(app: Flask) -> None:
                     "avg": round(sum(scores) / len(scores)),
                     "best": max(scores),
                     "idle": sum(1 for s in students if s["attempts"] == 0),
+                    # "Đang hoạt động" là tài khoản chưa bị khoá (`is_active`), KHÔNG
+                    # phải "đã từng nộp bài". Trước đây mẫu template tính
+                    # `size - idle`, ra đúng con số "đã từng nộp bài" nhưng dán nhãn
+                    # sai — và mâu thuẫn với chính gợi ý ngay dưới bảng, vốn nói về
+                    # tài khoản bị khoá.
+                    "active": sum(1 for s in students if s["is_active"]),
                 }
 
         return render_template(
@@ -944,6 +956,11 @@ def _leaderboard_rows(conn, scope: str | None, limit: int) -> list[dict]:
     phải tổng tất cả các lần nộp. Nếu cộng tất cả các lần nộp thì nộp lại nhiều
     lần sẽ tự động tăng điểm, và bảng xếp hạng sẽ đo số lần bấm nút chứ không
     đo năng lực.
+
+    Thứ tự khi bằng điểm: nhiều đề giải trọn vẹn hơn xếp trên, rồi tới ai đạt
+    điểm ấy **sớm hơn**. Trước đây tiêu chí cuối cùng là tên học sinh, nghĩa là
+    thứ tự alphabet quyết định hạng giữa các em cùng điểm — vừa tùy tiện vừa
+    trông như lỗi khi sáu em cùng 100 điểm nhận sáu hạng khác nhau.
     """
     where = ["u.role = 'student'"]
     params: list = []
@@ -965,17 +982,29 @@ def _leaderboard_rows(conn, scope: str | None, limit: int) -> list[dict]:
                         GROUP BY problem_id) t2
                       WHERE t2.mx > 0 AND t2.best >= t2.mx), 0) AS solved,
                    (SELECT COUNT(*) FROM submissions WHERE user_id = u.id) AS attempts,
-                   (SELECT COUNT(*) FROM submissions WHERE user_id = u.id AND verdict = 'AC') AS accepted
+                   (SELECT COUNT(*) FROM submissions WHERE user_id = u.id AND verdict = 'AC') AS accepted,
+                   COALESCE((SELECT MIN(created_at) FROM submissions
+                              WHERE user_id = u.id AND verdict = 'AC'), '9999') AS first_ac
               FROM users u
              WHERE {' AND '.join(where)}
-             ORDER BY score DESC, solved DESC, u.full_name
+             ORDER BY score DESC, solved DESC, first_ac, u.full_name
              LIMIT ?""",
         params,
     )
     out = []
+    prev_key = None
+    prev_rank = 0
     for i, r in enumerate(rows):
         d = dict(r)
-        d["rank"] = i + 1
+        # Hạng kiểu thi đấu (1-2-2-4): chỉ bằng hạng khi bằng **cả** khoá phân
+        # định, tức là bằng điểm, bằng số đề giải trọn vẹn và cùng thời điểm đạt.
+        # Đánh số thuần theo vị trí sẽ biến một khác biệt không hiển thị ở đâu
+        # thành một bậc hạng khác nhau trên giao diện.
+        key = (r["score"], r["solved"], r["first_ac"])
+        if key != prev_key:
+            prev_rank = i + 1
+            prev_key = key
+        d["rank"] = prev_rank
         d["accept_rate"] = round(r["accepted"] / r["attempts"] * 100) if r["attempts"] else 0
         out.append(d)
     return out
@@ -1021,7 +1050,11 @@ def _summary_sentence(submission, passed: int, total: int) -> str:
                 f"{submission['time_limit_ms'] / 1000:.1f} giây ở một số bộ — "
                 "thường là do thuật toán chưa đủ nhanh.")
     if v == "MLE":
-        return (f"Đạt {passed}/{total} bộ dữ liệu. Chương trình dùng quá "
+        # "chạm giới hạn", không phải "dùng quá": bộ chấm xếp MLE ngay từ 92% giới
+        # hạn (xem MEMORY_PRESSURE_RATIO trong judge.py), nên một bài 255 MB trên
+        # giới hạn 256 MB vẫn là MLE — nói "dùng quá 256 MB" ở đây là mâu thuẫn với
+        # con số hiện ngay bên cạnh.
+        return (f"Đạt {passed}/{total} bộ dữ liệu. Chương trình chạm giới hạn "
                 f"{submission['memory_limit_mb']} MB bộ nhớ — có thể do mảng khai báo quá lớn.")
     if v == "RE":
         return (f"Đạt {passed}/{total} bộ dữ liệu. Chương trình bị dừng giữa chừng — "

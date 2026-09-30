@@ -362,6 +362,13 @@
     var form = document.querySelector('[data-submit-form]');
     if (!form) return;
 
+    /* Cùng một `app.js` phục vụ cả bản demo tĩnh lẫn backend thật (Flask trỏ
+       static_folder vào `demo/assets`). Khối này chặn sự kiện mặc định, nên nếu
+       một mẫu template thật lỡ mang `data-submit-form` thì học sinh bấm "Nộp bài"
+       và không có gì được gửi đi — im lặng, không lỗi. Biểu mẫu thật luôn có
+       `action` trỏ tới route nộp bài; biểu mẫu demo thì không. */
+    if (form.getAttribute('action')) return;
+
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       var btn = form.querySelector('button[type="submit"]');

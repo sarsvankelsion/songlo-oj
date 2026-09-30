@@ -87,7 +87,8 @@
       <section class="card" aria-labelledby="guide-title">
         <h3 id="guide-title" class="mb-4">Cách chấm</h3>
         <ul class="constraints">
-          <li><span class="k">Trình dịch</span> <span class="mono">g++ -std=c++17 -O2</span></li>
+          {# Lấy từ COMPILE_FLAGS của judge.py — xem chú thích ở teacher_tests.html. #}
+          <li><span class="k">Trình dịch</span> <span class="mono">{{ compile_flags }}</span></li>
           <li><span class="k">So khớp</span> <span>bỏ trắng cuối dòng</span></li>
           <li><span class="k">Điểm</span> <span>chia đều cho các bộ</span></li>
           <li><span class="k">Bộ ẩn</span> <span>chỉ hiện đúng/sai</span></li>

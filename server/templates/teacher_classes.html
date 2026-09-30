@@ -93,7 +93,10 @@
                 <label class="label" for="s-state">Trạng thái</label>
                 <select class="select" id="s-state" data-filter-select data-filter-key="state">
                   <option value="all">Tất cả trạng thái</option>
-                  <option value="active">Đang hoạt động</option>
+                  {# Nhãn "Đã nộp bài", KHÔNG phải "Đang hoạt động": bảng tổng hợp bên
+                     phải đã dùng "Đang hoạt động" cho tài khoản chưa bị khoá. Hai
+                     nghĩa khác nhau trên cùng một trang thì giáo viên đọc sai số. #}
+                  <option value="active">Đã nộp bài</option>
                   <option value="idle">Chưa nộp bài</option>
                   <option value="locked">Tài khoản bị khoá</option>
                 </select>
@@ -201,7 +204,7 @@
           <h3 id="acc-title" class="mb-4">Tài khoản lớp</h3>
           <ul class="constraints">
             <li><span class="k">Sĩ số</span> <span>{{ summary['size'] }}</span></li>
-            <li><span class="k">Đang hoạt động</span> <span>{{ summary['size'] - summary['idle'] }}</span></li>
+            <li><span class="k">Đang hoạt động</span> <span>{{ summary['active'] }}</span></li>
             <li><span class="k">Chưa nộp bài</span> <span>{{ summary['idle'] }}</span></li>
           </ul>
           <p class="hint mb-0">

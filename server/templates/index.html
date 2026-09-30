@@ -68,7 +68,7 @@
               {% endif %}
               <h2 id="cd-title" class="mt-2" style="font-size:19px">{{ next_contest['name'] }}</h2>
               <p class="text-muted text-sm mb-0 mt-2">
-                {{ next_contest['starts_at']|vn_date_long }} – {{ next_contest['ends_at']|vn_time }}
+                {{ next_contest['starts_at']|vn_range(next_contest['ends_at']) }}
                 {% if next_contest['description'] %}· {{ next_contest['description'] }}{% endif %}
               </p>
             </div>

@@ -221,7 +221,9 @@
         <section class="card mb-4" aria-labelledby="cmp-title">
           <h3 id="cmp-title" class="mb-4">Cách so khớp</h3>
           <ul class="constraints">
-            <li><span class="k">Trình dịch</span> <span class="mono">g++ -std=c++17 -O2</span></li>
+            {# Lấy từ COMPILE_FLAGS của judge.py, không ghi cứng: cờ ở đây mà lệch với
+               cờ bộ chấm thật thì giáo viên đang đọc một thứ không đúng. #}
+            <li><span class="k">Trình dịch</span> <span class="mono">{{ compile_flags }}</span></li>
             <li><span class="k">Trắng cuối dòng</span> <span>bỏ qua</span></li>
             <li><span class="k">Dòng trống cuối</span> <span>bỏ qua</span></li>
             <li><span class="k">Trắng đầu dòng</span> <span>giữ nguyên</span></li>

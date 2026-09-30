@@ -224,7 +224,21 @@ def _classify(result: RunResult, time_limit_ms: int, memory_limit_kb: int, expec
     # trả về NULL), và nếu xét theo mã thoát thì sẽ bị xếp nhầm thành "lỗi khi
     # chạy" — trong khi nguyên nhân thật là dùng quá nhiều bộ nhớ.
     if result.memory_kb >= memory_limit_kb * MEMORY_PRESSURE_RATIO:
-        return "MLE", f"Dùng {result.memory_kb / 1024:.0f} MB, vượt giới hạn {memory_limit_kb / 1024:.0f} MB"
+        used_mb = result.memory_kb / 1024
+        limit_mb = memory_limit_kb / 1024
+        if result.memory_kb >= memory_limit_kb:
+            note = f"Dùng {used_mb:.0f} MB, vượt giới hạn {limit_mb:.0f} MB"
+        else:
+            # Đỉnh RSS đo được luôn thấp hơn giới hạn một chút (RLIMIT_AS chặn ở
+            # mức cấp phát), nên bộ chấm coi là quá bộ nhớ ngay từ 92% giới hạn.
+            # Ở dải 92–100% mà nói "vượt giới hạn" là mâu thuẫn với chính con số
+            # hiển thị ngay bên cạnh: "Dùng 255 MB, vượt giới hạn 256 MB".
+            note = (
+                f"Dùng {used_mb:.0f} MB, chạm ngưỡng an toàn "
+                f"{limit_mb * MEMORY_PRESSURE_RATIO:.0f} MB "
+                f"({MEMORY_PRESSURE_RATIO:.0%} của giới hạn {limit_mb:.0f} MB)"
+            )
+        return "MLE", note
 
     if result.term_signal is not None:
         return "RE", f"Chương trình bị dừng bởi tín hiệu {result.term_signal} ({_signal_name(result.term_signal)})"

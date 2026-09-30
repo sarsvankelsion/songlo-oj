@@ -2,7 +2,9 @@
 
 Giao diện cho một **online judge** phục vụ nội bộ Trường THCS Sông Lô (xã Tam Sơn, tỉnh Phú Thọ). Học sinh luyện tập và thi đấu môn Tin học bằng **C++**, bài nộp được chấm tự động theo bộ dữ liệu, có bộ dữ liệu ẩn và bảng xếp hạng.
 
-> **Trạng thái: chỉ có front end.** Đây là bản demo giao diện, chưa có backend, chưa đăng nhập thật, chưa chấm bài. Toàn bộ dữ liệu hiển thị trong trang là dữ liệu mẫu viết cứng.
+> **Trạng thái: đã có backend.** Flask + SQLite, đăng nhập thật, phân quyền học sinh/giáo viên, hàng đợi bài nộp và một tiến trình chấm riêng dùng `g++` với giới hạn thời gian và bộ nhớ. Bộ dữ liệu mẫu trong `server/seed.py` là mã C++ thật và được chấm thật, nên mọi con số trên giao diện đều do bộ chấm sinh ra.
+>
+> Chưa xong, và đây là danh sách đầy đủ: **sửa đề sau khi tạo** (hiện chỉ tạo được đề mới, không sửa lại đề bài hay giới hạn), quản lý kỳ thi (trang kỳ thi mới chỉ để xem), nhập danh sách tài khoản học sinh hàng loạt, xuất bảng điểm, và trang đổi mật khẩu ở lần đăng nhập đầu (cột `must_change_password` đã có trong CSDL nhưng chưa có trang).
 
 ## Ảnh chụp
 
@@ -21,6 +23,16 @@ Giao diện cho một **online judge** phục vụ nội bộ Trường THCS Sô
 | Chi tiết một bài nộp | Chế độ tối |
 |---|---|
 | ![Chi tiết bài nộp](docs/07-chi-tiet-bai-nop.jpg) | ![Chế độ tối](docs/08-che-do-toi.jpg) |
+
+Các trang của giáo viên — đăng nhập bằng `cophang / Songlo@GV2026`:
+
+| Soạn đề | Bộ dữ liệu của một đề |
+|---|---|
+| ![Soạn đề](docs/09-soan-de.jpg) | ![Bộ dữ liệu](docs/10-bo-du-lieu.jpg) |
+
+| Lớp học & điểm | Chi tiết bài nộp quá bộ nhớ (chế độ tối) |
+|---|---|
+| ![Lớp học](docs/11-lop-hoc.jpg) | ![Bài nộp MLE](docs/12-bai-nop-mle-toi.jpg) |
 
 ## Chạy thử
 
@@ -67,8 +79,22 @@ không hạ được quyền — xem `deploy/README.md` để biết vì sao má
 ### Kiểm tra
 
 ```bash
-python _tools/smoke.py                           # mở thử mọi tuyến đường, bắt lỗi template
+python _tools/smoke.py             # mở thử mọi tuyến đường, bắt lỗi template
+python _tools/render_pages.py      # render các trang cần đăng nhập ra demo/_render/
+python _tools/shoot.py --url http://127.0.0.1:8814 --theme light   # chụp ảnh từng trang
+node _tools/check_morph.js _shots/dom_*.html                       # tên morph có trùng không
 ```
+
+`render_pages.py` tồn tại vì `chrome --headless --screenshot` không đăng nhập được:
+các trang của giáo viên — đúng những trang nhiều cột nhất, dễ tràn ngang nhất —
+không có cách nào xem thử bằng ảnh chụp. Nó đăng nhập bằng `test_client` rồi ghi
+HTML đã render vào `demo/_render/`; đặt trong `demo/` là có chủ ý, vì template gọi
+tài sản tĩnh bằng đường dẫn tuyệt đối `/assets/...`.
+
+`shoot.py` đo chiều cao thật của trang trước rồi mới chụp, và đi qua một iframe
+ghi `localStorage` trước khi tải trang — Chrome headless theo chế độ sáng/tối của
+hệ điều hành chứ không theo cờ dòng lệnh, nên nếu không ép thì ảnh "chế độ sáng"
+sẽ ra chế độ tối mà không có dấu hiệu nào trong lệnh.
 
 ## Các trang
 
@@ -76,7 +102,7 @@ Nhóm **học sinh**:
 
 | Tệp | Nội dung |
 |---|---|
-| `index.html` | Trang chủ — số liệu, kỳ thi sắp tới có đếm ngược, đề mới, bảng xếp hạng tuần, bài nộp gần đây |
+| `index.html` | Trang chủ — số liệu, kỳ thi gần nhất có đếm ngược theo giai đoạn, đề mới, bảng xếp hạng, bài nộp gần đây |
 | `problems.html` | Danh sách đề — tìm kiếm, lọc theo độ khó và chủ đề, bảng sắp xếp được, phân trang |
 | `problem.html` | Chi tiết đề + nộp bài — 3 thẻ: Đề bài / Nộp bài / Kết quả chấm |
 | `submissions.html` | Danh sách bài nộp — lọc theo kết quả, ngôn ngữ, khoảng thời gian |
@@ -91,7 +117,7 @@ Nhóm **giáo viên** (bấm nút chuyển vai trò ở góc trên bên phải):
 |---|---|
 | `teacher.html` | Tổng quan — tiến độ từng lớp, bài nộp gần đây, việc cần xử lý |
 | `teacher-problems.html` | Soạn đề — danh sách đề, biểu mẫu tạo đề, quản lý bộ dữ liệu kể cả bộ ẩn |
-| `teacher-classes.html` | Lớp học & điểm — sổ điểm từng lớp, cấp tài khoản, xuất bảng điểm |
+| `teacher-classes.html` | Lớp học & điểm — sổ điểm từng lớp, lọc theo tên và trạng thái. Chưa cấp tài khoản hàng loạt và chưa xuất được bảng điểm ra tệp |
 
 Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.html#panel-submit` mở thẳng phần nộp bài.
 
@@ -100,7 +126,8 @@ Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.h
 ```
 .
 ├── demo/                     Bản demo giao diện (mở thư mục này để xem)
-│   ├── *.html                11 trang
+│   ├── *.html                11 trang tĩnh, dữ liệu viết cứng
+│   ├── _render/              HTML của backend do `_tools/render_pages.py` sinh ra (không vào repo)
 │   └── assets/               CSS/JS dùng chung với hệ thống thật
 │       ├── css/style.css     Toàn bộ hệ thống thiết kế (token + thành phần)
 │       ├── js/app.js         Tương tác, không phụ thuộc thư viện ngoài
@@ -118,6 +145,10 @@ Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.h
 │   └── templates/            14 template Jinja
 ├── deploy/                   Hướng dẫn dựng trên máy chủ Linux
 ├── _tools/                   Script kiểm tra và sinh ảnh chụp
+│   ├── smoke.py              Mở thử 44 tuyến đường theo ba vai trò
+│   ├── render_pages.py       Render các trang cần đăng nhập ra HTML tĩnh
+│   ├── shoot.py              Chụp ảnh từng trang (đo chiều cao trước khi chụp)
+│   └── check_morph.js        Kiểm tra tên morph trên DOM đã render
 ├── docs/                     Ảnh chụp cho README
 ├── assets/                   Ảnh gốc tải từ website nhà trường (kể cả huy hiệu)
 ├── research/                 Ghi chú khảo sát DMOJ/VNOJ
@@ -211,7 +242,7 @@ Kích thước hiển thị là **52×52 px**, không phải 46 px như bản đ
 - **Tô màu cú pháp C++ không cần thư viện.** `app.js` có một bộ tách từ bằng một biểu thức chính quy duy nhất, chạy trên lớp `<pre>` nằm dưới một `textarea` trong suốt chữ. Con trỏ và vùng chọn vẫn là của trình duyệt. Nếu JS lỗi, lớp tô màu không được bật và mã nguồn vẫn đọc được bình thường.
 - **Ô soạn thảo tự giãn theo nội dung**, tối thiểu 210 px, tối đa 620 px rồi mới cuộn.
 - **Trợ năng:** liên kết bỏ qua điều hướng, vòng tiêu điểm rõ ràng, vùng chạm tối thiểu 44×44 px, `aria-sort` cho cột sắp xếp, tóm tắt lỗi biểu mẫu nhận tiêu điểm, thẻ dùng `role="tab"` và điều hướng bằng phím mũi tên, tôn trọng `prefers-reduced-motion`.
-- **Không tràn ngang ở 390 px** trên cả 11 trang (đã đo bằng script, không phải ước lượng).
+- **Không tràn ngang ở 390 px** trên cả 16 trang, kể cả các trang giáo viên nhiều cột (đã đo bằng script trên trình duyệt thật, không phải ước lượng).
 - **Trang chi tiết bài nộp** giải thích được lỗi cụ thể: bộ dữ liệu 5 có `1500000000 1500000000`, kết quả đúng là `3000000000` nhưng chương trình in ra `-1294967296` — tràn số `int`. Đây là lỗi dịch không báo, chạy không sập, chỉ sai kết quả.
 
 Về bộ chấm:
@@ -221,17 +252,26 @@ Về bộ chấm:
 - **Hai cơ chế chặn quá thời gian, không phải một.** `RLIMIT_CPU` chặn vòng lặp tính toán; đồng hồ canh giờ thực chặn chương trình ngủ hoặc chờ đọc dữ liệu vào — loại tiêu tốn ít CPU nhưng treo cả hàng đợi chấm. Bộ bài nộp mẫu trong `server/seed.py` có cả hai loại, để nếu ai xoá một trong hai cơ chế thì có bài kiểm tra phát hiện ra.
 - **Bộ dữ liệu ẩn được giấu ở tầng dữ liệu, không phải tầng hiển thị.** Ba cột `input_seen`/`expected_seen`/`actual_seen` trong `test_results` để trống với bộ ẩn, nên một lỗi ở template cũng không có gì để làm lộ.
 - **Bảng xếp hạng cộng điểm cao nhất của từng đề, không cộng mọi lần nộp.** Nếu cộng tất cả thì nộp lại nhiều lần sẽ tự tăng điểm, và bảng xếp hạng đo số lần bấm nút chứ không đo năng lực.
+- **Bằng điểm thì ai đạt trước xếp trên.** Trước đây tiêu chí phân định cuối cùng là **tên học sinh**, nghĩa là thứ tự alphabet quyết định hạng — sáu em cùng 100 điểm nhận sáu hạng khác nhau mà không có căn cứ nào, và trông như lỗi. Nay thứ tự là: điểm → số đề giải trọn vẹn → thời điểm đạt điểm sớm nhất → tên (chỉ còn là chốt chặn cuối cho trường hợp hoàn toàn giống nhau). Hạng tính kiểu thi đấu (1-2-2-4) nên đồng hạng thật thì cùng số. Quy tắc này được ghi ngay trên giao diện, vì học sinh không nhìn thấy thời điểm đạt điểm ở đâu cả.
+- **Một câu thông báo không được mâu thuẫn với con số ngay cạnh nó.** Bộ chấm xếp "quá bộ nhớ" ngay từ 92% giới hạn (`MEMORY_PRESSURE_RATIO`), vì đỉnh RSS đo được luôn thấp hơn giới hạn một chút. Nhưng câu thông báo cũ vẫn nói "vượt giới hạn 256 MB" — trong khi ngay cạnh nó ghi "Dùng 255,5 MB". Con số đúng, lý do sai, và người đọc kết luận bộ chấm có lỗi. Nay dải 92–100% được mô tả là "chạm ngưỡng an toàn 236 MB (92% của giới hạn 256 MB)".
 
 Về chuyển cảnh:
 
 - **Hiệu ứng morph kiểu PowerPoint** giữa các trang, dùng View Transitions API. Phần tử mang `data-morph` trùng tên ở hai trang (mã đề, tên học sinh, huy hiệu kết quả) được trình duyệt nội suy vị trí và kích thước; phần còn lại mờ đi. Trình duyệt chưa hỗ trợ thì có dự phòng bằng FLIP đọc vị trí cũ từ `sessionStorage`. Tôn trọng `prefers-reduced-motion`.
 - **Một tên morph chỉ được xuất hiện một lần trong một trang.** Nếu trùng, trình duyệt huỷ **toàn bộ** hiệu ứng của cả trang chứ không chỉ bỏ qua phần tử trùng, và chỉ ghi một dòng vào console. `app.js` có bộ chặn, `_tools/check_morph.js` kiểm tra lại trên DOM đã render. Bảng xếp hạng là chỗ từng mắc lỗi này: cùng một học sinh vừa ở thẻ top 3 vừa ở bảng đầy đủ.
 
+Về cách trình bày dữ liệu thời gian và cờ trình dịch:
+
+- **`vn_range` là filter riêng cho khoảng thời gian.** Mẫu cũ là `{{ starts_at|vn_date_long }} – {{ ends_at|vn_time }}`; `vn_date_long` đã kèm cả giờ nên kỳ thi 23/09 → 03/10 hiện thành "Thứ Tư, 23/09/2026 · 19:44 – 19:44", đọc như kỳ thi dài 0 phút vì **ngày kết thúc biến mất**. Lỗi này nằm ở cả ba trang (trang chủ, kỳ thi, tổng quan giáo viên) vì cùng một mẫu được chép tay ba lần.
+- **Cờ trình dịch lấy từ `COMPILE_FLAGS` của `judge.py`, không ghi cứng trong template.** Hai trang từng ghi cứng `g++ -std=c++17 -O2` trong khi bộ chấm thật chạy thêm `-pipe -Wall -Wextra`. Cờ hiển thị mà lệch với cờ thật thì giáo viên đang đọc một thứ không đúng.
+- **`app.js` được cả bản demo tĩnh lẫn backend thật dùng chung** (Flask trỏ `static_folder` vào `demo/assets`). Khối `initSubmit` của bản demo chặn sự kiện mặc định, nên nó chỉ chạy khi biểu mẫu **không có** `action` — nếu không, một mẫu template thật lỡ mang `data-submit-form` sẽ khiến học sinh bấm "Nộp bài" mà không có gì được gửi đi, im lặng và không báo lỗi.
+
 ## Bước tiếp theo
 
 Đã xong:
 
-1. Giao diện 11 trang, có chế độ tối, đã đo không tràn ngang ở 390 px.
+1. Giao diện 11 trang tĩnh + 14 template Jinja cho hệ thống thật, có chế độ tối,
+   đã đo không tràn ngang ở 390 px trên cả 16 trang.
 2. Backend Flask + SQLite: tài khoản và phân quyền, đề bài và bộ dữ liệu ẩn,
    bảng xếp hạng, kỳ thi có đếm ngược, tiến trình chấm riêng.
 3. Bộ chấm đã chạy thật qua cả sáu loại kết quả: AC, WA, TLE, MLE, RE, CE.
@@ -245,10 +285,22 @@ Còn lại:
    bài C++ thật để xác nhận `RLIMIT_CPU` và việc hạ quyền hoạt động (hai thứ
    này không kiểm chứng được trên Windows).
 3. Chốt giao diện với giáo viên, sửa những chỗ chưa hợp ý.
-4. Việc chưa làm, đã biết: nhập tài khoản học sinh hàng loạt, xuất bảng điểm ra
-   tệp, đổi mật khẩu ở lần đăng nhập đầu tiên (CSDL đã có cột
-   `must_change_password` nhưng chưa có trang đổi mật khẩu), và trang quản lý
-   kỳ thi (hiện chỉ đọc được, chưa tạo/sửa được từ giao diện).
+4. Việc chưa làm, đã biết — xếp theo mức độ cản trở công việc thật:
+   1. **Sửa đề sau khi tạo.** Hiện chỉ có `POST /teacher/problems` để tạo đề mới;
+      không có route sửa, nên giáo viên gõ sai một chữ trong đề bài thì không có
+      cách nào sửa lại. Đây là lỗ hổng lớn nhất trong vòng soạn đề. Ước lượng:
+      một hàm `_update_problem` dùng lại phần kiểm tra của `_create_problem`, một
+      route `/teacher/problems/<code>/edit`, và một template biểu mẫu — khoảng
+      150 dòng, cộng một mục trong `_tools/smoke.py`.
+   2. **Quản lý kỳ thi.** Trang kỳ thi hiện chỉ đọc; chưa tạo/sửa kỳ thi hay
+      gán đề vào kỳ thi từ giao diện (dữ liệu mẫu do `server/seed.py` tạo).
+   3. **Nhập tài khoản học sinh hàng loạt.** 26 tài khoản mẫu do seed tạo; một
+      lớp thật có thể có hơn 40 em, nhập tay từng em một là không khả thi.
+   4. **Xuất bảng điểm** ra tệp để nộp sổ điểm.
+   5. **Trang đổi mật khẩu ở lần đăng nhập đầu.** CSDL đã có cột
+      `must_change_password` và `server/seed.py` đặt bằng 1 cho học sinh, nhưng
+      chưa có trang nào dùng cột đó — nên hiện tại lời nhắc đổi mật khẩu không
+      tồn tại trên giao diện.
 
 ## Ghi chú về giấy phép
 

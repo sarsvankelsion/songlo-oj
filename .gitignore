@@ -6,6 +6,9 @@ _probe.html
 _probe*.html
 _dump.html
 
+# HTML do `_tools/render_pages.py` sinh ra — dựng lại được bất cứ lúc nào
+demo/_render/
+
 # Dữ liệu chạy thật: CSDL SQLite và thư mục làm việc của bộ chấm.
 #
 # Tuyệt đối không đưa thư mục này vào repo. CSDL chứa hàm băm mật khẩu của toàn

@@ -195,6 +195,25 @@ def vn_runtime(ms_value, limit_ms=None, verdict: str = "") -> str:
     return vn_seconds(ms_value)
 
 
+def vn_range(starts_at, ends_at) -> str:
+    """Khoảng thời gian của một kỳ thi.
+
+    Vì sao cần filter riêng: mẫu cũ là ``{{ starts_at|vn_date_long }} –
+    {{ ends_at|vn_time }}``. ``vn_date_long`` đã kèm cả giờ, còn ``vn_time`` chỉ
+    có giờ — nên một kỳ thi chạy từ 23/09 tới 03/10 hiện thành
+    "Thứ Tư, 23/09/2026 · 19:44 – 19:44", trông như kỳ thi dài 0 phút vì **ngày
+    kết thúc biến mất**. Chỉ in giờ ở vế sau khi hai mốc cùng một ngày.
+    """
+    start = db.to_local(starts_at)
+    end = db.to_local(ends_at)
+    if not start or not end:
+        return "—"
+    head = vn_date_long(starts_at)
+    if start.date() == end.date():
+        return f"{head} – {end.strftime('%H:%M')}"
+    return f"{head} – {vn_date_long(ends_at)}"
+
+
 # ------------------------------------------------------------- nhãn và lớp
 def avatar_initials(full_name: str) -> str:
     """'Nguyễn Văn An' -> 'NA'.
@@ -257,6 +276,7 @@ def register_filters(app) -> None:
         vn_day_month=vn_day_month,
         vn_date=vn_date,
         vn_date_long=vn_date_long,
+        vn_range=vn_range,
         relative_time=relative_time,
         vn_seconds=vn_seconds,
         vn_memory=vn_memory,

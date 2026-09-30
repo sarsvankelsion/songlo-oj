@@ -165,16 +165,50 @@
         </section>
 
         {% if next_contest %}
+        {# Phải tính theo `contest_phase` chứ không đếm ngược thẳng về `starts_at`.
+           `next_contest` là kỳ thi gần nhất **chưa kết thúc**, nên rất thường là kỳ
+           thi đang diễn ra — lúc đó `starts_at` đã ở quá khứ và đồng hồ đếm ngược
+           sẽ đứng ở 00 00 00 00 dưới tiêu đề "sắp tới". Trang chủ đã xử lý đúng;
+           khối này sao chép nguyên cách xử lý đó để hai trang không nói khác nhau. #}
         <section class="card mb-4" aria-labelledby="cd-title">
-          <h3 id="cd-title" class="mb-3">Kỳ thi sắp tới</h3>
-          <p class="text-sm text-muted">{{ next_contest['name'] }}</p>
-          <div class="countdown mb-3" data-countdown="{{ next_contest['starts_at'] }}" role="timer"
-               aria-label="Thời gian còn lại tới khi kỳ thi bắt đầu">
-            <div class="countdown__unit"><span class="countdown__num" data-cd="d">00</span><span class="countdown__lbl">Ngày</span></div>
-            <div class="countdown__unit"><span class="countdown__num" data-cd="h">00</span><span class="countdown__lbl">Giờ</span></div>
-            <div class="countdown__unit"><span class="countdown__num" data-cd="m">00</span><span class="countdown__lbl">Phút</span></div>
-            <div class="countdown__unit"><span class="countdown__num" data-cd="s">00</span><span class="countdown__lbl">Giây</span></div>
+          <div class="row-between mb-2">
+            <h3 id="cd-title" class="mb-0">
+              {% if contest_phase == 'open' %}Kỳ thi đang diễn ra{% else %}Kỳ thi sắp tới{% endif %}
+            </h3>
+            {% if contest_phase == 'open' %}
+              <span class="badge badge--red">Đang diễn ra</span>
+            {% else %}
+              <span class="badge">Sắp diễn ra</span>
+            {% endif %}
           </div>
+          <p class="text-sm text-muted mb-1">{{ next_contest['name'] }}</p>
+          <p class="text-sm text-muted mb-3">
+            {{ next_contest['starts_at']|vn_range(next_contest['ends_at']) }}
+          </p>
+
+          {% if contest_phase == 'open' %}
+            <div class="countdown mb-2" data-countdown="{{ next_contest['ends_at'] }}" role="timer"
+                 aria-label="Thời gian còn lại của kỳ thi đang diễn ra">
+              <div class="countdown__unit"><span class="countdown__num" data-cd="h">00</span><span class="countdown__lbl">Giờ</span></div>
+              <div class="countdown__unit"><span class="countdown__num" data-cd="m">00</span><span class="countdown__lbl">Phút</span></div>
+              <div class="countdown__unit"><span class="countdown__num" data-cd="s">00</span><span class="countdown__lbl">Giây</span></div>
+            </div>
+          {% else %}
+            <div class="countdown mb-2" data-countdown="{{ next_contest['starts_at'] }}" role="timer"
+                 aria-label="Thời gian còn lại tới khi kỳ thi bắt đầu">
+              <div class="countdown__unit"><span class="countdown__num" data-cd="d">00</span><span class="countdown__lbl">Ngày</span></div>
+              <div class="countdown__unit"><span class="countdown__num" data-cd="h">00</span><span class="countdown__lbl">Giờ</span></div>
+              <div class="countdown__unit"><span class="countdown__num" data-cd="m">00</span><span class="countdown__lbl">Phút</span></div>
+              <div class="countdown__unit"><span class="countdown__num" data-cd="s">00</span><span class="countdown__lbl">Giây</span></div>
+            </div>
+          {% endif %}
+
+          {# Phải nằm trong cùng `<section>` với `.countdown`: app.js tìm nhãn trạng
+             thái bằng `el.closest('section').querySelector('[data-countdown-status]')`. #}
+          <p class="text-sm text-muted mb-3" data-countdown-status>
+            {% if contest_phase == 'open' %}Đang trong thời gian làm bài{% else %}Chưa tới giờ bắt đầu{% endif %}
+          </p>
+
           <a class="btn btn--outline btn--block btn--sm" href="{{ url_for('contests') }}">Quản lý kỳ thi</a>
         </section>
         {% endif %}
