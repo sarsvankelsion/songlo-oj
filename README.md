@@ -69,9 +69,9 @@ Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.h
 │   └── assets/
 │       ├── css/style.css     Toàn bộ hệ thống thiết kế (token + thành phần)
 │       ├── js/app.js         Tương tác, không phụ thuộc thư viện ngoài
-│       └── img/              Ảnh trường (đã cắt bỏ phần chữ chèn sẵn)
+│       └── img/              logo.png (huy hiệu, nền trong suốt) + ảnh trường
 ├── docs/                     Ảnh chụp cho README
-├── assets/                   Ảnh gốc tải từ website nhà trường
+├── assets/                   Ảnh gốc tải từ website nhà trường (kể cả huy hiệu)
 ├── research/                 Ghi chú khảo sát DMOJ/VNOJ
 │   ├── dmoj_install.md
 │   ├── dmoj_settings.py
@@ -114,7 +114,11 @@ Toàn bộ phần này chỉ chiếm một khối `html[data-theme="dark"]` kho�
 
 ### Về logo nhà trường
 
-Trường **không có file logo chính thức**. Hình đang dùng trên website là ảnh chụp sân trường có chèn sẵn dòng chữ "TRƯỜNG THCS SÔNG LÔ - XÃ TAM SƠN - TỈNH PHÚ THỌ". Vì vậy ở đây dùng một dấu `</>` làm biểu trưng cho hệ thống chấm bài, còn ảnh trường được cắt lại ở những vùng không có chữ để dùng làm ảnh minh hoạ.
+Biểu trưng ở góc trên bên trái là **huy hiệu chính thức của Trường THCS Sông Lô**. Tệp gốc lưu ở `assets/school-logo.png`; bản dùng trong giao diện là `demo/assets/img/logo.png`, đã xoá nền trắng thành trong suốt nên cùng một tệp hiển thị được trên cả nền sáng lẫn nền tối, không cần thêm nền phía sau và không cần biến thể riêng cho từng chế độ.
+
+Cách xoá nền: ảnh gốc là hình vuông có huy hiệu tròn nội tiếp, bốn góc là nền trắng phẳng. Tô loang từ bốn góc xoá đúng phần nằm ngoài vòng tròn — đo được **21,2%**, sát con số lý thuyết 21,5% (diện tích hình vuông trừ đường tròn nội tiếp) — và không đụng tới các vùng trắng bên trong huy hiệu.
+
+Ảnh chụp sân trường tải từ website nhà trường thì vẫn giữ riêng: ảnh đó có chèn sẵn dòng chữ "TRƯỜNG THCS SÔNG LÔ - XÃ TAM SƠN - TỈNH PHÚ THỌ" nên đã được cắt lại ở những vùng không có chữ để dùng làm ảnh minh hoạ.
 
 ## Điểm đáng chú ý về kỹ thuật
 

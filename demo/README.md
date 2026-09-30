@@ -54,7 +54,8 @@ demo/
 └── assets/
     ├── css/style.css     Toàn bộ hệ thống thiết kế (token + thành phần)
     ├── js/app.js         Tương tác, không phụ thuộc thư viện ngoài
-    └── img/              Ảnh trường đã cắt bỏ phần chữ chèn sẵn
+    └── img/              logo.png (huy hiệu trường, nền trong suốt)
+                          + ảnh trường đã cắt bỏ phần chữ chèn sẵn
 ```
 
 Không có bước build. Không dùng framework. CSS và JS đều là file tĩnh — chuyển thẳng sang template Django được.
@@ -64,6 +65,12 @@ Không có bước build. Không dùng framework. CSS và JS đều là file tĩ
 Phong cách **Swiss grid + product UI**: lưới rõ ràng, tương phản cao, đổ bóng thật để tạo chiều sâu, thang chữ dứt khoát. Phù hợp công cụ dữ liệu dày đặc.
 
 Bảng màu và phông chữ: xem bảng đầy đủ trong [`../README.md`](../README.md).
+
+### Huy hiệu nhà trường
+
+Biểu trưng ở header là huy hiệu chính thức của trường (`assets/img/logo.png`), nền đã xoá thành trong suốt. Vì trong suốt nên chỉ cần **một tệp duy nhất** cho cả hai chế độ — không có biến thể sáng/tối riêng.
+
+Ô `alt` của ảnh để rỗng có chủ ý: tên trường nằm ngay bên cạnh huy hiệu, nên nếu đọc cả hai thì trình đọc màn hình sẽ lặp lại thông tin hai lần.
 
 ### Chế độ tối
 

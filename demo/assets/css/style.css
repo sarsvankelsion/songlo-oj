@@ -211,12 +211,12 @@ kbd {
   border-bottom: 1px solid var(--border);
 }
 .site-head__inner { display: flex; align-items: center; gap: var(--sp-4); padding: 14px 0; }
+/* Official emblem of Truong THCS Song Lo. The PNG has a transparent
+   background, so the same file sits on the white header and on the dark one
+   without needing a plate or a theme-specific variant behind it. */
 .site-head__mark {
-  width: 46px; height: 46px; flex: none; border-radius: var(--r-md);
-  background: linear-gradient(145deg, var(--brand-800), var(--brand-400));
-  color: #fff; display: grid; place-items: center;
-  font-family: var(--font-mono); font-size: 16px; font-weight: 600;
-  box-shadow: var(--shadow-brand);
+  width: 46px; height: 46px; flex: none; display: block;
+  object-fit: contain;
 }
 .site-head__text { min-width: 0; }
 .site-head__dept {
@@ -806,7 +806,7 @@ kbd {
   .site-foot__grid { grid-template-columns: 1fr; gap: var(--sp-5); }
   .card, .card__body { padding: var(--sp-4); }
   .card__head, .table th, .table td { padding-left: var(--sp-4); padding-right: var(--sp-4); }
-  .site-head__mark { width: 40px; height: 40px; font-size: 14px; }
+  .site-head__mark { width: 40px; height: 40px; }
   .site-head__name { font-size: 15px; }
   .stat__value { font-size: 28px; }
   .hero-stats { margin-top: -32px; }
@@ -849,10 +849,14 @@ kbd {
               background var(--dur) var(--ease);
 }
 .theme-btn:hover { color: var(--link); border-color: var(--link); background: var(--surface-2); }
-.theme-btn svg { display: block; }
-.theme-btn__sun { display: none; }
-html[data-theme="dark"] .theme-btn__sun { display: block; }
-html[data-theme="dark"] .theme-btn__moon { display: none; }
+/* Both icons live in the markup and exactly one is shown.
+   Do NOT reintroduce a `.theme-btn svg { display: block }` rule here: adding an
+   element selector raises its specificity to (0,1,1), which beats the plain
+   class toggles below at (0,1,0) — both icons then render and the button grows
+   a second row. Grid items are blockified anyway, so it was never needed. */
+.theme-btn .theme-btn__sun { display: none; }
+html[data-theme="dark"] .theme-btn .theme-btn__sun { display: block; }
+html[data-theme="dark"] .theme-btn .theme-btn__moon { display: none; }
 
 /* ---------- 29. Read-only code viewer ----------
    Same shell as the editor but with no textarea: the highlighted <pre> is the
