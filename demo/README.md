@@ -68,7 +68,9 @@ Bảng màu và phông chữ: xem bảng đầy đủ trong [`../README.md`](../
 
 ### Huy hiệu nhà trường
 
-Biểu trưng ở header là huy hiệu chính thức của trường (`assets/img/logo.png`), nền đã xoá thành trong suốt. Vì trong suốt nên chỉ cần **một tệp duy nhất** cho cả hai chế độ — không có biến thể sáng/tối riêng.
+Biểu trưng ở header là huy hiệu chính thức của trường (`assets/img/logo.png`), nền đã xoá thành trong suốt. Vì trong suốt nên chỉ cần **một tệp duy nhất** cho cả hai chế độ — không có biến thể sáng/tối riêng. Lưu ý: phần nền trắng *bên trong* vòng tròn là một phần thiết kế của huy hiệu, nên ở chế độ tối huy hiệu hiện ra như một huy hiệu tròn nền sáng.
+
+Hiển thị ở **52×52 px** (khai báo trong `.site-head__mark`). Huy hiệu có vòng chữ nhỏ bao quanh nên dưới khoảng 50 px là nhoè. Nhớ sửa cả thuộc tính `width`/`height` trên thẻ `<img>` ở mọi trang cho khớp.
 
 Ô `alt` của ảnh để rỗng có chủ ý: tên trường nằm ngay bên cạnh huy hiệu, nên nếu đọc cả hai thì trình đọc màn hình sẽ lặp lại thông tin hai lần.
 

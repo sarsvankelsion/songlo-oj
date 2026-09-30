@@ -213,9 +213,13 @@ kbd {
 .site-head__inner { display: flex; align-items: center; gap: var(--sp-4); padding: 14px 0; }
 /* Official emblem of Truong THCS Song Lo. The PNG has a transparent
    background, so the same file sits on the white header and on the dark one
-   without needing a plate or a theme-specific variant behind it. */
+   without needing a plate or a theme-specific variant behind it.
+   52px rather than 46px: the emblem carries a ring of small lettering that
+   turns to mush below ~50px. The source PNG is 144px wide, so there is still
+   headroom over 2x DPR. Keep this in sync with the width/height attributes
+   on the <img> in every page. */
 .site-head__mark {
-  width: 46px; height: 46px; flex: none; display: block;
+  width: 52px; height: 52px; flex: none; display: block;
   object-fit: contain;
 }
 .site-head__text { min-width: 0; }
@@ -795,7 +799,7 @@ kbd {
   .site-foot__grid { grid-template-columns: 1fr; gap: var(--sp-5); }
   .card, .card__body { padding: var(--sp-4); }
   .card__head, .table th, .table td { padding-left: var(--sp-4); padding-right: var(--sp-4); }
-  .site-head__mark { width: 40px; height: 40px; }
+  .site-head__mark { width: 44px; height: 44px; }
   .site-head__name { font-size: 15px; }
   .stat__value { font-size: 28px; }
   .hero-stats { margin-top: -32px; }

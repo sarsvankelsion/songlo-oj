@@ -116,7 +116,9 @@ Toàn bộ phần này chỉ chiếm một khối `html[data-theme="dark"]` kho�
 
 Biểu trưng ở góc trên bên trái là **huy hiệu chính thức của Trường THCS Sông Lô**. Tệp gốc lưu ở `assets/school-logo.png`; bản dùng trong giao diện là `demo/assets/img/logo.png`, đã xoá nền trắng thành trong suốt nên cùng một tệp hiển thị được trên cả nền sáng lẫn nền tối, không cần thêm nền phía sau và không cần biến thể riêng cho từng chế độ.
 
-Cách xoá nền: ảnh gốc là hình vuông có huy hiệu tròn nội tiếp, bốn góc là nền trắng phẳng. Tô loang từ bốn góc xoá đúng phần nằm ngoài vòng tròn — đo được **21,2%**, sát con số lý thuyết 21,5% (diện tích hình vuông trừ đường tròn nội tiếp) — và không đụng tới các vùng trắng bên trong huy hiệu.
+Cách xoá nền: ảnh gốc là hình vuông có huy hiệu tròn nội tiếp, bốn góc là nền trắng phẳng. Tô loang từ bốn góc xoá đúng phần nằm ngoài vòng tròn — đo được **21,2%**, sát con số lý thuyết 21,5% (diện tích hình vuông trừ đường tròn nội tiếp) — và không đụng tới các vùng trắng bên trong huy hiệu. Nền trắng còn lại *bên trong* vòng tròn là một phần thiết kế của huy hiệu, không phải sót lại — nên ở chế độ tối huy hiệu hiện ra như một huy hiệu tròn nền sáng, chứ không phải hình trong suốt.
+
+Kích thước hiển thị là **52×52 px**, không phải 46 px như bản đầu: huy hiệu có một vòng chữ nhỏ bao quanh, dưới khoảng 50 px thì vòng chữ đó nhoè thành một vệt. Ảnh gốc rộng 144 px nên vẫn dư độ phân giải cho màn hình mật độ cao. Con số này phải khớp ở hai chỗ: `width`/`height` trong `.site-head__mark` (CSS) và thuộc tính `width`/`height` trên thẻ `<img>` ở cả 11 trang. CSS thắng sau khi tải xong, nhưng thuộc tính giữ đúng kích thước chỗ đó ngay từ đầu nên không bị nhảy bố cục lúc mới tải.
 
 Ảnh chụp sân trường tải từ website nhà trường chỉ còn dùng làm **nền mờ cho khối hero** ở trang chủ (`demo/assets/img/hero.jpg`) — đã cắt ở vùng không có chữ và phủ lớp màu đậm nên chỉ còn là một mảng tối có vân, không phải ảnh minh hoạ. Một mục "Cơ sở vật chất" riêng từng có trên trang chủ đã được bỏ: nó giới thiệu khuôn viên nhà trường, không liên quan tới việc chấm bài.
 
