@@ -358,7 +358,16 @@ def judge_submission(
                 TestOutcome(
                     ordinal=ordinal,
                     verdict=verdict,
-                    time_ms=result.cpu_ms if result.cpu_ms > 0 else result.wall_ms,
+                    # Với bài bị đồng hồ canh giờ thực cắt, thời gian CPU là con
+                    # số vô nghĩa: một chương trình `sleep(60)` chỉ tốn vài mili
+                    # giây CPU, nên báo "quá thời gian — 8 ms" mâu thuẫn với
+                    # chính kết luận vừa đưa ra. Trường hợp đó phải báo thời gian
+                    # thực, vì đó mới là thứ đã cắt bài.
+                    time_ms=(
+                        result.wall_ms
+                        if result.killed_by_watchdog
+                        else (result.cpu_ms if result.cpu_ms > 0 else result.wall_ms)
+                    ),
                     memory_kb=result.memory_kb,
                     points=test_points if verdict == "AC" else 0,
                     message=note if not hidden or verdict == "AC" else _hide_detail(note),

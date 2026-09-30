@@ -20,8 +20,11 @@ không hạ quyền, và trên máy chủ thì phải chạy bằng root mới t
 vì thế có hai chế độ:
 
   * Phần 1 chạy được ở mọi hệ điều hành.
-  * Phần 2–4 chỉ chạy khi là POSIX **và** đang là root; nếu không, chúng được
+  * Phần 2–5 chỉ chạy khi là POSIX **và** đang là root; nếu không, chúng được
     báo là bỏ qua chứ không im lặng coi như đạt.
+
+Phần 5 tốn khoảng 5 giây vì nó chờ đồng hồ canh giờ thực cắt một bài ngủ — đúng
+thứ đang bảo vệ hàng đợi chấm khỏi một chương trình không bao giờ kết thúc.
 
     python _tools/test_judge_isolation.py
 
@@ -48,6 +51,21 @@ SRC = """\
 int main() {
     long long a, b;
     std::cin >> a >> b;
+    std::cout << a + b << "\\n";
+    return 0;
+}
+"""
+
+# Ngủ lâu hơn giới hạn thời gian. Tiêu tốn gần như không CPU, nên chỉ đồng hồ
+# canh giờ thực cắt được — đây là bài kiểm chứng chính đường đó.
+SRC_SLEEP = """\
+#include <iostream>
+#include <thread>
+#include <chrono>
+int main() {
+    long long a, b;
+    std::cin >> a >> b;
+    std::this_thread::sleep_for(std::chrono::seconds(30));
     std::cout << a + b << "\\n";
     return 0;
 }
@@ -151,6 +169,9 @@ def build_temp_db(db_path: Path) -> object:
         conn.execute(
             "INSERT INTO submissions (problem_id, user_id, source, status, created_at)"
             " VALUES (1, 1, ?, 'pending', ?)", (SRC, now))
+        conn.execute(
+            "INSERT INTO submissions (problem_id, user_id, source, status, created_at)"
+            " VALUES (1, 1, ?, 'pending', ?)", (SRC_SLEEP, now))
     return conn
 
 
@@ -170,13 +191,13 @@ def main() -> int:
     check("chủ và quyền giữ nguyên", before == after, f"{oct(before[2] & 0o777)}")
 
     if not is_posix:
-        print("\nPhần 2–4 cần Linux: Windows không có setuid nên không hạ quyền được.")
-        skip("toàn bộ phần 2–4", "không phải POSIX")
+        print("\nPhần 2–5 cần Linux: Windows không có setuid nên không hạ quyền được.")
+        skip("toàn bộ phần 2–5", "không phải POSIX")
     elif not is_root:
-        print("\nPhần 2–4 cần chạy bằng root: chỉ root mới đổi được chủ tệp.")
-        skip("toàn bộ phần 2–4", f"euid={os.geteuid()}, cần 0")
+        print("\nPhần 2–5 cần chạy bằng root: chỉ root mới đổi được chủ tệp.")
+        skip("toàn bộ phần 2–5", f"euid={os.geteuid()}, cần 0")
     elif account is None:
-        skip("toàn bộ phần 2–4", "không tìm thấy tài khoản để hạ quyền")
+        skip("toàn bộ phần 2–5", "không tìm thấy tài khoản để hạ quyền")
     else:
         uid, gid = account
         print(f"\n2. Hạ quyền xuống uid={uid} gid={gid} — thư mục phải dùng được")
@@ -206,6 +227,14 @@ def main() -> int:
         print("\n4. Chấm thật một bài đúng — phải ra AC, không phải CE")
         sandbox.RUNAS_UID, sandbox.RUNAS_GID = str(uid), str(gid)
         tmp = Path(tempfile.mkdtemp(prefix="songlo-iso-e2e-"))
+        # Thư mục gốc cũng phải đi qua được, không chỉ thư mục làm việc.
+        # `mkdtemp` để nó ở quyền 0700, mà đây lại là thư mục **cha** của thư mục
+        # làm việc: quyền tìm kiếm thiếu ở đây cho ra đúng lỗi
+        # "PermissionError: .../main" khi chạy, muộn hơn một bước so với lỗi
+        # tương tự ở thư mục làm việc. Trên máy chủ thật, `/var/lib/songlo/judge`
+        # là 0755 nên không có chuyện này — đặt lại đúng 0755 để phép kiểm phản
+        # ánh đúng môi trường triển khai.
+        os.chmod(tmp, 0o755)
         conn = build_temp_db(tmp / "songlo.db")
         try:
             outcome = judge.judge_submission(conn, 1, tmp / "judge")
@@ -217,6 +246,14 @@ def main() -> int:
             check("bộ dữ liệu cũng chạy được",
                   len(outcome.tests) == 1 and outcome.tests[0].verdict == "AC",
                   outcome.tests[0].verdict if outcome.tests else "không có bộ nào")
+
+            print("\n5. Bài ngủ 30 giây — đồng hồ canh giờ thực phải cắt được")
+            # Giới hạn thực là 1000 ms * 3 + 2 giây = 5 giây.
+            hung = judge.judge_submission(conn, 2, tmp / "judge")
+            check("kết quả là TLE", hung.verdict == "TLE", hung.verdict)
+            check("báo thời gian thực, không phải thời gian CPU",
+                  hung.time_ms >= 4000,
+                  f"{hung.time_ms} ms — thời gian CPU của một bài ngủ chỉ vài ms")
         finally:
             conn.close()
 
