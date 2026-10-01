@@ -1141,11 +1141,24 @@ html[data-theme="dark"] .editor__dots i { filter: saturate(.85); }
 
 /* Nhưng KHÔNG áp `pre-wrap` cho công thức. KaTeX dựng một công thức từ rất
    nhiều phần tử rời rạc, và `white-space: pre-wrap` ở tổ tiên sẽ biến những
-   khoảng trắng vô nghĩa nằm giữa chúng thành khoảng trắng thật — công thức bị
-   giãn ra, có khi vỡ dòng giữa chừng. Trả lại cách xử lý khoảng trắng bình
-   thường cho mọi thứ nằm trong `.katex`. */
-.statement-text .katex,
-.statement-text .katex * {
+   khoảng trắng vô nghĩa nằm giữa chúng thành khoảng trắng thật.
+
+   CHỈ đặt trên chính `.katex`. Ban đầu tôi viết thêm một quy tắc
+   `.statement-text .katex *` để "trả lại bình thường cho mọi thứ bên trong" —
+   và nó làm vỡ hết bố cục công thức, theo cách rất khó đoán:
+
+   `.base` của KaTeX mang `white-space: nowrap` và `width: min-content`. Khi các
+   phần tử CON của nó bị đặt `normal`, nội dung trở thành ngắt dòng được, nên
+   `min-content` co lại bằng ký hiệu rộng nhất — đo được 21.875px cho cả một
+   công thức. Mỗi ký hiệu rơi xuống một dòng riêng.
+
+   Triệu chứng đánh lừa: công thức một ký hiệu như `$n$` vẫn đúng, vì `.base`
+   chỉ có một con thì không thể ngắt. Chỉ công thức từ hai ký hiệu trở lên mới
+   vỡ — nên rất dễ tưởng là lỗi phông chữ hay lỗi MathML.
+
+   Chỉ cần `normal` trên `.katex`: con của `.base` thừa kế `nowrap` từ `.base`,
+   đúng như KaTeX mong đợi. */
+.statement-text .katex {
   white-space: normal;
 }
 
