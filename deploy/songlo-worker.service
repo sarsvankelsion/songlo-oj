@@ -1,0 +1,30 @@
+[Unit]
+Description=Song Lo OJ - tien trinh cham bai (lay bai trong hang doi roi cham)
+Documentation=file:///opt/songlo/README.md
+After=network-online.target songlo-web.service
+Wants=network-online.target
+# Khoa nay thuoc [Unit]. Dat trong [Service] thi systemd bao
+# "Unknown key name ... ignoring" va gioi han mac dinh (5 lan / 10 giay) van hieu luc,
+# khien no thoi thu lai sau vai lan crash — dung luc can nhat.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/songlo
+# Bat buoc: nguon SONGLO_DB / SONGLO_VAR / SONGLO_JUDGE_WORKSPACE.
+# Thieu dong nay, worker roi ve mac dinh `server/var/songlo.db`, khong thay CSDL,
+# va thoat voi ma 2 (INVALIDARGUMENT) — nhin nhu loi cau hinh binh thuong nhung
+# hau qua la khong ai cham bai. Trieu chung rat kho doan vi web van 200 va
+# dang nhap van duoc; chi bai nop la mai khong co ket qua.
+EnvironmentFile=/etc/songlo.env
+Environment=PYTHONUNBUFFERED=1
+# Phai chay bang root: worker can ha quyen tung bai cham xuong tai khoan `judge`
+# (xem server/sandbox.py, RUNAS_UID). Neu dat User=songlo thi `setuid` that bai,
+# lop cach ly mat tac dung, va bai cua hoc sinh chay bang chinh tai khoan web.
+User=root
+ExecStart=/opt/songlo/.venv/bin/python -m server.worker
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

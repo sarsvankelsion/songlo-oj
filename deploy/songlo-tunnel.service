@@ -1,0 +1,17 @@
+[Unit]
+Description=Song Lo OJ — quick tunnel rieng (khong dung tunnel cua nguoi dung)
+After=network-online.target songlo-web.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+# --config tro tep rieng: neu thieu, cloudflared doc /root/.cloudflared/config.yml
+# va ket noi vao tunnel co ten san co tren may (vi du `sarsed-gateway`) thay vi tao
+# quick tunnel. Ingress cua tunnel do khong co hostname nay => moi truy van tra 404.
+# Triệu chứng phân biệt: dòng `Settings:` trong journalctl co `credentials-file:`.
+ExecStart=/usr/bin/cloudflared tunnel --config /etc/songlo/cloudflared.yml --url http://127.0.0.1:8000
+
+[Install]
+WantedBy=multi-user.target

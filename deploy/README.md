@@ -99,39 +99,42 @@ RestartSec=3
 WantedBy=multi-user.target
 ```
 
-`/etc/systemd/system/songlo-judge.service`:
+`/etc/systemd/system/songlo-worker.service` — bản đầy đủ nằm trong repo tại
+`deploy/songlo-worker.service`, chép thẳng vào `/etc/systemd/system/`:
+
+```bash
+sudo cp /opt/songlo/deploy/songlo-worker.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now songlo-worker
+```
+
+Hai chi tiết trong tệp đó đều là lỗi đã gặp thật, không phải trang trí:
+
+**`EnvironmentFile=/etc/songlo.env` là bắt buộc.** Thiếu nó, `server/worker.py`
+rơi về mặc định `server/var/songlo.db`, không thấy CSDL, và thoát với mã 2. Triệu
+chứng cực khó đoán vì web vẫn trả 200 và đăng nhập vẫn được — chỉ có bài nộp là
+mãi không ra kết quả. Nếu đã có sẵn `SONGLO_VAR` trong `/etc/songlo.env` thì chỉ
+cần đúng một dòng này, không cần đặt `SONGLO_DB` riêng.
+
+**`StartLimitIntervalSec` thuộc `[Unit]`, không thuộc `[Service]`.** Đặt sai phần,
+systemd ghi `Unknown key name ... ignoring` rồi **bỏ qua im lặng**; giới hạn mặc
+định (5 lần trong 10 giây) vẫn còn hiệu lực và nó sẽ thôi thử lại sau vài lần
+crash — đúng lúc cần nhất.
+
+Nếu dùng tài khoản chấm riêng (khuyến nghị, xem bước 2), thêm:
 
 ```ini
-[Unit]
-Description=Song Lo OJ - cham bai
-After=network.target
-
-[Service]
-# Chạy bằng root để hạ được quyền tiến trình con xuống songlo-judge.
-# Nếu chạy bằng songlo thì mã học sinh chạy cùng quyền với worker, và
-# RLIMIT_NPROC sẽ tính chung vào hạn mức tiến trình của tài khoản đó.
-User=root
-EnvironmentFile=/etc/songlo.env
 Environment=SONGLO_JUDGE_RUNAS_UID=<uid của songlo-judge>
 Environment=SONGLO_JUDGE_RUNAS_GID=<gid của songlo-judge>
 Environment=SONGLO_JUDGE_MAX_PROCS=64
-WorkingDirectory=/opt/songlo
-ExecStart=/opt/songlo/.venv/bin/python -m server.worker
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
 ```
-
-Thay `<uid>` và `<gid>` bằng số lấy từ `id songlo-judge` ở bước 2.
 
 ```bash
 sudo chmod 600 /etc/songlo.env
 sudo systemctl daemon-reload
-sudo systemctl enable --now songlo-web songlo-judge
-sudo systemctl status songlo-web songlo-judge
+sudo systemctl enable --now songlo-web songlo-worker
+sudo systemctl status songlo-web songlo-worker
 ```
+
 
 ## 5. Tạo dữ liệu lần đầu
 
