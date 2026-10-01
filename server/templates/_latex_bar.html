@@ -1,0 +1,83 @@
+{#
+  Bảng chèn công thức LaTeX — dùng chung cho trang soạn đề và trang sửa đề.
+
+  Cần đặt biến `target` bằng id của ô soạn thảo trước khi include:
+      {% set target = 'p-statement' %}{% include "_latex_bar.html" %}
+
+  Mỗi nút mang một mẫu LaTeX trong `data-tex`; `@` là chỗ con trỏ sẽ dừng lại,
+  và cũng là chỗ vùng bôi đen được đặt vào — nên bôi đen `a+b` rồi bấm nút phân
+  số sẽ ra `\frac{a+b}{}`. Xem `latexApply` trong app.js.
+
+  Vì sao không dùng `%s` làm dấu chỗ trống: mẫu `\text{%s}` sẽ thành `{%s}`, mà
+  `{%` chính là cú pháp mở khối của Jinja — nó làm vỡ cả trang.
+#}
+<div class="latex-bar" data-latex-bar="{{ target }}" role="group"
+     aria-label="Chèn công thức LaTeX">
+
+  <div class="latex-bar__row">
+    <span class="latex-bar__label">Công thức</span>
+    <button class="latex-btn" type="button" data-tex="$@$" title="Công thức giữa dòng">$x$</button>
+    <button class="latex-btn" type="button" data-tex="$$@$$" title="Công thức riêng một dòng, canh giữa">$$x$$</button>
+    <button class="latex-btn" type="button" data-tex="\frac{@}{}" title="Phân số">a/b</button>
+    <button class="latex-btn" type="button" data-tex="\sqrt{@}" title="Căn bậc hai">√</button>
+    <button class="latex-btn" type="button" data-tex="^{@}" title="Số mũ">x^n</button>
+    <button class="latex-btn" type="button" data-tex="_{@}" title="Chỉ số dưới">x_n</button>
+    <button class="latex-btn" type="button" data-tex="\sum_{i=1}^{n} @" title="Tổng">Σ</button>
+    <button class="latex-btn" type="button" data-tex="\prod_{i=1}^{n} @" title="Tích">∏</button>
+    <button class="latex-btn" type="button" data-tex="\int_{a}^{b} @" title="Tích phân">∫</button>
+    <button class="latex-btn" type="button" data-tex="\lim_{n \to \infty} @" title="Giới hạn">lim</button>
+    <button class="latex-btn" type="button" data-tex="\text{@}" title="Chữ thường nằm trong công thức">chữ</button>
+  </div>
+
+  <div class="latex-bar__row">
+    <span class="latex-bar__label">So sánh, số học</span>
+    <button class="latex-btn" type="button" data-tex="\le" title="Nhỏ hơn hoặc bằng">≤</button>
+    <button class="latex-btn" type="button" data-tex="\ge" title="Lớn hơn hoặc bằng">≥</button>
+    <button class="latex-btn" type="button" data-tex="\ne" title="Khác">≠</button>
+    <button class="latex-btn" type="button" data-tex="\approx" title="Xấp xỉ">≈</button>
+    <button class="latex-btn" type="button" data-tex="\equiv" title="Đồng dư">≡</button>
+    <button class="latex-btn" type="button" data-tex="\times" title="Nhân">×</button>
+    <button class="latex-btn" type="button" data-tex="\cdot" title="Nhân (dấu chấm)">·</button>
+    <button class="latex-btn" type="button" data-tex="\div" title="Chia">÷</button>
+    <button class="latex-btn" type="button" data-tex="\pm" title="Cộng trừ">±</button>
+    <button class="latex-btn" type="button" data-tex="\bmod" title="Chia lấy dư">mod</button>
+    <button class="latex-btn" type="button" data-tex="\lfloor @ \rfloor" title="Làm tròn xuống">⌊x⌋</button>
+    <button class="latex-btn" type="button" data-tex="\lceil @ \rceil" title="Làm tròn lên">⌈x⌉</button>
+    <button class="latex-btn" type="button" data-tex="|@|" title="Giá trị tuyệt đối">|x|</button>
+    <button class="latex-btn" type="button" data-tex="\infty" title="Vô cùng">∞</button>
+  </div>
+
+  <div class="latex-bar__row">
+    <span class="latex-bar__label">Tập hợp, logic</span>
+    <button class="latex-btn" type="button" data-tex="\in" title="Thuộc">∈</button>
+    <button class="latex-btn" type="button" data-tex="\notin" title="Không thuộc">∉</button>
+    <button class="latex-btn" type="button" data-tex="\subset" title="Tập con">⊂</button>
+    <button class="latex-btn" type="button" data-tex="\cup" title="Hợp">∪</button>
+    <button class="latex-btn" type="button" data-tex="\cap" title="Giao">∩</button>
+    <button class="latex-btn" type="button" data-tex="\emptyset" title="Tập rỗng">∅</button>
+    <button class="latex-btn" type="button" data-tex="\forall" title="Với mọi">∀</button>
+    <button class="latex-btn" type="button" data-tex="\exists" title="Tồn tại">∃</button>
+    <button class="latex-btn" type="button" data-tex="\to" title="Tiến tới">→</button>
+    <button class="latex-btn" type="button" data-tex="\Rightarrow" title="Suy ra">⇒</button>
+    <button class="latex-btn" type="button" data-tex="\Leftrightarrow" title="Tương đương">⇔</button>
+  </div>
+
+  <div class="latex-bar__row">
+    <span class="latex-bar__label">Chữ Hy Lạp</span>
+    <button class="latex-btn" type="button" data-tex="\alpha" title="alpha">α</button>
+    <button class="latex-btn" type="button" data-tex="\beta" title="beta">β</button>
+    <button class="latex-btn" type="button" data-tex="\gamma" title="gamma">γ</button>
+    <button class="latex-btn" type="button" data-tex="\delta" title="delta">δ</button>
+    <button class="latex-btn" type="button" data-tex="\Delta" title="Delta">Δ</button>
+    <button class="latex-btn" type="button" data-tex="\theta" title="theta">θ</button>
+    <button class="latex-btn" type="button" data-tex="\lambda" title="lambda">λ</button>
+    <button class="latex-btn" type="button" data-tex="\mu" title="mu">μ</button>
+    <button class="latex-btn" type="button" data-tex="\pi" title="pi">π</button>
+    <button class="latex-btn" type="button" data-tex="\sigma" title="sigma">σ</button>
+    <button class="latex-btn" type="button" data-tex="\Sigma" title="Sigma">Σ</button>
+    <button class="latex-btn" type="button" data-tex="\phi" title="phi">φ</button>
+    <button class="latex-btn" type="button" data-tex="\omega" title="omega">ω</button>
+    <button class="latex-btn" type="button" data-tex="\Omega" title="Omega">Ω</button>
+  </div>
+
+</div>

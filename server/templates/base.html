@@ -25,6 +25,21 @@
 #}
 <script>(function(){try{var t=localStorage.getItem("sl-theme");if(!t)t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";if(t==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+{#
+  KaTeX — hiển thị công thức LaTeX trong đề bài.
+
+  Bản tự chứa trong `assets/vendor/katex`, KHÔNG lấy từ CDN: máy chủ trường có
+  thể không ra được Internet, và khi đó công thức vẫn phải hiện. Đổi lại phải
+  chép theo thư mục `fonts/` (60 tệp) — thiếu nó thì công thức hiện ra bằng
+  chữ thường, không có dấu hiệu nào chỉ ra nguyên nhân.
+
+  `defer` để 275 KB JavaScript không chặn việc vẽ trang. Vì tệp này nạp bằng
+  `defer` còn `app.js` là script thường ở cuối <body> (chạy trước), nên
+  `initMath` trong `app.js` phải chờ tới sự kiện `load` mới đổi công thức.
+#}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/katex/katex.min.css') }}">
+<script defer src="{{ url_for('static', filename='vendor/katex/katex.min.js') }}"></script>
+<script defer src="{{ url_for('static', filename='vendor/katex/contrib/auto-render.min.js') }}"></script>
 </head>
 <body>
 

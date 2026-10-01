@@ -139,12 +139,29 @@
 
             <div class="field">
               <label class="label" for="p-statement">Đề bài <span class="req" aria-hidden="true">*</span></label>
-              <textarea class="textarea" id="p-statement" name="statement" rows="16" required
-                        style="min-height:300px"
-                        placeholder="Mô tả yêu cầu, dữ liệu vào, dữ liệu ra và giới hạn…">{{ values['statement'] }}</textarea>
+
+              {# Cùng bảng chèn và ô xem trước như trang soạn đề — xem
+                 `_latex_bar.html`. Hai trang dùng chung một tệp nên không thể
+                 lệch nhau về sau. #}
+              {% set target = 'p-statement' %}{% include "_latex_bar.html" %}
+
+              <div class="latex-split">
+                <textarea class="textarea" id="p-statement" name="statement" rows="18" required
+                          data-latex data-latex-preview="#p-statement-preview"
+                          placeholder="Mô tả yêu cầu, dữ liệu vào, dữ liệu ra và giới hạn…">{{ values['statement'] }}</textarea>
+
+                <div class="latex-preview" id="p-statement-preview" aria-live="polite">
+                  <p class="latex-preview__head">Xem trước</p>
+                  <div class="latex-preview__body statement-text" data-latex-preview-body data-math></div>
+                </div>
+              </div>
+
               <p class="hint">
                 Văn bản thuần, xuống dòng được giữ nguyên. Viết theo thứ tự:
                 <strong>Yêu cầu</strong> → <strong>Dữ liệu vào</strong> → <strong>Dữ liệu ra</strong> → <strong>Giới hạn</strong>.
+                Công thức gõ giữa hai dấu <span class="mono">$ … $</span>, hoặc
+                <span class="mono">$$ … $$</span> khi muốn riêng một dòng. Bôi đen một đoạn
+                rồi bấm nút để bọc công thức quanh đoạn đó.
               </p>
             </div>
 

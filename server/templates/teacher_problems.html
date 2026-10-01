@@ -191,12 +191,31 @@
 
           <div class="field">
             <label class="label" for="p-statement">Đề bài <span class="req" aria-hidden="true">*</span></label>
-            <textarea class="textarea" id="p-statement" name="statement" rows="12" required
-                      style="min-height:240px"
-                      placeholder="Mô tả yêu cầu, dữ liệu vào, dữ liệu ra và giới hạn…"></textarea>
+
+            {# Bảng chèn công thức dùng chung với trang sửa đề — xem
+               `_latex_bar.html`. `target` là id của ô soạn thảo bên dưới. #}
+            {% set target = 'p-statement' %}{% include "_latex_bar.html" %}
+
+            <div class="latex-split">
+              <textarea class="textarea" id="p-statement" name="statement" rows="16" required
+                        data-latex data-latex-preview="#p-statement-preview"
+                        placeholder="Mô tả yêu cầu, dữ liệu vào, dữ liệu ra và giới hạn…&#10;&#10;Công thức đặt giữa hai dấu $ … $ , ví dụ: $1 \le n \le 10^6$."></textarea>
+
+              <div class="latex-preview" id="p-statement-preview" aria-live="polite">
+                <p class="latex-preview__head">Xem trước</p>
+                {# `data-math` là chỗ KaTeX tìm tới. Nội dung do app.js đổ vào
+                   bằng `textContent`, không phải HTML — giữ đúng nguyên tắc của
+                   đề bài: văn bản thuần, không diễn giải thẻ. #}
+                <div class="latex-preview__body statement-text" data-latex-preview-body data-math></div>
+              </div>
+            </div>
+
             <p class="hint">
               Văn bản thuần, xuống dòng được giữ nguyên. Viết theo thứ tự:
               <strong>Yêu cầu</strong> → <strong>Dữ liệu vào</strong> → <strong>Dữ liệu ra</strong> → <strong>Giới hạn</strong>.
+              Công thức gõ giữa hai dấu <span class="mono">$ … $</span>, hoặc
+              <span class="mono">$$ … $$</span> khi muốn riêng một dòng. Bôi đen một đoạn
+              rồi bấm nút để bọc công thức quanh đoạn đó.
             </p>
           </div>
 

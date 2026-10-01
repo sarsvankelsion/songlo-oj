@@ -750,11 +750,127 @@
     initSubmit();
     initLogin();
     initConfirm();
+    initLatexBar();
+    initMath();
 
     if (!reduceMotion && !hasViewTransitions) {
       runMorphFallback();
       initMorphCapture();
     }
+  }
+
+  /* ---------- 40. Công thức LaTeX (KaTeX) ----------
+
+     Đề bài lưu dạng văn bản thuần. Giáo viên gõ công thức giữa hai dấu `$`
+     (giữa dòng) hoặc `$$` (riêng một dòng), KaTeX đổi thành công thức thật.
+
+     Vì sao đổi ở trình duyệt chứ không ở máy chủ: máy chủ chỉ có Python, không
+     có LaTeX. KaTeX là bản dựng lại bằng JavaScript nên chạy được ngay trên máy
+     học sinh, không phải cài thêm gì.
+
+     Vì sao KaTeX nằm trong `assets/vendor/katex` chứ không lấy từ CDN: máy chủ
+     trường có thể không ra được Internet, và khi đó công thức vẫn phải hiện. */
+  function renderMath(root) {
+    if (!window.renderMathInElement) return 0;   // KaTeX chưa nạp xong
+    var targets = (root || document).querySelectorAll('[data-math]');
+    Array.prototype.forEach.call(targets, function (el) {
+      window.renderMathInElement(el, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '\\[', right: '\\]', display: true },
+          { left: '$', right: '$', display: false },
+          { left: '\\(', right: '\\)', display: false }
+        ],
+        /* Không đụng vào khối mã. Một đề bài hoàn toàn có thể chứa dấu `$`
+           trong ví dụ C++, và nếu để KaTeX nuốt thì nó ăn mất cả đoạn giữa hai
+           dấu đó — lỗi im lặng, chỉ thấy là đoạn văn biến mất. */
+        ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+        /* Đừng ném lỗi ra ngoài: một công thức gõ sai chỉ nên hiện đỏ tại chỗ,
+           không được làm hỏng cả trang. */
+        throwOnError: false,
+        errorColor: '#d9534f'
+      });
+    });
+    return targets.length;
+  }
+
+  function initMath() {
+    if (window.renderMathInElement) {
+      renderMath(document);
+      return;
+    }
+    /* KaTeX nạp bằng `defer`, mà tệp này là script thường ở cuối <body> nên
+       chạy TRƯỚC nó. `load` là mốc muộn nhất và chắc chắn KaTeX đã có mặt. */
+    window.addEventListener('load', function () { renderMath(document); });
+  }
+
+  /* ---------- 41. Thanh chèn LaTeX ----------
+
+     Mỗi nút mang một mẫu trong `data-tex`, dùng `@` để đánh dấu chỗ con trỏ dừng
+     lại — và cũng là chỗ vùng đang bôi đen được đặt vào. Nhờ vậy cùng một cơ chế
+     phục vụ cả hai việc: bấm nút để chèn ký hiệu, và bôi đen rồi bấm nút để bọc
+     ký hiệu quanh phần đã chọn.
+
+     Vì sao là `@` chứ không phải `%s`: mẫu `\text{@}` nằm trong một template
+     Jinja, và `%s` sẽ thành `{%s}` — mà `{%` chính là cú pháp mở khối của Jinja.
+     Jinja sẽ cố phân tích nó thành một câu lệnh và làm vỡ cả trang. `@` không
+     xuất hiện trong LaTeX thông thường nên không đụng ai. */
+  function latexApply(ta, tpl) {
+    var start = ta.selectionStart;
+    var end = ta.selectionEnd;
+    var sel = ta.value.slice(start, end);
+    var at = tpl.indexOf('@');
+    var text = at === -1 ? tpl : tpl.replace('@', sel);
+
+    ta.focus();
+    if (typeof ta.setRangeText === 'function') {
+      ta.setRangeText(text, start, end, 'end');
+    } else {
+      ta.value = ta.value.slice(0, start) + text + ta.value.slice(end);
+    }
+    var caret = start + (at === -1 ? text.length : at);
+    ta.setSelectionRange(caret, caret + sel.length);
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function updateLatexPreview(ta) {
+    var sel = ta.getAttribute('data-latex-preview');
+    if (!sel) return;
+    var box = document.querySelector(sel);
+    if (!box) return;
+    var body = box.querySelector('[data-latex-preview-body]') || box;
+    /* `textContent` chứ không `innerHTML`: đề bài là văn bản thuần, và đây đúng
+       là lý do `problem.html` không render HTML. Dùng `innerHTML` ở đây là mở
+       lại đúng lỗ hổng mà phía máy chủ đã cố đóng. */
+    body.textContent = ta.value;
+    renderMath(box);
+  }
+
+  function initLatexBar() {
+    var areas = document.querySelectorAll('textarea[data-latex]');
+    if (!areas.length) return;
+
+    Array.prototype.forEach.call(areas, function (ta) {
+      var bar = ta.id ? document.querySelector('[data-latex-bar="' + ta.id + '"]') : null;
+      if (bar) {
+        bar.addEventListener('click', function (ev) {
+          var btn = ev.target.closest ? ev.target.closest('[data-tex]') : null;
+          if (!btn || !bar.contains(btn)) return;
+          ev.preventDefault();
+          latexApply(ta, btn.getAttribute('data-tex'));
+          updateLatexPreview(ta);
+        });
+      }
+
+      /* Hẹn giờ chứ không vẽ ngay từng phím: mỗi lần KaTeX dựng lại cả khối là
+         một lần phân tích cú pháp, và gõ nhanh thì việc đó làm giật ô soạn. */
+      var timer = null;
+      ta.addEventListener('input', function () {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(function () { updateLatexPreview(ta); }, 220);
+      });
+      updateLatexPreview(ta);
+    });
   }
 
   /* Đặt tên morph ngay lập tức, không đợi DOMContentLoaded.

@@ -51,8 +51,13 @@
                  Dùng `pre-wrap` chứ không phải HTML: giáo viên dán đề từ Word
                  vào, và nếu ta render HTML thì mọi thẻ trong đó sẽ được trình
                  duyệt hiểu theo nghĩa của nó — một đề có chữ "<vector>" sẽ biến
-                 mất phần còn lại của bài. #}
-              <div class="statement-text">{{ problem['statement'] }}</div>
+                 mất phần còn lại của bài.
+
+                 `data-math` là chỗ `app.js` tìm tới để đổi công thức LaTeX.
+                 KaTeX đọc `textContent` của phần tử này, nên nó thấy đúng văn
+                 bản sau khi trình duyệt đã giải mã thực thể HTML — `$a < b$`
+                 vẫn ra công thức đúng dù trong HTML là `&lt;`. #}
+              <div class="statement-text" data-math>{{ problem['statement'] }}</div>
 
               {% if sample_tests %}
                 <h3>Ví dụ</h3>

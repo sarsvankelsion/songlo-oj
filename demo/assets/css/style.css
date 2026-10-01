@@ -1129,3 +1129,115 @@ html[data-theme="dark"] .editor__dots i { filter: saturate(.85); }
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
 }
+
+/* ---------- 37. Công thức LaTeX trong đề bài ----------
+   Đề bài là văn bản thuần, và xuống dòng phải giữ nguyên — không có dòng đầu
+   tiên thì mọi dấu xuống dòng bị gộp thành một khoảng trắng và cả đề thành một
+   khối chữ liền. */
+.statement-text {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+/* Nhưng KHÔNG áp `pre-wrap` cho công thức. KaTeX dựng một công thức từ rất
+   nhiều phần tử rời rạc, và `white-space: pre-wrap` ở tổ tiên sẽ biến những
+   khoảng trắng vô nghĩa nằm giữa chúng thành khoảng trắng thật — công thức bị
+   giãn ra, có khi vỡ dòng giữa chừng. Trả lại cách xử lý khoảng trắng bình
+   thường cho mọi thứ nằm trong `.katex`. */
+.statement-text .katex,
+.statement-text .katex * {
+  white-space: normal;
+}
+
+/* Công thức riêng dòng mà dài hơn khung thì cho cuộn ngang. Để mặc định thì nó
+   đẩy rộng cả trang, và trên điện thoại là hỏng hẳn bố cục. */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0;
+}
+
+/* ---------- 38. Bảng chèn LaTeX (khu giáo viên) ---------- */
+.latex-bar {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  padding: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.latex-bar__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 0;
+}
+
+.latex-bar__row + .latex-bar__row { border-top: 1px dashed var(--border); }
+
+/* Bề rộng cố định để các nút thẳng hàng giữa các dòng, dù nhãn dài ngắn khác
+   nhau. Không đặt thì mỗi dòng lệch một kiểu và trông như lỗi. */
+.latex-bar__label {
+  flex: 0 0 138px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.latex-btn {
+  min-width: 34px;
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+.latex-btn:hover {
+  background: var(--brand-50);
+  border-color: var(--brand-200);
+  color: var(--ink);
+}
+
+.latex-btn:focus-visible { outline: 0; box-shadow: var(--focus); }
+
+/* Ô soạn và ô xem trước cạnh nhau khi đủ chỗ. Trên màn hẹp thì xếp dọc — hai cột
+   trên màn 400px là không đọc được cái nào. */
+.latex-split { display: grid; gap: var(--sp-4); grid-template-columns: 1fr; }
+@media (min-width: 1000px) { .latex-split { grid-template-columns: 1fr 1fr; } }
+.latex-split .textarea { min-height: 340px; }
+
+.latex-preview {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  padding: var(--sp-3) var(--sp-4);
+  min-height: 340px;
+  max-height: 560px;
+  overflow: auto;
+}
+
+.latex-preview__head {
+  margin: 0 0 var(--sp-2);
+  font-size: 12px;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+/* Ô xem trước rỗng thì phải nói rõ là rỗng, đừng để một khung trắng không có
+   dấu hiệu gì — người dùng sẽ tưởng nó hỏng. */
+.latex-preview__body:empty::before {
+  content: "Gõ đề bài ở ô bên trái, công thức sẽ hiện ở đây.";
+  color: var(--fg-subtle);
+  font-size: 14px;
+}
+
