@@ -22,7 +22,16 @@ Lấy mã nguồn về `/opt/songlo` (git clone hoặc copy), rồi:
 ```bash
 sudo -u songlo python3 -m venv /opt/songlo/.venv
 sudo -u songlo /opt/songlo/.venv/bin/pip install -r /opt/songlo/server/requirements.txt
+
+# Thư mục ảnh đại diện. Ứng dụng tự tạo khi có người tải ảnh lên đầu tiên, nhưng
+# tạo sẵn ở đây thì chắc chắn đúng chủ sở hữu — tự tạo lúc chạy thì nó thuộc về
+# tài khoản mà tiến trình web đang dùng, và nếu tài khoản đó không phải `songlo`
+# thì lần sao lưu hay chuyển máy sau này sẽ gặp một thư mục không đọc được.
+sudo install -d -o songlo -g songlo -m 755 /var/lib/songlo/avatars
 ```
+
+Cần **Pillow** trong `requirements.txt` cho phần ảnh đại diện. Thiếu nó thì mọi
+thứ khác vẫn chạy, chỉ riêng việc tải ảnh lên là báo lỗi — xem `server/avatars.py`.
 
 ## 2. Tài khoản chạy bộ chấm — đọc kỹ mục này
 
