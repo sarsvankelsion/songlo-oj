@@ -59,7 +59,7 @@
   --tok-pp: #89DDFF;
 
   /* Type */
-  --font-sans: "Fira Sans", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Newsreader", Georgia, "Times New Roman", Times, serif;
   --font-mono: "Fira Code", Consolas, "Courier New", ui-monospace, monospace;
 
   /* Space */
@@ -112,8 +112,14 @@ body {
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font-sans);
-  font-size: 15.5px;
-  line-height: 1.55;
+  /* Newsreader là font biến thiên, có trục `opsz` (cỡ quang học). Để `auto` thì
+     trình duyệt tự chọn nét thanh/nét đậm theo cỡ chữ — chữ nhỏ được nét dày
+     hơn nên không bị mảnh, chữ tiêu đề được nét mảnh nên không bị nặng. */
+  font-optical-sizing: auto;
+  /* Newsreader có x-height nhỏ hơn Fira Sans, nên nếu giữ nguyên 15.5px thì chữ
+     trông nhỏ đi rõ rệt. Tăng nhẹ để giữ đúng cảm giác cũ. */
+  font-size: 16.5px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -1035,18 +1041,45 @@ html[data-theme="dark"] .editor__dots i { filter: saturate(.85); }
   navigation: auto;
 }
 
-/* Nền trang mờ dần, hơi chậm hơn phần tử đang bay một chút để mắt bám theo
-   phần tử chuyển động chứ không bám theo màn hình đang mờ. */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: .3s;
-  animation-timing-function: var(--ease);
+/* --- Ghim đầu trang ---
+   Đây là cải thiện dễ thấy nhất. Không ghim thì TOÀN BỘ trang — kể cả đầu trang
+   và dải điều hướng — mờ đi rồi hiện lại, nên chuyển trang trông như nháy màn
+   hình chứ không như một chuyển động. Ghim lại thì đầu trang đứng yên, chỉ nội
+   dung bên dưới chuyển: mắt có điểm neo, và cảm giác là "cùng một trang đang
+   biến đổi" — đúng tinh thần morph.
+
+   Cố ý KHÔNG ghim `.nav`: trong đó có avatar mang `data-morph`. Theo đặc tả, một
+   phần tử có `view-transition-name` không được nằm trong một phần tử cũng có
+   tên — phần tử bên trong sẽ bị bỏ qua, và hiệu ứng morph của avatar mất. */
+.site-head {
+  view-transition-name: site-head;
 }
 
-/* Thời gian của chặng bay. Đặt trên `group` vì đó là lớp mà trình duyệt dùng
-   để nội suy vị trí và kích thước. */
+/* --- Nội dung trượt lên ---
+   Ảnh chụp trang cũ trôi lên và mờ đi, trang mới trồi lên từ dưới. Vì đầu trang
+   đã tách thành nhóm riêng nên nó không bị cuốn theo chuyển động này. */
+@keyframes sl-page-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(-8px) scale(.997); }
+}
+@keyframes sl-page-in {
+  from { opacity: 0; transform: translateY(12px) scale(.997); }
+  to   { opacity: 1; transform: none; }
+}
+
+::view-transition-old(root) {
+  animation: sl-page-out .24s var(--ease) both;
+}
+::view-transition-new(root) {
+  animation: sl-page-in .34s var(--ease) both;
+}
+
+/* --- Chặng bay của phần tử morph ---
+   Đặt trên `group` vì đó là lớp trình duyệt dùng để nội suy vị trí và kích thước.
+   Dài hơn nền một chút để mắt bám theo phần tử đang bay, và dùng đường cong vượt
+   nhẹ ở cuối nên phần tử "đáp" xuống thay vì dừng đột ngột. */
 ::view-transition-group(*) {
-  animation-duration: .42s;
+  animation-duration: .5s;
   animation-timing-function: cubic-bezier(.22, 1, .36, 1);
 }
 
@@ -1054,7 +1087,15 @@ html[data-theme="dark"] .editor__dots i { filter: saturate(.85); }
    ở vị trí mới trong suốt chặng bay. */
 ::view-transition-old(*),
 ::view-transition-new(*) {
-  animation-duration: .34s;
+  animation-duration: .38s;
+}
+
+/* Phải đặt SAU hai khối `(*)` ở trên. Cùng độ ưu tiên nên khối đứng sau thắng;
+   để trước thì `(*)` sẽ ghi đè và đầu trang lại mờ dần qua lại. */
+::view-transition-group(site-head),
+::view-transition-old(site-head),
+::view-transition-new(site-head) {
+  animation: none;
 }
 
 /* Mục 27 ở trên đặt `animation-duration` cho `*, *::before, *::after`, nhưng
@@ -1065,6 +1106,7 @@ html[data-theme="dark"] .editor__dots i { filter: saturate(.85); }
   ::view-transition-old(*),
   ::view-transition-new(*) {
     animation-duration: .01ms !important;
+    animation-name: none !important;
   }
 }
 
