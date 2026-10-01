@@ -1190,13 +1190,25 @@ html[data-theme="dark"] .editor__dots i { filter: saturate(.85); }
 .latex-bar__row + .latex-bar__row { border-top: 1px dashed var(--border); }
 
 /* Bề rộng cố định để các nút thẳng hàng giữa các dòng, dù nhãn dài ngắn khác
-   nhau. Không đặt thì mỗi dòng lệch một kiểu và trông như lỗi. */
+   nhau. Không đặt thì mỗi dòng lệch một kiểu và trông như lỗi.
+   160px chứ không phải 138px: nhãn dài nhất ("So sánh, số học" viết hoa) đo được
+   đúng 138px, tức là vừa khít — chỉ cần font dự phòng rộng hơn một chút, hoặc
+   người dùng zoom 110%, là nó tự ngắt thành hai dòng và cả hàng cao lên. */
 .latex-bar__label {
-  flex: 0 0 138px;
+  flex: 0 0 160px;
   font-size: 12px;
   color: var(--fg-muted);
   text-transform: uppercase;
   letter-spacing: .04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Trên màn hẹp, 160px là quá nhiều so với chỗ còn lại cho các nút: cho nhãn chiếm
+   trọn một dòng rồi nút bắt đầu ở dòng dưới, thay vì bóp các nút lại. */
+@media (max-width: 700px) {
+  .latex-bar__label { flex-basis: 100%; }
 }
 
 .latex-btn {
