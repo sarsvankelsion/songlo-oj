@@ -790,6 +790,304 @@
 
      Vì sao KaTeX nằm trong `assets/vendor/katex` chứ không lấy từ CDN: máy chủ
      trường có thể không ra được Internet, và khi đó công thức vẫn phải hiện. */
+  /* ---------- 40b. Đổi LaTeX văn bản thành HTML ----------
+
+     Vì sao cần phần này: giáo viên dán **cả một tệp .tex** vào ô soạn đề — đúng
+     thứ mà Themis và mọi kho đề của trường đang dùng. Nếu chỉ cho KaTeX xử lý
+     `$…$` thì phần toán hiện ra đẹp, còn `\documentclass`, `\subsection*{…}`,
+     `\begin{tabular}` hiện nguyên văn. Nhìn vào chỉ thấy một đống lệnh, không ra
+     đề bài — chính là cảm giác "preview không khác gì chữ thường".
+
+     Cách làm: **che phần toán đi trước**, biến đổi phần chữ, rồi trả phần toán
+     về chỗ cũ. Nếu làm ngược lại — biến đổi chữ trước — thì các lệnh trong công
+     thức (`\frac`, `\begin{cases}`) cũng bị coi là lệnh văn bản và bị ăn mất.
+
+     Thứ tự này là bắt buộc, không phải tùy chọn:
+       1. che toán            → chỗ giữ chỗ
+       2. bỏ chú thích        → `%` tới hết dòng
+       3. bỏ phần mào đầu     → mọi thứ trước `\begin{document}`
+       4. `\&` → ký tự đánh dấu riêng (`TEX_AMP`)
+       5. mở các ký tự LaTeX  → `\%` → `%`, …
+       6. bảng                → HTML, cất vào chỗ giữ chỗ
+       7. thoát HTML          → `&` `<` `>` thành thực thể
+       8. môi trường, tiêu đề, lệnh định dạng → thẻ HTML
+       9. trả toán và bảng về
+
+     Ba chỗ dễ làm hỏng, đều đã trả giá bằng một lần sửa:
+
+     - **Bước 4 và 5 phải đứng trước bước 7.** Đảo lại thì dấu `&` của LaTeX
+       thành `&amp;amp;` và hiện ra thành "&amp;" trên màn hình.
+     - **Bước 6 phải đứng trước bước 7.** Dấu `&` ngăn cách hai ô của bảng và
+       dấu `&` thật (`\&`) đều thành `&amp;` sau bước 7, nên tách ô sẽ sai: một
+       ô chứa "Tom \& Jerry" bị cắt thành ba ô, ô giữa hiện ra chữ "amp;".
+       Vì vậy bảng được dựng trước, rồi cất vào chỗ giữ chỗ để bước 7 không
+       thoát luôn các thẻ `<table>` vừa sinh ra.
+     - **Bước 0 (cổng an toàn, xem `texLooksLikeLatex`) phải đứng trước tất cả.**
+       Bước 2 và bước 8 xoá chữ không thương tiếc: "50%" mất đuôi dòng, và
+       `C:\Users` chỉ còn `C:`. Văn bản không phải LaTeX thì không được đi vào
+       đường ống này. */
+  var TEX_MARK = '\u0001';
+
+  /* Ký tự đánh dấu cho một dấu `&` **thật** — thứ giáo viên viết là `\&` trong
+     LaTeX. Phải tách nó ra khỏi dấu `&` ngăn cách ô của bảng **trước** khi thoát
+     HTML, vì sau bước đó cả hai đều là `&amp;` và không còn phân biệt được nữa.
+     `\u0002` là ký tự điều khiển, không gõ được từ bàn phím. */
+  var TEX_AMP = '\u0002';
+
+  function texEscapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  /* `\&`, `\%`, `\$`… là cách LaTeX viết một ký tự thật. `\&` đã được tách ra
+     thành `TEX_AMP` từ trước nên ở đây không còn nó. */
+  function texUnescapeChars(s) {
+    return s.replace(/\\textbackslash\b/g, '\\')
+            .replace(/\\textasciitilde\b/g, '~')
+            .replace(/\\([&%$#_{}])/g, '$1');
+  }
+
+  /* Nội dung một ô của bảng: trả dấu `&` thật về, rồi thoát HTML.
+
+     Ô của bảng phải tự thoát HTML lấy, vì `texTabular` chạy **trước** bước thoát
+     HTML chung — nếu không thì dấu `&` ngăn cách ô đã thành `&amp;` mất rồi. */
+  function texCellHtml(cell) {
+    return texEscapeHtml(texUnescapeChars(cell.trim()).split(TEX_AMP).join('&'));
+  }
+
+  function texProtectMath(src, store) {
+    /* Bốn dấu phân cách giống hệt cấu hình của KaTeX ở dưới, để chỗ nào KaTeX
+       định render thì chỗ đó cũng được che. `$$` phải đứng trước `$` trong biểu
+       thức, nếu không `$$x$$` bị cắt thành hai công thức rỗng. */
+    return src.replace(
+      /\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$[^$\n]*?\$/g,
+      function (m) {
+        store.push(texEscapeHtml(m));
+        return TEX_MARK + (store.length - 1) + TEX_MARK;
+      });
+  }
+
+  /* Văn bản này có phải LaTeX thật không?
+
+     Đây là **cổng an toàn**, không phải chi tiết trang trí. Cả đường ống ở dưới
+     được thiết kế cho một tệp .tex, và hai bước của nó rất phá hoại nếu áp lên
+     văn bản thường:
+
+       - bước 2 xoá từ dấu `%` tới hết dòng (chú thích của LaTeX). Một đề văn
+         bản thuần viết "Điểm tối đa 50%" sẽ mất luôn phần đuôi dòng.
+       - bước 6d xoá mọi `\lệnh`. Một đề có đường dẫn `C:\Users\an` sẽ còn `C:`.
+
+     Cả hai đều là mất chữ **im lặng**: không lỗi, không cảnh báo, chỉ là đề bài
+     ngắn đi. Nên chỉ khi văn bản mang dấu hiệu cấu trúc của LaTeX — môi trường,
+     khai báo gói, lệnh định dạng có ngoặc — thì mới coi là LaTeX.
+
+     Dấu hiệu cố tình chọn loại **hẹp**: chỉ những lệnh gần như không bao giờ
+     xuất hiện trong văn xuôi tiếng Việt. Các lệnh một chữ như `\par`, `\item`,
+     `\hline` vẫn nhận vì chúng đi kèm dấu `\` mà văn xuôi không dùng.
+
+     Bỏ sót (đoán nhầm LaTeX thành văn thường) chỉ khiến vài lệnh hiện nguyên
+     văn — khó chịu nhưng không mất gì. Nhận nhầm theo chiều ngược lại thì mất
+     chữ của đề. Vì vậy thà bỏ sót.
+
+     Toán giữa hai dấu `$` không tính là dấu hiệu: đề văn bản thuần có công thức
+     vẫn phải đi đường văn bản thuần, rồi KaTeX render `$…$` như trước nay. */
+  var TEX_SIGNAL = new RegExp(
+    '\\\\(' +
+      'documentclass|usepackage|RequirePackage|textbackslash' +
+      '|begin\\{(document|tabular|tabularx|longtable|itemize|enumerate|center' +
+        '|flushleft|flushright|verbatim|figure|table|thebibliography)\\}' +
+      '|end\\{(document|tabular|itemize|enumerate|center|verbatim)\\}' +
+      '|(section|subsection|subsubsection)\\*?\\{' +
+      '|item\\b|hline\\b|noindent\\b|par\\b|newline\\b|linebreak\\b' +
+      '|(textbf|textit|emph|underline|texttt|textnormal|text|mathrm|mathbf)\\s*\\{' +
+      '|(vspace|hspace|vskip|hskip)\\b' +
+      '|includegraphics|bibliography|cite\\b|label\\b' +
+    ')'
+  );
+
+  function texLooksLikeLatex(src) {
+    return TEX_SIGNAL.test(src);
+  }
+
+  function texRestoreMath(out, store) {
+    return out.replace(new RegExp(TEX_MARK + '(\\d+)' + TEX_MARK, 'g'), function (_m, i) {
+      return store[+i];
+    });
+  }
+
+  /* Cất một đoạn HTML đã dựng sẵn vào `store` và để lại một chỗ giữ chỗ trong
+     văn bản. Dùng chung `store` với phần toán: cả hai đều là "HTML đã xong, đừng
+     đụng vào nữa", và `texRestoreMath` trả tất cả về cùng một lượt.
+
+     Cần hàm này cho bảng: bảng phải dựng **trước** bước thoát HTML (xem
+     `texToHtml`), mà bước đó sẽ thoát luôn các thẻ `<table>` vừa sinh ra nếu
+     chúng còn nằm trong văn bản. */
+  function texProtectHtml(src, store, re, build) {
+    return src.replace(re, function () {
+      store.push(build.apply(null, arguments));
+      return TEX_MARK + (store.length - 1) + TEX_MARK;
+    });
+  }
+
+  /* Bảng `tabular`. Đây là thứ hay gặp nhất trong đề Themis vì phần "dữ liệu
+     vào / dữ liệu ra" luôn được trình bày bằng bảng, và nếu không đổi thì cả
+     khối `\begin{tabular}{|c|c|}` hiện nguyên văn giữa đề. */
+  function texTabular(spec, body) {
+    var cols = [];
+    /* `p{3cm}` là MỘT cột, không phải bốn ký tự — phải thay nó bằng một ký tự
+       đại diện trước khi đếm, nếu không số cột sai và bảng lệch. */
+    var s = spec.replace(/p\{[^}]*\}/g, 'l').replace(/\|[^lcrp|]*/g, '');
+    for (var i = 0; i < s.length; i++) {
+      if ('lcr'.indexOf(s[i]) >= 0) cols.push(s[i]);
+    }
+    var html = '<table class="tex-table">';
+    body.split(/\\\\/).forEach(function (row) {
+      var rule = /\\hline/.test(row);
+      row = row.replace(/\\hline/g, '').trim();
+      if (!row) {
+        if (rule) html += '<tr class="tex-rule"><td colspan="' + Math.max(cols.length, 1) + '"></td></tr>';
+        return;
+      }
+      html += '<tr>';
+      row.split('&').forEach(function (cell, i) {
+        var cls = cols[i] === 'r' ? ' class="ta-r"' : (cols[i] === 'c' ? ' class="ta-c"' : '');
+        html += '<td' + cls + '>' + texCellHtml(cell) + '</td>';
+      });
+      html += '</tr>';
+    });
+    return html + '</table>';
+  }
+
+  function texToHtml(src) {
+    if (!src) return '';
+    var text = String(src).replace(/\r\n?/g, '\n');
+
+    /* Cổng an toàn — xem chú thích ở `texLooksLikeLatex`. Văn bản không mang
+       dấu hiệu LaTeX thì chỉ được thoát HTML, y như trước khi có phần này:
+       giữ nguyên chữ, giữ nguyên `%`, giữ nguyên đường dẫn, và KaTeX vẫn render
+       `$…$` như thường. */
+    if (!texLooksLikeLatex(text)) return texEscapeHtml(text);
+
+    var store = [];
+    var out = texProtectMath(text, store);
+
+    // 2. Chú thích. `\%` là ký tự phần trăm thật nên phải chừa ra.
+    out = out.replace(/(^|[^\\])%.*$/gm, '$1');
+
+    // 3. Phần mào đầu. Một tệp .tex hoàn chỉnh có cả chục dòng khai báo gói mà
+    //    đề bài không cần — và chúng chính là thứ chiếm chỗ trong khung xem trước.
+    if (out.indexOf('\\begin{document}') !== -1) {
+      out = out.slice(out.indexOf('\\begin{document}') + '\\begin{document}'.length);
+    }
+    out = out.replace(/\\end\{document\}[\s\S]*$/, '');
+    out = out.replace(/\\(documentclass|usepackage|RequirePackage)(\[[^\]]*\])?\{[^}]*\}/g, '');
+    out = out.replace(/\\(input|include)\{[^}]*\}/g, '');
+
+    // 4. Dấu `&` thật của LaTeX (`\&`) -> ký tự đánh dấu riêng.
+    /* Phải làm ở đây: sau bước thoát HTML thì `\&` và dấu `&` ngăn cách ô của
+       bảng đều là `&amp;`, không còn phân biệt được nữa. */
+    out = out.replace(/\\&/g, TEX_AMP);
+
+    // 5. Ký tự LaTeX -> ký tự thật
+    out = texUnescapeChars(out);
+
+    // 6. Bảng. Phải chạy TRƯỚC bước thoát HTML, vì bước đó biến dấu `&` ngăn
+    //    cách ô thành `&amp;` và việc tách ô sẽ sai. Bảng dựng ra được cất vào
+    //    `store` nên bước thoát HTML không đụng tới nó.
+    /* Spec của `tabular` có thể chứa ngoặc lồng: `{|p{3cm}|r|}`. Dùng `[^}]*`
+       thì nó dừng ngay ở dấu `}` của `{3cm}` và phần còn lại của spec trôi vào
+       thân bảng — số cột sai, cả bảng lệch. Cho phép đúng một mức ngoặc lồng là
+       đủ cho mọi spec thật gặp trong đề của trường. */
+    out = texProtectHtml(out, store,
+      /\\begin\{tabular\}\{((?:[^{}]|\{[^{}]*\})*)\}([\s\S]*?)\\end\{tabular\}/g,
+      function (_m, spec, body) { return texTabular(spec, body); });
+
+    // 6b. Phần `&` thật còn lại (ngoài bảng) trở về ký tự `&` để bước sau thoát.
+    out = out.split(TEX_AMP).join('&');
+
+    // 7. Thoát HTML
+    out = texEscapeHtml(out);
+
+    // 8. Các môi trường còn lại
+    /* `verbatim` chỉ bỏ dấu xuống dòng ở hai đầu khối, không `trim()` cả khối:
+       thụt đầu dòng trong khối mã là thứ có nghĩa, cắt đi là làm sai nội dung.
+       Hai dấu xuống dòng đó chỉ là hệ quả của việc `\begin{verbatim}` và
+       `\end{verbatim}` được viết trên dòng riêng — để nguyên thì khối mã có thêm
+       một dòng trống ở đầu và một ở cuối. */
+    out = out.replace(/\\begin\{verbatim\}([\s\S]*?)\\end\{verbatim\}/g,
+      function (_m, body) {
+        return '<pre class="tex-pre">' + body.replace(/^\n/, '').replace(/\n$/, '') + '</pre>';
+      });
+    out = out.replace(/\\begin\{(itemize|enumerate)\}([\s\S]*?)\\end\{\1\}/g,
+      function (_m, env, body) {
+        var tag = env === 'enumerate' ? 'ol' : 'ul';
+        var items = body.split(/\\item\b/).slice(1);
+        if (!items.length) items = [body];
+        return '<' + tag + ' class="tex-list">' + items.map(function (t) {
+          return '<li>' + t.trim() + '</li>';
+        }).join('') + '</' + tag + '>';
+      });
+    /* `trim()` ở đây là bắt buộc, không phải cho gọn: trong tệp .tex, `\begin{center}`
+       luôn được viết trên dòng riêng, nên thân khối luôn mở đầu và kết thúc bằng
+       một dấu xuống dòng. Khung hiển thị đặt `white-space: pre-wrap`, nên hai dấu
+       đó hiện ra thành hai dòng trống — mỗi khối căn giữa lại đội thêm một
+       khoảng trắng không ai muốn. */
+    out = out.replace(/\\begin\{(center|flushleft|flushright)\}([\s\S]*?)\\end\{\1\}/g,
+      function (_m, env, body) { return '<div class="tex-' + env + '">' + body.trim() + '</div>'; });
+    // Môi trường không nhận ra: bỏ vỏ, giữ ruột. Thà hiện nội dung còn hơn hiện
+    // nguyên dòng `\begin{figure}` giữa đề bài.
+    out = out.replace(/\\(begin|end)\{[^}]*\}/g, '');
+
+    // 8b. Tiêu đề mục
+    out = out.replace(/\\(section|subsection|subsubsection)\*?\{([\s\S]*?)\}/g,
+      function (_m, lvl, body) {
+        var tag = lvl === 'section' ? 'h3' : (lvl === 'subsection' ? 'h4' : 'h5');
+        return '<' + tag + ' class="tex-head">' + body + '</' + tag + '>';
+      });
+
+    // 8c. Lệnh định dạng chữ. Lặp vài lượt để xử lý được lồng nhau
+    //     (`\textbf{\textit{…}}`) mà không cần bộ phân tích cú pháp thật.
+    var pairs = [
+      [/\\textbf\{([^{}]*)\}/g, '<strong>$1</strong>'],
+      [/\\textit\{([^{}]*)\}/g, '<em>$1</em>'],
+      [/\\emph\{([^{}]*)\}/g, '<em>$1</em>'],
+      [/\\underline\{([^{}]*)\}/g, '<u>$1</u>'],
+      [/\\texttt\{([^{}]*)\}/g, '<code>$1</code>'],
+      [/\\text\{([^{}]*)\}/g, '$1'],
+      [/\\textnormal\{([^{}]*)\}/g, '$1']
+    ];
+    for (var pass = 0; pass < 3; pass++) {
+      pairs.forEach(function (p) { out = out.replace(p[0], p[1]); });
+    }
+
+    // 8d. Lệnh còn lại
+    out = out.replace(/\\(newline|linebreak)\b/g, '<br>')
+             .replace(/\\\\/g, '<br>')
+             .replace(/\\par\b/g, '<br><br>')
+             .replace(/\\(noindent|centering|smallskip|medskip|bigskip|hfill|clearpage|newpage)\b/g, '')
+             .replace(/\\(vspace|hspace|vskip|hskip)\*?\{[^}]*\}/g, '')
+             .replace(/\\(label|ref|cite|includegraphics|bibliography)\*?(\[[^\]]*\])?\{[^}]*\}/g, '')
+             .replace(/\\[a-zA-Z]+\*?(\[[^\]]*\])?(\{[^{}]*\})?/g, '')   // lệnh lạ: bỏ
+             .replace(/~+/g, '&nbsp;')
+             .replace(/---/g, '&mdash;')
+             .replace(/--/g, '&ndash;');
+
+    // 9. Trả toán và bảng về chỗ cũ
+    return texRestoreMath(out, store);
+  }
+
+  /* Đổi một lần cho mỗi phần tử. Đánh dấu để lần gọi sau không xử lý lại chính
+     phần HTML vừa sinh ra — `\begin` đã bị đổi thành thẻ, nhưng nếu chạy lần hai
+     thì mọi thứ nằm trong `<` `>` lại bị thoát HTML và hiện ra thành mã. */
+  function renderLatex(root) {
+    var targets = (root || document).querySelectorAll('[data-math]');
+    Array.prototype.forEach.call(targets, function (el) {
+      if (el.getAttribute('data-tex-done')) return;
+      el.setAttribute('data-tex-done', '1');
+      el.innerHTML = texToHtml(el.textContent);
+    });
+    return targets.length;
+  }
+
   function renderMath(root) {
     if (!window.renderMathInElement) return 0;   // KaTeX chưa nạp xong
     var targets = (root || document).querySelectorAll('[data-math]');
@@ -815,13 +1113,17 @@
   }
 
   function initMath() {
-    if (window.renderMathInElement) {
+    var run = function () {
+      renderLatex(document);
       renderMath(document);
+    };
+    if (window.renderMathInElement) {
+      run();
       return;
     }
     /* KaTeX nạp bằng `defer`, mà tệp này là script thường ở cuối <body> nên
        chạy TRƯỚC nó. `load` là mốc muộn nhất và chắc chắn KaTeX đã có mặt. */
-    window.addEventListener('load', function () { renderMath(document); });
+    window.addEventListener('load', run);
   }
 
   /* ---------- 41. Thanh chèn LaTeX ----------
@@ -859,10 +1161,13 @@
     var box = document.querySelector(sel);
     if (!box) return;
     var body = box.querySelector('[data-latex-preview-body]') || box;
-    /* `textContent` chứ không `innerHTML`: đề bài là văn bản thuần, và đây đúng
-       là lý do `problem.html` không render HTML. Dùng `innerHTML` ở đây là mở
-       lại đúng lỗ hổng mà phía máy chủ đã cố đóng. */
-    body.textContent = ta.value;
+    /* Nội dung đi qua `texToHtml`, không đổ thẳng `ta.value` vào `innerHTML`.
+       Đây là điểm quan trọng: `texToHtml` **thoát HTML trước rồi mới dựng thẻ**,
+       nên phần chữ do giáo viên gõ không thể chèn thẻ vào trang. Đổ thẳng
+       `innerHTML = ta.value` mới là lỗ hổng — và nó cũng không cho ra bản xem
+       trước có nghĩa, vì `\subsection*{…}` vẫn hiện nguyên văn. */
+    body.removeAttribute('data-tex-done');
+    body.innerHTML = texToHtml(ta.value);
     renderMath(box);
   }
 

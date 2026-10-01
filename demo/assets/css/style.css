@@ -1353,3 +1353,114 @@ html[data-theme="dark"] .editor__dots i { filter: saturate(.85); }
 .lb-name > span:last-child {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+/* ==========================================================================
+   40. Đề bài viết bằng LaTeX — bảng, danh sách, tiêu đề mục
+   ==========================================================================
+   Giáo viên dán cả tệp .tex vào ô soạn đề. `app.js` đổi các lệnh văn bản thành
+   thẻ HTML (xem `texToHtml`), còn phần toán do KaTeX lo. Ở đây chỉ tạo dáng cho
+   những thẻ đó.
+
+   Lưu ý về `white-space`: `.statement-text` đặt `pre-wrap` để giữ nguyên cách
+   xuống dòng mà giáo viên gõ. Vì vậy mọi thẻ khối do `texToHtml` sinh ra đều
+   được ghi trên **một dòng duy nhất** — thêm dòng mới trong đó sẽ hiện ra thành
+   những khoảng trắng lơ lửng giữa đề bài. */
+
+.tex-head { margin: var(--sp-4) 0 var(--sp-2); line-height: 1.3; }
+h3.tex-head { font-size: 18px; }
+h4.tex-head { font-size: 16.5px; }
+h5.tex-head { font-size: 15.5px; }
+
+.tex-list { margin: var(--sp-2) 0; padding-left: 22px; }
+.tex-list li { margin: 2px 0; }
+
+.tex-center { text-align: center; margin: var(--sp-3) 0; }
+.tex-flushleft { text-align: left; }
+.tex-flushright { text-align: right; }
+
+.tex-pre {
+  margin: var(--sp-3) 0; padding: var(--sp-3);
+  background: var(--surface-3); border: 1px solid var(--border);
+  border-radius: var(--r-sm); overflow-x: auto;
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.5;
+}
+
+/* Bảng của LaTeX. Viền ngoài và đường kẻ giữa các hàng, không kẻ dọc — đúng
+   kiểu bảng dữ liệu vào/ra trong đề thi, và cũng dễ đọc hơn khi ô trống. */
+.tex-table {
+  border-collapse: collapse; margin: var(--sp-3) 0; min-width: 180px;
+  background: var(--surface); font-size: 14.5px;
+}
+.tex-table td {
+  border: 1px solid var(--border-strong);
+  padding: 5px 10px; vertical-align: top;
+}
+.tex-table tr:first-child td { background: var(--surface-2); }
+.tex-table .ta-r { text-align: right; }
+.tex-table .ta-c { text-align: center; }
+/* `\hline` giữa hai hàng: một hàng chỉ có đường kẻ. Viền của ô đã vẽ đường đó
+   rồi, nên ở đây chỉ cần bỏ phần đệm để hàng không cao lên. */
+.tex-table tr.tex-rule td { padding: 0; height: 0; border-top: 0; border-bottom: 1px solid var(--border-strong); }
+
+
+/* ==========================================================================
+   41. Quản lý tài khoản & kỳ thi (khu giáo viên)
+
+   Hai trang mới `/teacher/users` và `/teacher/contests` cần thêm ba thứ mà các
+   trang trước chưa có: ô nhập nằm gọn trong một dòng bảng, khối gập/mở, và danh
+   sách tích chọn đề.
+   ========================================================================== */
+
+/* Ô nhập nằm trong ô của bảng.
+
+   Không có lớp này thì mỗi dòng cao gần 60px vì `.input` mặc định có đệm lớn
+   và lề dưới — một bảng 40 học sinh thành bốn màn hình cuộn, và giáo viên mất
+   khả năng nhìn thấy cả lớp cùng lúc. Đó chính là lúc bảng còn có ích.
+
+   Đệm dọc để 5px chứ không nhỏ hơn: ô nhập là chỗ bấm được, và trên màn hình
+   cảm ứng của phòng máy thì một ô cao 24px là một ô bấm trượt. */
+.input--row,
+.select--row {
+  padding: 5px 8px; font-size: 13.5px; margin: 0;
+  border-radius: var(--r-sm); min-height: 0; line-height: 1.35;
+}
+.input--row { width: 100%; min-width: 90px; }
+.select--row { padding-right: 26px; }
+
+/* Khối gập/mở bằng `<details>` gốc của HTML — xem chú thích ở đầu
+   `teacher_contests.html` để biết vì sao không dùng JavaScript. */
+.fold {
+  border-top: 1px solid var(--border);
+  margin-top: var(--sp-3);
+}
+.fold__head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  padding: 11px 0; cursor: pointer; user-select: none;
+  font-size: 13.5px; font-weight: 600; color: var(--fg);
+  list-style: none;               /* bỏ dấu tam giác mặc định của Chrome */
+}
+.fold__head::-webkit-details-marker { display: none; }
+.fold__head::before {
+  content: "▸"; color: var(--fg-muted); font-size: 11px;
+  margin-right: 8px; transition: transform .15s ease;
+}
+.fold[open] > .fold__head::before { transform: rotate(90deg); }
+.fold__head:hover { color: var(--brand-700); }
+.fold__head:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 2px; border-radius: var(--r-sm); }
+.fold__body { padding: 4px 0 var(--sp-4) 20px; }
+
+/* Danh sách tích chọn đề của một kỳ thi. Hai cột khi đủ chỗ, một cột khi hẹp —
+   để tên đề dài không bị bóp thành một chữ một dòng. */
+.pick-list {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 18px; margin-bottom: var(--sp-2);
+}
+.pick-list .check { align-items: flex-start; padding: 4px 0; }
+.pick-list .check input { margin-top: 2px; flex: 0 0 auto; }
+.pick-list .check > span { line-height: 1.45; }
+.pick-list .badge { margin-left: 6px; font-size: 11px; padding: 1px 7px; }
+
+@media (max-width: 760px) {
+  .pick-list { grid-template-columns: minmax(0, 1fr); }
+  .fold__body { padding-left: 0; }
+}

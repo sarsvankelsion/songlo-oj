@@ -53,8 +53,13 @@
                     Sửa đề
                   </a>
                   <a class="btn btn--ghost btn--sm" href="{{ url_for('teacher_problem_tests', code=p['code']) }}">
-                    {% if p['test_count'] %}Sửa bộ dữ liệu{% else %}Thêm bộ dữ liệu{% endif %}
+                    {% if p['test_count'] %}Bộ dữ liệu{% else %}Thêm dữ liệu{% endif %}
                   </a>
+                  <form method="post" action="{{ url_for('teacher_problem_delete', code=p['code']) }}"
+                        data-confirm="Xoá hẳn đề {{ p['code'] }} — {{ p['name'] }}? Kéo theo {{ p['test_count'] }} bộ dữ liệu và toàn bộ bài nộp của học sinh cho đề này. Thao tác này không hoàn tác được.">
+                    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                    <button class="btn btn--ghost btn--sm" type="submit">Xoá</button>
+                  </form>
                 </div>
               </td>
             </tr>
@@ -216,6 +221,14 @@
               Công thức gõ giữa hai dấu <span class="mono">$ … $</span>, hoặc
               <span class="mono">$$ … $$</span> khi muốn riêng một dòng. Bôi đen một đoạn
               rồi bấm nút để bọc công thức quanh đoạn đó.
+            </p>
+            <p class="hint">
+              <strong>Dán thẳng cả một tệp <span class="mono">.tex</span> cũng được.</strong>
+              Khung xem trước bên phải hiện đúng như học sinh sẽ thấy:
+              <span class="mono">\section</span> thành tiêu đề mục,
+              <span class="mono">\begin{tabular}</span> thành bảng,
+              <span class="mono">\textbf</span> thành chữ đậm, và phần khai báo gói
+              ở đầu tệp được bỏ đi. Không cần gõ lại tay.
             </p>
           </div>
 

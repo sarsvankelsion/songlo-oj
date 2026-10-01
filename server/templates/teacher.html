@@ -11,6 +11,8 @@
       </div>
       <div class="page-head__actions">
         <a class="btn btn--outline" href="{{ url_for('teacher_classes') }}">Xem điểm</a>
+        <a class="btn btn--outline" href="{{ url_for('teacher_users') }}">Tài khoản</a>
+        <a class="btn btn--outline" href="{{ url_for('teacher_contests') }}">Kỳ thi</a>
         <a class="btn btn--primary" href="{{ url_for('teacher_problems') }}">Soạn đề</a>
       </div>
     </div>
@@ -158,7 +160,14 @@
               <div class="side-list__row">
                 <span class="badge badge--grey">{{ stats.open_contests }}</span>
                 <span class="text-sm" style="flex:1">Kỳ thi đang mở</span>
-                <a class="text-sm" href="{{ url_for('contests') }}">Mở</a>
+                <a class="text-sm" href="{{ url_for('teacher_contests') }}">Quản lý</a>
+              </div>
+            </li>
+            <li>
+              <div class="side-list__row">
+                <span class="badge badge--grey">{{ stats.students }}</span>
+                <span class="text-sm" style="flex:1">Tài khoản học sinh</span>
+                <a class="text-sm" href="{{ url_for('teacher_users', role='student') }}">Cấp &amp; sửa</a>
               </div>
             </li>
           </ul>
@@ -209,7 +218,7 @@
             {% if contest_phase == 'open' %}Đang trong thời gian làm bài{% else %}Chưa tới giờ bắt đầu{% endif %}
           </p>
 
-          <a class="btn btn--outline btn--block btn--sm" href="{{ url_for('contests') }}">Quản lý kỳ thi</a>
+          <a class="btn btn--outline btn--block btn--sm" href="{{ url_for('teacher_contests') }}">Quản lý kỳ thi</a>
         </section>
         {% endif %}
 

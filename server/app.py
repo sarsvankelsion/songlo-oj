@@ -24,7 +24,7 @@ from flask import (
     send_from_directory, url_for,
 )
 
-from . import auth, avatars, db, formatting
+from . import auth, avatars, db, formatting, themis
 from .judge import COMPILE_FLAGS, VERDICT_LABEL
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -115,15 +115,27 @@ def create_app(config: dict | None = None) -> Flask:
     Path(app.config["DATABASE"]).parent.mkdir(parents=True, exist_ok=True)
     db.init_db(app.config["DATABASE"])
 
-    # Trần kích thước thân request. Ảnh đại diện là thứ duy nhất người dùng tải
-    # lên dạng tệp, nên lấy giới hạn của ảnh cộng thêm một ít cho phần biểu mẫu.
+    # Trần kích thước thân request. Hai thứ người dùng tải lên dạng tệp là ảnh
+    # đại diện và tệp ZIP bộ dữ liệu, nên lấy giới hạn **lớn hơn** trong hai
+    # cộng thêm một ít cho phần biểu mẫu. Lấy theo ảnh đại diện (5 MB) là một
+    # cái bẫy: bộ dữ liệu của một đề thi thật vượt 5 MB rất thường, và lúc đó
+    # Flask trả 413 trước khi `_import_themis_zip` kịp chạy — thông báo lỗi nói
+    # "tệp quá lớn" mà không nói giới hạn nào, còn hàm nhập thì không hề được gọi.
     # Đặt ở đây để tầng máy chủ từ chối trước khi Flask đọc hết thân request vào
     # bộ nhớ — nếu không, một tệp 2 GB sẽ được nạp hết rồi mới bị từ chối.
-    app.config.setdefault("MAX_CONTENT_LENGTH", avatars.MAX_UPLOAD_BYTES + 256 * 1024)
+    app.config.setdefault(
+        "MAX_CONTENT_LENGTH",
+        max(avatars.MAX_UPLOAD_BYTES, themis.MAX_TOTAL_BYTES) + 256 * 1024,
+    )
 
     app.teardown_appcontext(db.close_db)
     auth.init_app(app)
     formatting.register_filters(app)
+    # Đổ một mốc UTC trong CSDL vào `<input type="datetime-local">` — chiều ngược
+    # lại của `db.iso_from_local_input`. Đăng ký ở đây chứ không ở
+    # `formatting.py`: đây là phép đổi múi giờ, không phải phép trình bày, và nó
+    # phải đi cùng cặp với hàm nhận dữ liệu vào ở `_contest_form`.
+    app.jinja_env.filters["local_input"] = db.local_input_value
 
     _register_routes(app)
     _register_password_guard(app)
@@ -1052,6 +1064,8 @@ def _register_routes(app: Flask) -> None:
                     conn.execute("DELETE FROM tests WHERE problem_id = ? AND ordinal = ?",
                                  (problem["id"], request.form.get("ordinal", type=int)))
                 flash("Đã xoá bộ dữ liệu.", "ok")
+            elif action == "import":
+                return _import_themis_zip(conn, problem, code)
             else:
                 _add_test(conn, problem, request.form)
                 flash("Đã thêm bộ dữ liệu.", "ok")
@@ -1101,6 +1115,372 @@ def _register_routes(app: Flask) -> None:
             test_count=_test_count(conn, problem),
             values=_form_values({}, problem),
         )
+
+    # ------------------------------------------ khu giáo viên: xoá đề
+    @app.route("/teacher/problems/<code>/delete", methods=["POST"])
+    @auth.teacher_required
+    def teacher_problem_delete(code: str):
+        """Xoá một đề, kèm mọi thứ thuộc về nó.
+
+        Không phải dọn tay: các bảng `tests`, `contest_problems`, `submissions`
+        đều khai báo `ON DELETE CASCADE` trỏ về `problems`, và kết nối của ứng
+        dụng bật `PRAGMA foreign_keys` nên SQLite tự xoá theo. (`sqlite3` CLI thì
+        mặc định **không** bật, nên kiểm tra bằng CLI sẽ thấy `foreign_keys = 0`
+        và tưởng cascade không chạy — đó là chuyện của CLI, không phải của ứng
+        dụng.)
+
+        Xoá đề là việc không hoàn tác được và kéo theo **toàn bộ bài nộp của học
+        sinh** cho đề đó, nên số lượng bị xoá được đếm trước và nói rõ trong
+        thông báo. Giáo viên cần biết mình vừa xoá bao nhiêu bài của học sinh.
+        """
+        conn = db.get_db()
+        problem = db.query_one(conn, "SELECT * FROM problems WHERE code = ?", (code,))
+        if problem is None:
+            abort(404)
+
+        n_tests = db.scalar(conn, "SELECT COUNT(*) FROM tests WHERE problem_id = ?",
+                            (problem["id"],))
+        n_subs = db.scalar(conn, "SELECT COUNT(*) FROM submissions WHERE problem_id = ?",
+                           (problem["id"],))
+        with conn:
+            conn.execute("DELETE FROM problems WHERE id = ?", (problem["id"],))
+
+        msg = "Đã xoá đề %s." % code
+        if n_tests or n_subs:
+            msg += " Kéo theo %d bộ dữ liệu và %d bài nộp của học sinh." % (n_tests, n_subs)
+        flash(msg, "ok")
+        return redirect(url_for("teacher_problems"))
+
+    # ------------------------------------------ khu giáo viên: tài khoản
+    @app.route("/teacher/users")
+    @auth.teacher_required
+    def teacher_users():
+        """Danh sách và công cụ quản lý tài khoản.
+
+        Trước đây giáo viên chỉ **xem** được danh sách lớp. Muốn tạo tài khoản
+        cho học sinh mới, đặt lại mật khẩu cho em quên mật khẩu, hay khoá một
+        tài khoản bị dùng sai, đều phải nhờ người sửa thẳng CSDL — nghĩa là trên
+        thực tế không làm được.
+        """
+        conn = db.get_db()
+        q = (request.args.get("q") or "").strip()
+        role = request.args.get("role") or ""
+
+        where, params = [], []
+        if q:
+            where.append("(username LIKE ? OR full_name LIKE ?)")
+            params.extend(["%" + q + "%"] * 2)
+        if role in ("student", "teacher", "admin"):
+            where.append("role = ?")
+            params.append(role)
+
+        sql = """SELECT u.*,
+                        (SELECT COUNT(*) FROM submissions WHERE user_id = u.id) AS attempts,
+                        (SELECT MAX(created_at) FROM submissions WHERE user_id = u.id) AS last_at
+                   FROM users u"""
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+        # Học sinh xếp theo lớp rồi tên; giáo viên và quản trị lên đầu để không
+        # lẫn vào giữa hàng trăm dòng học sinh.
+        sql += """ ORDER BY CASE role WHEN 'admin' THEN 0 WHEN 'teacher' THEN 1 ELSE 2 END,
+                            class_name, full_name"""
+
+        users = [dict(r) for r in db.query(conn, sql, params)]
+        return render_template(
+            "teacher_users.html",
+            active="teacher",
+            users=users,
+            classes=_class_names(conn),
+            q=q,
+            role=role,
+            min_password_length=MIN_PASSWORD_LENGTH,
+        )
+
+    @app.route("/teacher/users/create", methods=["POST"])
+    @auth.teacher_required
+    def teacher_user_create():
+        conn = db.get_db()
+        username = (request.form.get("username") or "").strip().lower()
+        full_name = (request.form.get("full_name") or "").strip()
+        class_name = (request.form.get("class_name") or "").strip()
+        role = _choice(request.form, "role", ("student", "teacher", "admin"), "student")
+
+        error = None
+        if not username or not full_name:
+            error = "Cần nhập tên đăng nhập và họ tên."
+        elif not username.replace(".", "").replace("_", "").isalnum():
+            # Dấu chấm và gạch dưới được phép vì tên đăng nhập của trường có dạng
+            # `an.nguyen9a`; còn lại phải là chữ hoặc số, không dấu cách.
+            error = "Tên đăng nhập chỉ gồm chữ, số, dấu chấm và gạch dưới."
+        elif db.query_one(conn, "SELECT id FROM users WHERE username = ?", (username,)):
+            error = "Tên đăng nhập %s đã có người dùng." % username
+        elif role == "student" and not class_name:
+            error = "Học sinh phải thuộc một lớp."
+
+        if error:
+            flash(error, "warn")
+            return redirect(url_for("teacher_users"))
+
+        # Mật khẩu đầu tiên do máy sinh và giáo viên đọc cho học sinh. Cờ
+        # `must_change_password` bắt em đổi ngay lần đầu đăng nhập, nên mật khẩu
+        # này chỉ sống được tới lúc đó.
+        temp = auth.make_temp_password()
+        with conn:
+            conn.execute(
+                """INSERT INTO users (username, full_name, class_name, role, password_hash,
+                                      is_active, must_change_password, created_at)
+                   VALUES (?,?,?,?,?,1,1,?)""",
+                (username, full_name, class_name, role, auth.hash_password(temp), db.utc_now()),
+            )
+        flash("Đã tạo tài khoản %s. Mật khẩu tạm: %s — đọc cho học sinh rồi yêu cầu "
+              "đổi ngay lần đầu đăng nhập." % (username, temp), "ok")
+        return redirect(url_for("teacher_users", q=username))
+
+    @app.route("/teacher/users/<int:user_id>/update", methods=["POST"])
+    @auth.teacher_required
+    def teacher_user_update(user_id: int):
+        conn = db.get_db()
+        row = db.query_one(conn, "SELECT * FROM users WHERE id = ?", (user_id,))
+        if row is None:
+            abort(404)
+
+        full_name = (request.form.get("full_name") or "").strip()
+        class_name = (request.form.get("class_name") or "").strip()
+        role = _choice(request.form, "role", ("student", "teacher", "admin"), row["role"])
+        is_active = 1 if request.form.get("is_active") else 0
+
+        if not full_name:
+            flash("Họ tên không được để trống.", "warn")
+            return redirect(url_for("teacher_users"))
+
+        # Chặn tự khoá chính mình. Không có nhánh này thì một cú bấm nhầm ở ô
+        # "Đang hoạt động" là giáo viên tự đăng xuất và không vào lại được nữa —
+        # và người sửa được chỉ còn là người có quyền trên máy chủ.
+        if user_id == auth.current_user()["id"] and not is_active:
+            flash("Không thể tự khoá tài khoản đang đăng nhập.", "warn")
+            return redirect(url_for("teacher_users"))
+
+        with conn:
+            conn.execute(
+                "UPDATE users SET full_name = ?, class_name = ?, role = ?, is_active = ? "
+                "WHERE id = ?",
+                (full_name, class_name, role, is_active, user_id),
+            )
+        flash("Đã lưu tài khoản %s." % row["username"], "ok")
+        return redirect(url_for("teacher_users", q=row["username"]))
+
+    @app.route("/teacher/users/<int:user_id>/reset", methods=["POST"])
+    @auth.teacher_required
+    def teacher_user_reset(user_id: int):
+        """Đặt lại mật khẩu thành một mật khẩu tạm mới và bắt đổi ngay lần sau."""
+        conn = db.get_db()
+        row = db.query_one(conn, "SELECT * FROM users WHERE id = ?", (user_id,))
+        if row is None:
+            abort(404)
+
+        temp = auth.make_temp_password()
+        with conn:
+            conn.execute(
+                "UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?",
+                (auth.hash_password(temp), user_id),
+            )
+        flash("Mật khẩu mới của %s là: %s — đọc cho học sinh rồi yêu cầu đổi ngay."
+              % (row["username"], temp), "ok")
+        return redirect(url_for("teacher_users", q=row["username"]))
+
+    @app.route("/teacher/users/<int:user_id>/delete", methods=["POST"])
+    @auth.teacher_required
+    def teacher_user_delete(user_id: int):
+        conn = db.get_db()
+        row = db.query_one(conn, "SELECT * FROM users WHERE id = ?", (user_id,))
+        if row is None:
+            abort(404)
+        if user_id == auth.current_user()["id"]:
+            flash("Không thể xoá tài khoản đang đăng nhập.", "warn")
+            return redirect(url_for("teacher_users"))
+
+        n_subs = db.scalar(conn, "SELECT COUNT(*) FROM submissions WHERE user_id = ?", (user_id,))
+        # Đề do giáo viên này tạo không bị xoá theo: `problems.author_id` là
+        # ON DELETE SET NULL, nên đề ở lại và chỉ mất tên người tạo. Xoá tài khoản
+        # một giáo viên mà kéo theo cả kho đề là hậu quả không ai lường trước.
+        with conn:
+            conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
+        msg = "Đã xoá tài khoản %s." % row["username"]
+        if n_subs:
+            msg += " Kéo theo %d bài nộp của học sinh này." % n_subs
+        flash(msg, "ok")
+        return redirect(url_for("teacher_users"))
+
+    # ------------------------------------------ khu giáo viên: kỳ thi
+    @app.route("/teacher/contests")
+    @auth.teacher_required
+    def teacher_contests():
+        conn = db.get_db()
+        contests = []
+        for row in db.query(conn, "SELECT * FROM contests ORDER BY starts_at DESC"):
+            d = dict(row)
+            d["problems"] = [dict(r) for r in db.query(
+                conn,
+                """SELECT p.id, p.code, p.name, p.status
+                     FROM contest_problems cp JOIN problems p ON p.id = cp.problem_id
+                    WHERE cp.contest_id = ? ORDER BY p.code""",
+                (row["id"],))]
+            d["entries"] = db.scalar(conn, "SELECT COUNT(*) FROM contest_entries WHERE contest_id = ?",
+                                     (row["id"],))
+            contests.append(d)
+
+        return render_template(
+            "teacher_contests.html",
+            active="teacher",
+            contests=contests,
+            all_problems=[dict(r) for r in db.query(
+                conn, "SELECT id, code, name, status FROM problems ORDER BY code")],
+        )
+
+    def _contest_form(form) -> tuple[dict, str | None]:
+        """Đọc và kiểm tra biểu mẫu kỳ thi. Trả về ``(giá trị, lỗi)``."""
+        name = (form.get("name") or "").strip()
+        starts = db.iso_from_local_input(form.get("starts_at") or "")
+        ends = db.iso_from_local_input(form.get("ends_at") or "")
+        values = {
+            "name": name,
+            "description": (form.get("description") or "").strip(),
+            "starts_at": starts,
+            "ends_at": ends,
+            "scoring": _choice(form, "scoring", ("ioi", "acm"), "ioi"),
+            "status": _choice(form, "status", ("draft", "upcoming", "open", "closed"), "draft"),
+        }
+        if not name:
+            return values, "Cần nhập tên kỳ thi."
+        if not starts or not ends:
+            return values, "Cần nhập thời gian bắt đầu và kết thúc."
+        if ends <= starts:
+            return values, "Thời gian kết thúc phải sau thời gian bắt đầu."
+        return values, None
+
+    @app.route("/teacher/contests/create", methods=["POST"])
+    @auth.teacher_required
+    def teacher_contest_create():
+        conn = db.get_db()
+        values, error = _contest_form(request.form)
+        if error:
+            flash(error, "warn")
+            return redirect(url_for("teacher_contests"))
+
+        with conn:
+            conn.execute(
+                """INSERT INTO contests (name, description, starts_at, ends_at, scoring,
+                                         status, created_at)
+                   VALUES (?,?,?,?,?,?,?)""",
+                (values["name"], values["description"], values["starts_at"], values["ends_at"],
+                 values["scoring"], values["status"], db.utc_now()),
+            )
+        flash("Đã tạo kỳ thi «%s»." % values["name"], "ok")
+        return redirect(url_for("teacher_contests"))
+
+    @app.route("/teacher/contests/<int:contest_id>/update", methods=["POST"])
+    @auth.teacher_required
+    def teacher_contest_update(contest_id: int):
+        conn = db.get_db()
+        if db.query_one(conn, "SELECT id FROM contests WHERE id = ?", (contest_id,)) is None:
+            abort(404)
+
+        values, error = _contest_form(request.form)
+        if error:
+            flash(error, "warn")
+            return redirect(url_for("teacher_contests"))
+
+        with conn:
+            conn.execute(
+                """UPDATE contests SET name = ?, description = ?, starts_at = ?, ends_at = ?,
+                                       scoring = ?, status = ?
+                    WHERE id = ?""",
+                (values["name"], values["description"], values["starts_at"], values["ends_at"],
+                 values["scoring"], values["status"], contest_id),
+            )
+        flash("Đã lưu kỳ thi «%s»." % values["name"], "ok")
+        return redirect(url_for("teacher_contests"))
+
+    @app.route("/teacher/contests/<int:contest_id>/problems", methods=["POST"])
+    @auth.teacher_required
+    def teacher_contest_problems(contest_id: int):
+        """Ghi lại danh sách đề của kỳ thi theo đúng những ô được tích.
+
+        Xoá hết rồi ghi lại, thay vì tính xem cái nào thêm cái nào bớt: danh sách
+        đề của một kỳ thi chỉ vài chục dòng, và cách này không thể lệch với giao
+        diện — điều mà cách tính hiệu số rất dễ mắc.
+
+        ------------------------------------------------------------------
+        Hai chỗ đã từng sai ở đây, xin đừng lặp lại
+
+        `contest_problems.ordinal` là ``NOT NULL`` và **không có giá trị mặc
+        định**. Câu lệnh cũ không đưa cột đó vào, lại còn dùng
+        ``INSERT OR IGNORE`` — nên mọi lượt lưu đều vi phạm ràng buộc, bị bỏ qua
+        trong im lặng, và màn hình vẫn báo "đã cập nhật N đề". Giáo viên tích đề
+        cho kỳ thi, bấm Lưu, thấy báo thành công, mà kỳ thi vẫn rỗng. Không có
+        cách nào phát hiện ngoài việc mở lại trang và đếm.
+
+        Vì vậy: (1) luôn ghi `ordinal` — lấy luôn thứ tự giáo viên tích, vì thứ
+        tự đề trong một kỳ thi là thông tin có nghĩa; (2) bỏ ``OR IGNORE``. Nuốt
+        lỗi ràng buộc là cách biến một lỗi ồn ào thành một lỗi im lặng, và loại
+        lỗi im lặng là loại đắt nhất.
+        """
+        conn = db.get_db()
+        if db.query_one(conn, "SELECT id FROM contests WHERE id = ?", (contest_id,)) is None:
+            abort(404)
+
+        # Bỏ trùng ngay từ đây: một biểu mẫu méo có thể gửi cùng một mã đề hai
+        # lần, và khi đó khoá chính (contest_id, problem_id) sẽ chặn dòng thứ hai.
+        ids = []
+        for value in request.form.getlist("problem_id"):
+            try:
+                pid = int(value)
+            except (TypeError, ValueError):
+                continue
+            if pid not in ids:
+                ids.append(pid)
+
+        saved = 0
+        with conn:
+            conn.execute("DELETE FROM contest_problems WHERE contest_id = ?", (contest_id,))
+            for pid in ids:
+                if db.query_one(conn, "SELECT id FROM problems WHERE id = ?", (pid,)) is None:
+                    continue
+                saved += 1
+                conn.execute(
+                    "INSERT INTO contest_problems (contest_id, problem_id, ordinal) "
+                    "VALUES (?, ?, ?)", (contest_id, pid, saved))
+
+        # Báo số đề **đã lưu**, không phải số ô đã tích: hai con số này khác nhau
+        # khi một đề bị xoá ở tab khác trong lúc giáo viên đang tích.
+        msg = "Đã lưu danh sách đề của kỳ thi: %d đề." % saved
+        if saved < len(ids):
+            msg += " Bỏ qua %d đề không còn tồn tại." % (len(ids) - saved)
+        flash(msg, "ok")
+        return redirect(url_for("teacher_contests"))
+
+    @app.route("/teacher/contests/<int:contest_id>/delete", methods=["POST"])
+    @auth.teacher_required
+    def teacher_contest_delete(contest_id: int):
+        conn = db.get_db()
+        row = db.query_one(conn, "SELECT * FROM contests WHERE id = ?", (contest_id,))
+        if row is None:
+            abort(404)
+
+        # `contest_entries` và `contest_problems` xoá theo. Còn `submissions`
+        # không trỏ tới kỳ thi bằng khoá ngoại có cascade — `contest_id` ở đó là
+        # ON DELETE SET NULL — nên bài nộp **ở lại**, chỉ mất liên kết tới kỳ thi.
+        # Đó là chủ ý: bài học sinh đã làm không nên biến mất vì kỳ thi bị dọn.
+        n_entries = db.scalar(conn, "SELECT COUNT(*) FROM contest_entries WHERE contest_id = ?",
+                              (contest_id,))
+        with conn:
+            conn.execute("DELETE FROM contests WHERE id = ?", (contest_id,))
+
+        flash("Đã xoá kỳ thi «%s»%s." % (
+            row["name"],
+            " (kèm %d lượt đăng ký)" % n_entries if n_entries else ""), "ok")
+        return redirect(url_for("teacher_contests"))
 
     @app.route("/teacher/classes")
     @auth.teacher_required
@@ -1509,6 +1889,72 @@ def _update_problem(conn, problem, form) -> str | None:
              time_ms, memory_mb, points_mode, status, db.utc_now(), problem["id"]),
         )
     return None
+
+
+def _import_themis_zip(conn, problem, code: str):
+    """Nhập bộ dữ liệu từ tệp ZIP kiểu Themis.
+
+    Đây là cách nhập dữ liệu **chính** cho một đề thật: đề thi có 20–40 bộ, dán
+    tay từng bộ là mất cả buổi và chắc chắn có lỗi sao chép — mà lỗi sao chép
+    trong bộ dữ liệu thì không ai phát hiện cho tới lúc học sinh bị chấm sai.
+
+    Thay thế toàn bộ hay thêm vào? Mặc định là **thêm vào**, vì xoá dữ liệu cũ
+    là việc không hoàn tác được và không nên xảy ra chỉ vì giáo viên bấm nhầm
+    một nút. Muốn thay thì phải tích ô xác nhận riêng.
+    """
+    upload = request.files.get("zip")
+    if upload is None or not upload.filename:
+        flash("Em chưa chọn tệp ZIP nào.", "warn")
+        return redirect(url_for("teacher_problem_tests", code=code))
+
+    raw = upload.read(themis.MAX_TOTAL_BYTES + 1)
+    if len(raw) > themis.MAX_TOTAL_BYTES:
+        flash("Tệp ZIP quá lớn (giới hạn %d MB)." % (themis.MAX_TOTAL_BYTES // (1024 * 1024)),
+              "warn")
+        return redirect(url_for("teacher_problem_tests", code=code))
+
+    tests, report = themis.parse_zip(raw)
+
+    if report.get("error"):
+        flash(report["error"], "warn")
+        return redirect(url_for("teacher_problem_tests", code=code))
+
+    replace = bool(request.form.get("replace"))
+    with conn:
+        if replace:
+            conn.execute("DELETE FROM tests WHERE problem_id = ?", (problem["id"],))
+
+        ordinal = db.scalar(
+            conn, "SELECT COALESCE(MAX(ordinal), 0) FROM tests WHERE problem_id = ?",
+            (problem["id"],))
+        for t in tests:
+            ordinal += 1
+            # Bộ dữ liệu nhập từ tệp mặc định là **ẩn**: đề của trường thường lấy
+            # từ kho chung, và nếu hiện hết thì học sinh chỉ cần mở đề là thấy
+            # toàn bộ đáp án.
+            conn.execute(
+                """INSERT INTO tests (problem_id, ordinal, input, output, is_hidden, points, note)
+                   VALUES (?, ?, ?, ?, 1, 0, ?)""",
+                (problem["id"], ordinal, t["input"], t["output"], t["name"]),
+            )
+        conn.execute("UPDATE problems SET updated_at = ? WHERE id = ?",
+                     (db.utc_now(), problem["id"]))
+
+    # Báo cáo nói cả phần **không** nhập được. Chỉ báo "đã nhập 24 bộ" mà bỏ qua
+    # 6 tệp lẻ là để giáo viên tin rằng đề đã đủ dữ liệu, trong khi thực tế thiếu.
+    msg = "Đã nhập %d bộ dữ liệu từ ZIP%s." % (
+        len(tests), " (đã thay toàn bộ bộ cũ)" if replace else "")
+    leftovers = []
+    if report["orphan_in"]:
+        leftovers.append("%d tệp vào không có tệp ra" % report["orphan_in"])
+    if report["orphan_out"]:
+        leftovers.append("%d tệp ra không có tệp vào" % report["orphan_out"])
+    if report["skipped"]:
+        leftovers.append("%d tệp không nhận dạng được" % report["skipped"])
+    if leftovers:
+        msg += " Bỏ qua: " + ", ".join(leftovers) + "."
+    flash(msg, "ok" if not leftovers else "warn")
+    return redirect(url_for("teacher_problem_tests", code=code))
 
 
 def _add_test(conn, problem, form) -> None:

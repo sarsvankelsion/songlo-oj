@@ -47,16 +47,28 @@
                aria-labelledby="tab-statement" tabindex="0"{% if tab != 'panel-statement' %} hidden{% endif %}>
             <article class="statement">
 
-              {# Nội dung đề lưu dạng văn bản thuần và hiển thị nguyên dạng.
-                 Dùng `pre-wrap` chứ không phải HTML: giáo viên dán đề từ Word
+              {# Nội dung đề lưu dạng văn bản thuần. Đề do giáo viên gõ tay thì
+                 hiện nguyên dạng; đề dán từ một tệp `.tex` thì được `app.js`
+                 đổi lệnh LaTeX thành thẻ HTML trước khi hiện.
+
+                 Việc quyết định đi đường nào nằm ở `texLooksLikeLatex` trong
+                 `app.js`, và đó là một **cổng an toàn** chứ không phải chi tiết
+                 trang trí: đường ống LaTeX xoá từ dấu `%` tới hết dòng và xoá
+                 mọi `\lệnh`, nên áp nó lên văn bản thường là mất chữ im lặng —
+                 "Điểm tối đa 50%" cụt mất đuôi dòng. Văn bản không mang dấu hiệu
+                 LaTeX chỉ được thoát HTML rồi hiện ra nguyên vẹn.
+
+                 Vì sao không render HTML ở máy chủ: giáo viên dán đề từ Word
                  vào, và nếu ta render HTML thì mọi thẻ trong đó sẽ được trình
                  duyệt hiểu theo nghĩa của nó — một đề có chữ "<vector>" sẽ biến
-                 mất phần còn lại của bài.
+                 mất phần còn lại của bài. `texToHtml` thoát HTML **trước** rồi
+                 mới dựng thẻ, nên chữ của giáo viên không bao giờ thành thẻ.
 
-                 `data-math` là chỗ `app.js` tìm tới để đổi công thức LaTeX.
-                 KaTeX đọc `textContent` của phần tử này, nên nó thấy đúng văn
-                 bản sau khi trình duyệt đã giải mã thực thể HTML — `$a < b$`
-                 vẫn ra công thức đúng dù trong HTML là `&lt;`. #}
+                 `data-math` là chỗ `app.js` tìm tới, cho cả hai việc: đổi lệnh
+                 LaTeX (`renderLatex`) và đổi công thức (`renderMath`). KaTeX đọc
+                 `textContent` của phần tử này, nên nó thấy đúng văn bản sau khi
+                 trình duyệt đã giải mã thực thể HTML — `$a < b$` vẫn ra công
+                 thức đúng dù trong HTML là `&lt;`. #}
               <div class="statement-text" data-math>{{ problem['statement'] }}</div>
 
               {% if sample_tests %}

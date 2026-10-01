@@ -141,9 +141,69 @@
           </div>
         </section>
 
+        <section class="card mb-4" aria-labelledby="imp-title">
+          <div class="card__head">
+            <h2 id="imp-title">Nhập từ tệp ZIP</h2>
+            <span class="badge badge--green">Cách nhập chính</span>
+          </div>
+
+          <div class="card__body">
+            {# Đây là đường nhập dữ liệu chính cho một đề thật. Đề thi của trường
+               có 20–40 bộ; dán tay từng bộ vừa mất cả buổi vừa chắc chắn có lỗi
+               sao chép — mà lỗi sao chép trong bộ dữ liệu thì không ai phát hiện
+               cho tới lúc học sinh bị chấm sai.
+
+               `enctype` bắt buộc phải là multipart/form-data, thiếu nó thì
+               `request.files` rỗng và thông báo nhận được chỉ là "chưa chọn tệp
+               nào" dù giáo viên vừa chọn tệp xong. #}
+            <form method="post" action="{{ url_for('teacher_problem_tests', code=problem['code']) }}"
+                  enctype="multipart/form-data">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="import">
+
+              <div class="field">
+                <label class="label" for="zip">Tệp ZIP bộ dữ liệu <span class="req" aria-hidden="true">*</span></label>
+                <input class="input" id="zip" name="zip" type="file" accept=".zip,application/zip" required>
+                <p class="hint">
+                  Tệp ZIP chứa các cặp tệp vào – ra, đặt tên theo chuẩn Themis:
+                  mỗi bộ là hai tệp <span class="mono">.INP</span> và
+                  <span class="mono">.OUT</span> cùng tên, có thể nằm trong thư mục
+                  con như <span class="mono">TEST01/</span>. Tệp
+                  <span class="mono">.cpp</span> hoặc tệp lời giải trong ZIP được
+                  bỏ qua, không gây lỗi.
+                </p>
+              </div>
+
+              <div class="field">
+                <label class="check" for="replace">
+                  <input type="checkbox" id="replace" name="replace" value="1">
+                  <span>Xoá toàn bộ bộ dữ liệu đang có rồi thay bằng tệp này</span>
+                </label>
+                <p class="hint">
+                  Không tích thì dữ liệu trong tệp được thêm <em>vào sau</em> các
+                  bộ đang có — an toàn hơn, và đây là mặc định. Chỉ tích khi thật
+                  sự muốn thay cả bộ cũ, vì thao tác đó không hoàn tác được.
+                </p>
+              </div>
+
+              <div class="row">
+                <button class="btn btn--primary" type="submit">Nhập từ ZIP</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="card__foot">
+            <p class="text-sm text-muted mb-0">
+              Mọi bộ nhập từ tệp đều được đánh dấu <strong>ẩn</strong> sẵn: đề lấy
+              từ kho chung mà để công khai thì học sinh chỉ cần mở đề là thấy hết
+              đáp án. Vào từng bộ để mở công khai những bộ muốn làm ví dụ.
+            </p>
+          </div>
+        </section>
+
         <section class="card" aria-labelledby="ta-title">
           <div class="card__head">
-            <h2 id="ta-title">Thêm bộ dữ liệu</h2>
+            <h2 id="ta-title">Thêm một bộ dữ liệu bằng tay</h2>
             <span class="text-sm text-muted">Bộ mới nhận số thứ tự {{ tests|length + 1 }}</span>
           </div>
 

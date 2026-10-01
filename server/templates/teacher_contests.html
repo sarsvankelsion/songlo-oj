@@ -1,0 +1,276 @@
+{#
+  Quản lý kỳ thi — khu giáo viên.
+
+  Trước khi có trang này, kỳ thi chỉ tạo được bằng cách sửa thẳng CSDL: bảng
+  `contests` và bảng nối `contest_problems` không có giao diện nào. Học sinh thì
+  vẫn thấy mục "Kỳ thi" trên thanh điều hướng, nên hệ thống trông như có tính
+  năng ấy trong khi thực tế không ai mở được một kỳ thi.
+
+  ---------------------------------------------------------------------------
+  Vì sao dùng `<details>` thay vì thêm JavaScript
+
+  Mỗi kỳ thi có hai biểu mẫu phụ (sửa thông tin, chọn đề). Hiện hết ra thì một
+  danh sách mười kỳ thi là hai mươi biểu mẫu cùng lúc, cuộn mãi không hết và rất
+  dễ sửa nhầm kỳ thi. `<details>`/`<summary>` là thứ có sẵn của HTML, gập lại
+  được, bàn phím dùng được, và không cần một dòng JavaScript nào — đúng cách
+  trang này đang làm với mọi thứ khác.
+#}
+{% extends "base.html" %}
+{% block title %}Kỳ thi — Khu giáo viên | Trường THCS Sông Lô{% endblock %}
+
+{% block content %}
+  {% set status_text = {'draft': 'Bản nháp', 'upcoming': 'Sắp diễn ra',
+                        'open': 'Đang mở', 'closed': 'Đã kết thúc'} %}
+  {% set status_class = {'draft': 'badge badge--grey', 'upcoming': 'badge',
+                         'open': 'badge badge--red', 'closed': 'badge badge--grey'} %}
+  {% set scoring_text = {'ioi': 'IOI — điểm từng bài', 'acm': 'ACM — số bài giải được'} %}
+
+  <div class="container">
+
+    <div class="page-head">
+      <div>
+        <h1 class="page-head__title">Kỳ thi</h1>
+        <p class="page-head__sub">
+          Tạo kỳ thi, chọn đề cho từng kỳ, đặt thời gian mở và cách tính điểm.
+        </p>
+      </div>
+      <div class="page-head__actions">
+        <a class="btn btn--outline" href="{{ url_for('contests') }}">Xem như học sinh</a>
+        <a class="btn btn--ghost" href="{{ url_for('teacher') }}">← Tổng quan</a>
+      </div>
+    </div>
+
+    <section class="card mb-5" aria-labelledby="cc-title">
+      <div class="card__head">
+        <h2 id="cc-title">Tạo kỳ thi mới</h2>
+        <span class="badge badge--grey">Lưu ở dạng bản nháp</span>
+      </div>
+
+      <div class="card__body">
+        <form method="post" action="{{ url_for('teacher_contest_create') }}" novalidate>
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+          <div class="grid grid-2">
+            <div class="field">
+              <label class="label" for="c-name">Tên kỳ thi <span class="req" aria-hidden="true">*</span></label>
+              <input class="input" id="c-name" name="name" type="text" required
+                     placeholder="Khảo sát chất lượng học kỳ I — Tin học 9">
+            </div>
+            <div class="field">
+              <label class="label" for="c-desc">Mô tả ngắn</label>
+              <input class="input" id="c-desc" name="description" type="text"
+                     placeholder="Ba bài, làm trong 90 phút, không dùng tài liệu">
+            </div>
+          </div>
+
+          <div class="grid grid-2">
+            <div class="field">
+              <label class="label" for="c-start">Bắt đầu <span class="req" aria-hidden="true">*</span></label>
+              <input class="input" id="c-start" name="starts_at" type="datetime-local" required>
+              <p class="hint">Giờ Việt Nam. Hệ thống tự quy đổi khi lưu.</p>
+            </div>
+            <div class="field">
+              <label class="label" for="c-end">Kết thúc <span class="req" aria-hidden="true">*</span></label>
+              <input class="input" id="c-end" name="ends_at" type="datetime-local" required>
+              <p class="hint">Phải sau thời gian bắt đầu.</p>
+            </div>
+          </div>
+
+          <div class="grid grid-2">
+            <div class="field">
+              <label class="label" for="c-scoring">Cách tính điểm</label>
+              <select class="select" id="c-scoring" name="scoring">
+                <option value="ioi" selected>IOI — điểm từng bài cộng lại</option>
+                <option value="acm">ACM — tính số bài giải được</option>
+              </select>
+              <p class="hint">Cách tính điểm của kỳ thi, độc lập với điểm luyện tập.</p>
+            </div>
+            <div class="field">
+              <label class="label" for="c-status">Trạng thái</label>
+              <select class="select" id="c-status" name="status">
+                <option value="draft" selected>Bản nháp — học sinh chưa thấy</option>
+                <option value="upcoming">Sắp diễn ra — hiện trên trang chủ</option>
+                <option value="open">Đang mở — cho làm bài ngay</option>
+                <option value="closed">Đã kết thúc</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <button class="btn btn--primary" type="submit">Tạo kỳ thi</button>
+            <button class="btn btn--ghost" type="reset">Xoá biểu mẫu</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card__foot">
+        <p class="text-sm text-muted mb-0">
+          Tạo xong, mở kỳ thi vừa tạo ở danh sách bên dưới để chọn đề. Một kỳ thi
+          chưa chọn đề nào thì học sinh vào không có gì để làm.
+        </p>
+      </div>
+    </section>
+
+    <h2 class="mb-4" style="font-size:19px">
+      Danh sách kỳ thi
+      <span class="text-sm text-muted" style="font-weight:400">· {{ contests|length }} kỳ thi</span>
+    </h2>
+
+    <div class="stack">
+      {% for c in contests %}
+      <section class="card" aria-labelledby="ct-{{ c['id'] }}">
+
+        <div class="row-between mb-3">
+          <div>
+            <span class="{{ status_class.get(c['status'], 'badge badge--grey') }}">
+              {{ status_text.get(c['status'], c['status']) }}
+            </span>
+            <h3 id="ct-{{ c['id'] }}" class="mt-2 mb-1" style="font-size:18px">{{ c['name'] }}</h3>
+            <p class="text-sm text-muted mb-0">
+              {{ c['starts_at']|vn_range(c['ends_at']) }} ·
+              {{ c['problems']|length }} đề ·
+              {{ c['entries'] }} lượt đăng ký ·
+              {{ scoring_text.get(c['scoring'], c['scoring']) }}
+            </p>
+            {% if c['description'] %}
+              <p class="text-sm mb-0 mt-2">{{ c['description'] }}</p>
+            {% endif %}
+          </div>
+
+          <form method="post" action="{{ url_for('teacher_contest_delete', contest_id=c['id']) }}"
+                data-confirm="Xoá kỳ thi «{{ c['name'] }}»?{% if c['entries'] %} Kéo theo {{ c['entries'] }} lượt đăng ký.{% endif %} Bài nộp của học sinh vẫn được giữ lại, chỉ mất liên kết tới kỳ thi. Thao tác này không hoàn tác được.">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <button class="btn btn--ghost btn--sm" type="submit">Xoá kỳ thi</button>
+          </form>
+        </div>
+
+        {% if not c['problems'] %}
+          <div class="alert alert--warn mb-4" role="note">
+            <div>
+              <p class="alert__title">Kỳ thi chưa có đề nào</p>
+              <p class="mb-0 text-sm">
+                Mở mục <strong>Chọn đề cho kỳ thi</strong> bên dưới và tích ít
+                nhất một đề. Để nguyên như vậy thì học sinh vào không có bài.
+              </p>
+            </div>
+          </div>
+        {% endif %}
+
+        <details class="fold">
+          <summary class="fold__head">
+            Sửa thông tin kỳ thi
+            <span class="text-sm text-muted">{{ c['name'] }}</span>
+          </summary>
+          <div class="fold__body">
+            <form method="post" action="{{ url_for('teacher_contest_update', contest_id=c['id']) }}" novalidate>
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+              <div class="grid grid-2">
+                <div class="field">
+                  <label class="label" for="n-{{ c['id'] }}">Tên kỳ thi <span class="req" aria-hidden="true">*</span></label>
+                  <input class="input" id="n-{{ c['id'] }}" name="name" type="text"
+                         value="{{ c['name'] }}" required>
+                </div>
+                <div class="field">
+                  <label class="label" for="d-{{ c['id'] }}">Mô tả ngắn</label>
+                  <input class="input" id="d-{{ c['id'] }}" name="description" type="text"
+                         value="{{ c['description'] }}">
+                </div>
+              </div>
+
+              <div class="grid grid-2">
+                <div class="field">
+                  <label class="label" for="s-{{ c['id'] }}">Bắt đầu <span class="req" aria-hidden="true">*</span></label>
+                  <input class="input" id="s-{{ c['id'] }}" name="starts_at" type="datetime-local"
+                         value="{{ c['starts_at']|local_input }}" required>
+                </div>
+                <div class="field">
+                  <label class="label" for="e-{{ c['id'] }}">Kết thúc <span class="req" aria-hidden="true">*</span></label>
+                  <input class="input" id="e-{{ c['id'] }}" name="ends_at" type="datetime-local"
+                         value="{{ c['ends_at']|local_input }}" required>
+                </div>
+              </div>
+
+              <div class="grid grid-2">
+                <div class="field">
+                  <label class="label" for="sc-{{ c['id'] }}">Cách tính điểm</label>
+                  <select class="select" id="sc-{{ c['id'] }}" name="scoring">
+                    <option value="ioi"{% if c['scoring'] == 'ioi' %} selected{% endif %}>IOI — điểm từng bài cộng lại</option>
+                    <option value="acm"{% if c['scoring'] == 'acm' %} selected{% endif %}>ACM — tính số bài giải được</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label class="label" for="st-{{ c['id'] }}">Trạng thái</label>
+                  <select class="select" id="st-{{ c['id'] }}" name="status">
+                    {% for key, label in status_text.items() %}
+                      <option value="{{ key }}"{% if c['status'] == key %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                  <p class="hint">
+                    Đổi sang <strong>Đang mở</strong> là học sinh vào làm được ngay,
+                    không cần chờ tới giờ bắt đầu.
+                  </p>
+                </div>
+              </div>
+
+              <div class="row">
+                <button class="btn btn--primary btn--sm" type="submit">Lưu thay đổi</button>
+              </div>
+            </form>
+          </div>
+        </details>
+
+        <details class="fold">
+          <summary class="fold__head">
+            Chọn đề cho kỳ thi
+            <span class="text-sm text-muted">{{ c['problems']|length }} / {{ all_problems|length }} đề</span>
+          </summary>
+          <div class="fold__body">
+            {% set chosen = c['problems']|map(attribute='id')|list %}
+            <form method="post" action="{{ url_for('teacher_contest_problems', contest_id=c['id']) }}">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+              {% if all_problems %}
+                <div class="pick-list">
+                  {% for p in all_problems %}
+                    <label class="check" for="p-{{ c['id'] }}-{{ p['id'] }}">
+                      <input type="checkbox" id="p-{{ c['id'] }}-{{ p['id'] }}"
+                             name="problem_id" value="{{ p['id'] }}"
+                             {% if p['id'] in chosen %}checked{% endif %}>
+                      <span>
+                        <span class="mono">{{ p['code'] }}</span> — {{ p['name'] }}
+                        <span class="{{ p['status']|problem_status_class }}">{{ p['status']|problem_status_text }}</span>
+                      </span>
+                    </label>
+                  {% endfor %}
+                </div>
+                <p class="hint">
+                  Danh sách được ghi lại đúng theo những ô đang tích. Bỏ tích một
+                  đề không xoá bài nộp của học sinh cho đề đó.
+                </p>
+                <div class="row mt-3">
+                  <button class="btn btn--primary btn--sm" type="submit">Lưu danh sách đề</button>
+                </div>
+              {% else %}
+                <p class="text-muted mb-0">
+                  Chưa có đề nào trong hệ thống.
+                  <a href="{{ url_for('teacher_problems') }}">Soạn đề trước</a> rồi quay lại đây.
+                </p>
+              {% endif %}
+            </form>
+          </div>
+        </details>
+
+      </section>
+      {% else %}
+      <div class="card">
+        <div class="empty">
+          <h3>Chưa có kỳ thi nào</h3>
+          <p class="mb-0">Dùng biểu mẫu phía trên để tạo kỳ thi đầu tiên.</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+{% endblock %}
