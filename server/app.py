@@ -20,10 +20,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import (
-    Flask, abort, flash, jsonify, redirect, render_template, request, url_for,
+    Flask, abort, flash, jsonify, redirect, render_template, request,
+    send_from_directory, url_for,
 )
 
-from . import auth, db, formatting
+from . import auth, avatars, db, formatting
 from .judge import COMPILE_FLAGS, VERDICT_LABEL
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -51,6 +52,17 @@ MIN_MEMORY_MB, MAX_MEMORY_MB = 16, 1024
 # dòng — thừa sức cho mọi bài của cấp 2, nhưng chặn được việc ai đó dán cả một
 # tệp nén vào ô soạn thảo.
 MAX_SOURCE_LENGTH = 64 * 1024
+
+# Độ dài tối đa của phần giới thiệu bản thân, tính bằng ký tự. 240 là khoảng
+# bốn dòng trên màn hình điện thoại — đủ để viết một câu giới thiệu, không đủ để
+# biến trang cá nhân thành nơi đăng bài.
+MAX_BIO_LENGTH = 240
+
+# Độ dài tối thiểu của mật khẩu mới. Đặt 8 chứ không phải 6: học sinh cấp 2 quen
+# dùng ngày sinh hoặc tên lớp, và những chuỗi đó nằm trong mọi danh sách mật khẩu
+# rò rỉ. Đây là mức thấp nhất còn có ý nghĩa mà không khiến các em phải ghi ra
+# giấy — điều còn tệ hơn cả mật khẩu yếu.
+MIN_PASSWORD_LENGTH = 8
 
 # Khung mã nguồn điền sẵn khi mở ô soạn thảo.
 #
@@ -103,13 +115,47 @@ def create_app(config: dict | None = None) -> Flask:
     Path(app.config["DATABASE"]).parent.mkdir(parents=True, exist_ok=True)
     db.init_db(app.config["DATABASE"])
 
+    # Trần kích thước thân request. Ảnh đại diện là thứ duy nhất người dùng tải
+    # lên dạng tệp, nên lấy giới hạn của ảnh cộng thêm một ít cho phần biểu mẫu.
+    # Đặt ở đây để tầng máy chủ từ chối trước khi Flask đọc hết thân request vào
+    # bộ nhớ — nếu không, một tệp 2 GB sẽ được nạp hết rồi mới bị từ chối.
+    app.config.setdefault("MAX_CONTENT_LENGTH", avatars.MAX_UPLOAD_BYTES + 256 * 1024)
+
     app.teardown_appcontext(db.close_db)
     auth.init_app(app)
     formatting.register_filters(app)
 
     _register_routes(app)
+    _register_password_guard(app)
     _register_error_handlers(app)
     return app
+
+
+def _register_password_guard(app: Flask) -> None:
+    """Ép đổi mật khẩu trước khi dùng được phần còn lại của hệ thống.
+
+    ``seed.py`` đặt ``must_change_password = 1`` cho mọi tài khoản học sinh vì
+    mật khẩu đầu tiên do giáo viên sinh ra và đọc to trong phòng máy — ai nghe
+    được cũng biết. Cờ đó đã có trong CSDL từ đầu nhưng **chưa có gì đọc nó**,
+    nên trên thực tế mật khẩu tạm dùng được mãi mãi.
+
+    Đăng ký hook ở tầng ứng dụng chứ không kiểm tra trong từng tuyến đường: làm
+    theo từng tuyến đường thì chỉ cần thêm một trang mới mà quên là cờ mất tác
+    dụng, và không có dấu hiệu nào cho thấy điều đó.
+    """
+    # Những đích đến vẫn phải vào được, nếu không người dùng bị kẹt vòng lặp
+    # chuyển hướng: trang đổi mật khẩu, đăng xuất, và tệp tĩnh.
+    allowed = {"account", "account_password", "logout", "login", "static", "avatar_file"}
+
+    @app.before_request
+    def _force_password_change():
+        if request.endpoint is None or request.endpoint in allowed:
+            return None
+        user = auth.current_user()
+        if user is None or not user["must_change_password"]:
+            return None
+        flash("Em cần đổi mật khẩu trước khi dùng các phần khác của hệ thống.", "warn")
+        return redirect(url_for("account"))
 
 
 # ==========================================================================
@@ -768,6 +814,129 @@ def _register_routes(app: Flask) -> None:
         flash("Em đã đăng xuất.", "ok")
         return redirect(url_for("index"))
 
+    # ------------------------------------------------------ trang cá nhân
+    @app.route("/account")
+    @auth.login_required
+    def account():
+        conn = db.get_db()
+        row = db.query_one(conn, "SELECT * FROM users WHERE id = ?", (auth.current_user()["id"],))
+        stats = db.query_one(
+            conn,
+            """SELECT COUNT(*) AS attempts,
+                      COALESCE(SUM(verdict = 'AC'), 0) AS accepted,
+                      COUNT(DISTINCT CASE WHEN verdict = 'AC' THEN problem_id END) AS solved
+                 FROM submissions WHERE user_id = ?""",
+            (row["id"],),
+        )
+        return render_template(
+            "account.html", active="account", profile=row, stats=stats,
+            max_bio=MAX_BIO_LENGTH,
+            max_upload_mb=avatars.MAX_UPLOAD_BYTES // (1024 * 1024),
+        )
+
+    @app.route("/account/password", methods=["POST"])
+    @auth.login_required
+    def account_password():
+        user = auth.current_user()
+        conn = db.get_db()
+
+        current = request.form.get("current_password") or ""
+        new = request.form.get("new_password") or ""
+        confirm = request.form.get("confirm_password") or ""
+
+        # Kiểm tra mật khẩu hiện tại trước tiên. Không có bước này thì bất kỳ ai
+        # cầm được điện thoại của học sinh đang mở phiên — hoặc bất kỳ thẻ script
+        # nào chạy được trên máy đó — đổi được mật khẩu và chiếm tài khoản.
+        if not auth.verify_password(user["password_hash"], current):
+            flash("Mật khẩu hiện tại không đúng.", "warn")
+            return redirect(url_for("account"))
+
+        err = _password_problem(new, confirm, user["username"])
+        if err:
+            flash(err, "warn")
+            return redirect(url_for("account"))
+
+        with conn:
+            conn.execute(
+                "UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?",
+                (auth.hash_password(new), user["id"]),
+            )
+        flash("Đã đổi mật khẩu. Lần sau em đăng nhập bằng mật khẩu mới.", "ok")
+        return redirect(url_for("account"))
+
+    @app.route("/account/profile", methods=["POST"])
+    @auth.login_required
+    def account_profile():
+        user = auth.current_user()
+        conn = db.get_db()
+        bio = (request.form.get("bio") or "").strip()
+        if len(bio) > MAX_BIO_LENGTH:
+            flash("Phần giới thiệu dài quá %d ký tự." % MAX_BIO_LENGTH, "warn")
+            return redirect(url_for("account"))
+        with conn:
+            conn.execute("UPDATE users SET bio = ? WHERE id = ?", (bio, user["id"]))
+        flash("Đã lưu phần giới thiệu.", "ok")
+        return redirect(url_for("account"))
+
+    @app.route("/account/avatar", methods=["POST"])
+    @auth.login_required
+    def account_avatar():
+        user = auth.current_user()
+        conn = db.get_db()
+        var_dir = Path(app.config["DATABASE"]).parent
+
+        name, err = avatars.save_avatar(var_dir, user["id"], request.files.get("avatar"))
+        if err:
+            flash(err, "warn")
+            return redirect(url_for("account"))
+
+        # Ghi tên tệp mới vào CSDL TRƯỚC, rồi mới xoá tệp cũ. Làm ngược lại mà
+        # bước ghi hỏng thì CSDL còn trỏ tới tệp vừa bị xoá, và ảnh đại diện của
+        # học sinh biến thành ô trống không rõ nguyên nhân.
+        old = user["avatar_file"]
+        with conn:
+            conn.execute("UPDATE users SET avatar_file = ? WHERE id = ?", (name, user["id"]))
+        if old and old != name:
+            avatars.delete_avatar(var_dir, old)
+        flash("Đã cập nhật ảnh đại diện.", "ok")
+        return redirect(url_for("account"))
+
+    @app.route("/account/avatar/remove", methods=["POST"])
+    @auth.login_required
+    def account_avatar_remove():
+        user = auth.current_user()
+        conn = db.get_db()
+        var_dir = Path(app.config["DATABASE"]).parent
+        old = user["avatar_file"]
+        with conn:
+            conn.execute("UPDATE users SET avatar_file = '' WHERE id = ?", (user["id"],))
+        avatars.delete_avatar(var_dir, old)
+        flash("Đã xoá ảnh đại diện.", "ok")
+        return redirect(url_for("account"))
+
+    @app.route("/avatar/<int:user_id>")
+    @auth.login_required
+    def avatar_file(user_id: int):
+        """Phục vụ ảnh đại diện.
+
+        **Cần đăng nhập**, không mở công khai. Đây là ảnh của học sinh cấp 2, và
+        một đường dẫn công khai cho phép bất kỳ ai cũng tải được toàn bộ ảnh của
+        cả trường bằng cách đếm id từ 1. Yêu cầu đăng nhập giới hạn việc đó trong
+        phạm vi những người đã có tài khoản.
+
+        Tên tệp đọc từ CSDL chứ không lấy từ URL, nên không có đường dẫn nào do
+        người dùng kiểm soát đi vào hệ thống tệp.
+        """
+        conn = db.get_db()
+        row = db.query_one(conn, "SELECT avatar_file FROM users WHERE id = ?", (user_id,))
+        if row is None or not row["avatar_file"]:
+            abort(404)
+        var_dir = Path(app.config["DATABASE"]).parent
+        return send_from_directory(
+            avatars.avatars_dir(var_dir), row["avatar_file"],
+            mimetype="image/png", max_age=3600,
+        )
+
     # ---------------------------------------------------------- khu giáo viên
     @app.route("/teacher")
     @auth.teacher_required
@@ -1027,7 +1196,7 @@ def _leaderboard_rows(conn, scope: str | None, limit: int) -> list[dict]:
 
     rows = db.query(
         conn,
-        f"""SELECT u.id, u.full_name, u.class_name,
+        f"""SELECT u.id, u.full_name, u.class_name, u.avatar_file,
                    COALESCE((SELECT SUM(t.best) FROM (
                        SELECT problem_id, MAX(score) AS best FROM submissions
                         WHERE user_id = u.id AND status = 'done'
@@ -1213,6 +1382,32 @@ def _choice(form, key: str, allowed: tuple[str, ...], fallback: str) -> str:
     return value if value in allowed else fallback
 
 
+def _password_problem(new: str, confirm: str, username: str) -> str | None:
+    """Kiểm tra mật khẩu mới. Trả về câu thông báo lỗi, hoặc None nếu hợp lệ.
+
+    Tách riêng khỏi tuyến đường để kiểm thử được mà không cần dựng cả request, và
+    để mọi quy tắc về mật khẩu nằm cùng một chỗ — rải ra nhiều nhánh `if` trong
+    hàm xử lý thì lần sau thêm quy tắc sẽ có chỗ quên.
+    """
+    if new != confirm:
+        return "Hai lần nhập mật khẩu mới không giống nhau."
+    if len(new) < MIN_PASSWORD_LENGTH:
+        return "Mật khẩu mới cần ít nhất %d ký tự." % MIN_PASSWORD_LENGTH
+    if new.strip() != new:
+        return "Mật khẩu không nên bắt đầu hoặc kết thúc bằng dấu cách."
+    if new.lower() == username.lower():
+        return "Mật khẩu không được trùng với tên đăng nhập."
+    # Danh sách ngắn những mật khẩu mà học sinh thật sự hay đặt. Không phải để
+    # chống dò — PBKDF2 lo việc đó — mà để chặn đúng những chuỗi mà cả lớp sẽ
+    # đoán ra ngay khi muốn nghịch tài khoản của bạn mình.
+    weak = {"12345678", "123456789", "password", "matkhau", "matkhau123",
+            "iloveyou", "qwertyui", "abc12345", "11111111", "00000000",
+            "hocsinh123", "songlo123"}
+    if new.lower() in weak:
+        return "Mật khẩu này quá dễ đoán. Em chọn mật khẩu khác nhé."
+    return None
+
+
 def _create_problem(conn, user, form) -> str | None:
     """Trả về thông báo lỗi, hoặc None nếu thành công."""
     code = (form.get("code") or "").strip().upper()
@@ -1367,6 +1562,17 @@ def _register_error_handlers(app: Flask) -> None:
         return render_template("error.html", active="", code=400,
                                title="Yêu cầu không hợp lệ",
                                message=getattr(e, "description", "Dữ liệu gửi lên không hợp lệ.")), 400
+
+    # Flask trả 413 khi thân request vượt MAX_CONTENT_LENGTH. Không có nhánh này
+    # thì học sinh tải lên một ảnh 8 MB sẽ nhận trang lỗi mặc định bằng tiếng Anh
+    # ("Request Entity Too Large"), không nói được là ảnh quá lớn hay phải làm gì.
+    @app.errorhandler(413)
+    def too_large(_e):
+        return render_template(
+            "error.html", active="", code=413, title="Tệp quá lớn",
+            message="Ảnh em chọn lớn hơn %d MB. Em chọn ảnh nhỏ hơn nhé."
+                    % (avatars.MAX_UPLOAD_BYTES // (1024 * 1024)),
+        ), 413
 
 
 # Cho phép `flask --app server.app run` và `python -m server.app`.

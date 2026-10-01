@@ -103,9 +103,38 @@ def init_db(db_path: str | Path) -> None:
     conn = connect(path)
     try:
         conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+        _migrate(conn)
         conn.commit()
     finally:
         conn.close()
+
+
+# Các cột thêm sau khi CSDL đã chạy thật, dạng (bảng, cột, khai báo).
+#
+# Vì sao cần bảng này: ``schema.sql`` dùng ``CREATE TABLE IF NOT EXISTS``, mà
+# câu lệnh đó **không thêm cột vào bảng đã tồn tại**. Trên máy đã có dữ liệu
+# thật, sửa `CREATE TABLE` trong `schema.sql` chỉ có tác dụng với CSDL mới —
+# máy đang chạy sẽ thiếu cột và mọi truy vấn `SELECT *` trả về hàng thiếu khoá,
+# lỗi hiện ra ở tận tầng template chứ không ở chỗ khai báo.
+#
+# Thêm cột bằng ALTER TABLE là thao tác rẻ và không mất dữ liệu. Chỉ áp dụng
+# cho cột **có giá trị mặc định** — cột NOT NULL không mặc định sẽ bị SQLite từ
+# chối khi bảng đã có dòng.
+_ADDED_COLUMNS = (
+    ("users", "avatar_file", "TEXT NOT NULL DEFAULT ''"),
+    ("users", "bio", "TEXT NOT NULL DEFAULT ''"),
+)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Thêm những cột còn thiếu. Chạy lại nhiều lần được."""
+    for table, column, decl in _ADDED_COLUMNS:
+        existing = {r["name"] for r in conn.execute("PRAGMA table_info(%s)" % table)}
+        if not existing:
+            # Bảng chưa tồn tại thì `schema.sql` đã tạo đủ cột rồi.
+            continue
+        if column not in existing:
+            conn.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, column, decl))
 
 
 # ------------------------------------------------------- truy vấn tiện dụng

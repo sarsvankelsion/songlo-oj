@@ -28,6 +28,13 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT    NOT NULL,
   is_active     INTEGER NOT NULL DEFAULT 1,       -- 0 = bị khoá
   must_change_password INTEGER NOT NULL DEFAULT 0,
+  -- Ảnh đại diện: chỉ lưu TÊN TỆP trong var/avatars/, không lưu đường dẫn đầy
+  -- đủ và không lưu nội dung ảnh trong CSDL. Lưu đường dẫn đầy đủ thì đổi chỗ
+  -- thư mục là hỏng hết; lưu nội dung ảnh (base64) thì mỗi lần đọc danh sách
+  -- học sinh lại kéo theo vài trăm KB ảnh vào bộ nhớ.
+  -- Đổi ảnh mới = ghi tên tệp mới, nên ảnh cũ tự nhiên không còn ai trỏ tới.
+  avatar_file   TEXT    NOT NULL DEFAULT '',
+  bio           TEXT    NOT NULL DEFAULT '',
   created_at    TEXT    NOT NULL,
   last_login_at TEXT
 );

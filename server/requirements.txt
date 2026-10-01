@@ -12,6 +12,13 @@ Flask>=3.0,<4.0
 # chịu được tải và không nên đặt sau Internet.
 gunicorn>=21.2; sys_platform != "win32"
 
+# Xử lý ảnh đại diện. Cần thật, không phải tiện nghi: `avatars.py` dùng nó để
+# **mã hoá lại** ảnh học sinh tải lên, nhờ đó EXIF (có thể chứa toạ độ GPS) và
+# mọi thứ không phải điểm ảnh bị bỏ đi, đồng thời tệp được cắt về 256×256. Không
+# có Pillow thì phải phục vụ nguyên tệp người dùng gửi lên — vừa nặng vừa mở
+# đường cho tệp được chế ra để vừa là ảnh vừa là thứ khác.
+Pillow>=10.0
+
 # Ghi chú về các gói KHÔNG dùng, để sau này không ai thêm lại:
 #   * Không dùng SQLAlchemy — `sqlite3` có sẵn trong Python, và với quy mô một
 #     trường thì câu SQL viết thẳng dễ đọc hơn một tầng ánh xạ.

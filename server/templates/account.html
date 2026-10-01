@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Trang cá nhân — {{ profile['full_name'] }}{% endblock %}
+{% block description %}Đổi mật khẩu, ảnh đại diện và phần giới thiệu bản thân.{% endblock %}
+
+{% block content %}
+  <div class="container" style="padding-top:40px;padding-bottom:64px;max-width:1080px">
+
+    {#
+      Nhắc đổi mật khẩu hiện lên trên cùng, không phải trong một thẻ lẫn giữa các
+      thẻ khác. Đây là việc duy nhất học sinh phải làm trước khi dùng được phần
+      còn lại của hệ thống, nên nó phải là thứ đầu tiên đập vào mắt.
+    #}
+    {% if profile['must_change_password'] %}
+      <div class="alert alert--warn" role="alert" style="margin-bottom:20px">
+        <div>
+          <p class="alert__title">Em cần đổi mật khẩu trước khi tiếp tục</p>
+          <p class="mb-0 text-sm">
+            Mật khẩu hiện tại do giáo viên phát và nhiều bạn khác cũng biết. Hãy đổi
+            sang mật khẩu riêng của em ở khung bên dưới. Sau khi đổi xong, các mục
+            Đề bài, Bài nộp và Kỳ thi sẽ mở lại.
+          </p>
+        </div>
+      </div>
+    {% endif %}
+
+    {# ------------------------------------------------------------ đầu trang #}
+    <section class="card profile-head">
+      <div class="profile-head__avatar">
+        <span class="avatar avatar--xl" aria-hidden="true">
+          {%- if profile['avatar_file'] -%}
+            <img src="{{ url_for('avatar_file', user_id=profile['id']) }}" alt="" width="96" height="96">
+          {%- else -%}
+            {{ profile['full_name']|avatar_initials }}
+          {%- endif -%}
+        </span>
+      </div>
+      <div class="profile-head__text">
+        <h1 style="font-size:22px" class="mb-1">{{ profile['full_name'] }}</h1>
+        <p class="text-muted text-sm mb-2">
+          <code>{{ profile['username'] }}</code>
+          {%- if profile['class_name'] %} · Lớp {{ profile['class_name'] }}{% endif %}
+          {%- if is_teacher %} · {{ 'Quản trị' if profile['role'] == 'admin' else 'Giáo viên' }}{% endif %}
+        </p>
+        <ul class="profile-stats">
+          <li><strong>{{ stats['solved'] or 0 }}</strong><span>đề đã giải</span></li>
+          <li><strong>{{ stats['accepted'] or 0 }}</strong><span>bài đúng</span></li>
+          <li><strong>{{ stats['attempts'] or 0 }}</strong><span>lượt nộp</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <div class="grid grid-2 mt-6" style="align-items:start;gap:24px">
+
+      {# ------------------------------------------------------- đổi mật khẩu #}
+      <section class="card" aria-labelledby="pw-title">
+        <h2 id="pw-title" style="font-size:18px" class="mb-2">Đổi mật khẩu</h2>
+        <p class="text-muted text-sm mb-4">
+          Mật khẩu mới cần ít nhất 8 ký tự. Đừng dùng ngày sinh, số điện thoại hay
+          tên lớp — bạn cùng lớp đoán ra ngay.
+        </p>
+
+        <form method="post" action="{{ url_for('account_password') }}" novalidate>
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+          <div class="field">
+            <label class="label" for="current_password">
+              Mật khẩu hiện tại <span class="req" aria-hidden="true">*</span>
+            </label>
+            <input class="input" id="current_password" name="current_password" type="password"
+                   autocomplete="current-password" required>
+          </div>
+
+          <div class="field">
+            <label class="label" for="new_password">
+              Mật khẩu mới <span class="req" aria-hidden="true">*</span>
+            </label>
+            <input class="input" id="new_password" name="new_password" type="password"
+                   autocomplete="new-password" minlength="8" required>
+            <p class="hint">Từ 8 ký tự trở lên.</p>
+          </div>
+
+          <div class="field">
+            <label class="label" for="confirm_password">
+              Nhập lại mật khẩu mới <span class="req" aria-hidden="true">*</span>
+            </label>
+            <input class="input" id="confirm_password" name="confirm_password" type="password"
+                   autocomplete="new-password" minlength="8" required>
+          </div>
+
+          <button class="btn btn--primary btn--block" type="submit">Đổi mật khẩu</button>
+        </form>
+      </section>
+
+      {# ------------------------------------------------------ ảnh đại diện #}
+      <section class="card" aria-labelledby="av-title">
+        <h2 id="av-title" style="font-size:18px" class="mb-2">Ảnh đại diện</h2>
+        <p class="text-muted text-sm mb-4">
+          Ảnh sẽ được tự động cắt thành hình vuông. Chấp nhận PNG, JPG hoặc WEBP,
+          tối đa {{ max_upload_mb }} MB.
+        </p>
+
+        <div class="avatar-edit">
+          <span class="avatar avatar--lg" aria-hidden="true">
+            {%- if profile['avatar_file'] -%}
+              <img src="{{ url_for('avatar_file', user_id=profile['id']) }}" alt="" width="72" height="72">
+            {%- else -%}
+              {{ profile['full_name']|avatar_initials }}
+            {%- endif -%}
+          </span>
+
+          <form method="post" action="{{ url_for('account_avatar') }}"
+                enctype="multipart/form-data" class="avatar-edit__form">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <label class="label" for="avatar">Chọn ảnh mới</label>
+            <input class="input" id="avatar" name="avatar" type="file"
+                   accept="image/png,image/jpeg,image/webp,image/gif" required>
+            <button class="btn btn--primary btn--block mt-3" type="submit">Tải ảnh lên</button>
+          </form>
+        </div>
+
+        {% if profile['avatar_file'] %}
+          <form method="post" action="{{ url_for('account_avatar_remove') }}" class="mt-4">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <button class="btn btn--outline btn--block" type="submit">Xoá ảnh, dùng chữ cái đầu tên</button>
+          </form>
+        {% endif %}
+
+        <p class="hint mt-3 mb-0">
+          Ảnh chỉ hiện với người đã đăng nhập trong hệ thống, không hiện ra ngoài Internet.
+        </p>
+      </section>
+
+      {# ---------------------------------------------------------- giới thiệu #}
+      <section class="card grid-span-2" aria-labelledby="bio-title">
+        <h2 id="bio-title" style="font-size:18px" class="mb-2">Giới thiệu bản thân</h2>
+        <p class="text-muted text-sm mb-4">
+          Vài dòng về em: sở thích, ngôn ngữ lập trình đang học, mục tiêu trong năm nay.
+          Tối đa {{ max_bio }} ký tự. Để trống cũng được.
+        </p>
+
+        <form method="post" action="{{ url_for('account_profile') }}" novalidate>
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <div class="field mb-0">
+            <label class="label" for="bio">Giới thiệu</label>
+            <textarea class="textarea" id="bio" name="bio" rows="5"
+                      maxlength="{{ max_bio }}"
+                      data-count-for="#bio-count"
+                      placeholder="Ví dụ: Em thích toán và đang tự học thêm C++ để thi học sinh giỏi.">{{ profile['bio'] }}</textarea>
+            <p class="hint">
+              <span id="bio-count">{{ profile['bio']|length }}</span>/{{ max_bio }} ký tự
+            </p>
+          </div>
+          <button class="btn btn--primary" type="submit">Lưu giới thiệu</button>
+        </form>
+      </section>
+
+    </div>
+
+    <p class="text-muted text-sm mt-6 mb-0">
+      Tên đăng nhập và họ tên do nhà trường quản lý, em không tự đổi được.
+      Cần sửa thì nhờ giáo viên phụ trách.
+    </p>
+
+  </div>
+{% endblock %}

@@ -1266,3 +1266,90 @@ html[data-theme="dark"] .editor__dots i { filter: saturate(.85); }
   font-size: 14px;
 }
 
+
+/* ==========================================================================
+   39. Trang cá nhân — ảnh đại diện, đổi mật khẩu, giới thiệu
+   ========================================================================== */
+
+/* Vòng tròn chứa ảnh hoặc chữ cái đầu tên. Dùng chung một hệ lớp cho cả ba chỗ
+   (thanh điều hướng, đầu trang cá nhân, khung sửa ảnh) để ba kích thước chỉ
+   khác nhau ở cạnh, không khác nhau ở cách dựng. */
+.avatar {
+  display: grid; place-items: center; overflow: hidden; flex: none;
+  width: 36px; height: 36px; border-radius: var(--r-full);
+  background: var(--brand-100); color: var(--brand-700);
+  font-weight: 700; font-size: 13px; letter-spacing: .02em;
+  border: 1px solid var(--brand-200);
+  user-select: none;
+}
+.avatar--lg { width: 72px; height: 72px; font-size: 24px; }
+.avatar--xl { width: 96px; height: 96px; font-size: 32px; }
+
+/* object-fit: cover để ảnh đã cắt vuông ở máy chủ không bị bóp méo lần nữa khi
+   khung hiển thị cũng là hình tròn. */
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Ảnh trong thanh điều hướng: nền trắng mờ thay cho nền thương hiệu, vì thanh
+   điều hướng đã có nền xanh đậm. */
+.nav__avatar { overflow: hidden; }
+.nav__avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Bọc ảnh và tên thành một liên kết. Tách khỏi `.nav__user a` (đã có sẵn) để
+   phần bọc này dùng flex mà không kéo theo các liên kết khác trong thanh. */
+.nav__me {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  color: #fff; text-decoration: none; font-weight: 500;
+}
+.nav__me:hover { text-decoration: underline; }
+
+/* --------------------------------------------------------- đầu trang cá nhân */
+.profile-head {
+  display: flex; align-items: center; gap: var(--sp-5);
+}
+.profile-head__text { min-width: 0; }
+.profile-head__text h1 { overflow-wrap: anywhere; }
+
+.profile-stats {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: var(--sp-5);
+}
+.profile-stats li { display: flex; flex-direction: column; }
+.profile-stats strong { font-size: 20px; line-height: 1.2; color: var(--fg); }
+.profile-stats span {
+  font-size: 12.5px; color: var(--fg-muted);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+
+/* ------------------------------------------------------------- khung sửa ảnh */
+.avatar-edit {
+  display: flex; align-items: flex-start; gap: var(--sp-4);
+}
+.avatar-edit__form { flex: 1 1 auto; min-width: 0; }
+.avatar-edit__form .input[type="file"] {
+  /* Ô chọn tệp mặc định của trình duyệt cao thấp khác nhau giữa các hệ điều
+     hành và không theo cỡ chữ của trang. Ghim chiều cao để hai cột không lệch. */
+  padding: 7px 10px; line-height: 1.5; font-size: 14px;
+}
+
+/* Thẻ chiếm trọn cả hai cột của `.grid-2`. `1 / -1` đúng cả khi lưới đã thu về
+   một cột trên màn hẹp, nên không cần nhánh riêng trong media query. */
+.grid-span-2 { grid-column: 1 / -1; }
+
+@media (max-width: 640px) {
+  .profile-head { flex-direction: column; align-items: flex-start; gap: var(--sp-4); }
+  .avatar-edit { flex-direction: column; }
+  .avatar-edit__form { width: 100%; }
+}
+
+/* Cỡ nhỏ dùng trong bảng xếp hạng, nơi hàng chỉ cao một dòng. */
+.avatar--sm { width: 30px; height: 30px; font-size: 11px; }
+
+/* Ảnh và tên trên cùng một hàng của bảng. Tên dài phải cắt bớt chứ không được
+   đẩy cột Điểm ra khỏi khung — bảng xếp hạng có tên đệm tiếng Việt rất dài. */
+.lb-name {
+  display: inline-flex; align-items: center; gap: var(--sp-3);
+  min-width: 0; max-width: 100%;
+}
+.lb-name > span:last-child {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}

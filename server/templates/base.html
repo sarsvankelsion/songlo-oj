@@ -76,8 +76,17 @@
     <a class="nav__link" href="{{ url_for('leaderboard') }}"{% if active == 'leaderboard' %} aria-current="page"{% endif %}>Bảng xếp hạng</a>
     {% if current_user %}
       <span class="nav__user">
-        <span class="nav__avatar" aria-hidden="true" data-morph="avatar-{{ current_user['id'] }}">{{ current_user['full_name']|avatar_initials }}</span>
-        <span>{{ current_user['full_name'] }}</span>
+        <a class="nav__me" href="{{ url_for('account') }}"
+           title="Trang cá nhân của em">
+          <span class="nav__avatar" aria-hidden="true" data-morph="avatar-{{ current_user['id'] }}">
+            {%- if current_user['avatar_file'] -%}
+              <img src="{{ url_for('avatar_file', user_id=current_user['id']) }}" alt="" width="30" height="30">
+            {%- else -%}
+              {{ current_user['full_name']|avatar_initials }}
+            {%- endif -%}
+          </span>
+          <span>{{ current_user['full_name'] }}</span>
+        </a>
         {% if current_user['class_name'] %}<span class="tag tag--onnav">{{ current_user['class_name'] }}</span>{% endif %}
         <form class="nav__logout" method="post" action="{{ url_for('logout') }}">
           <input type="hidden" name="_csrf" value="{{ csrf_token() }}">

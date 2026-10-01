@@ -92,7 +92,18 @@
             {% for r in rows %}
             <tr>
               <td><span class="rank{% if r['rank'] <= 3 %} rank--{{ r['rank'] }}{% endif %}">{{ r['rank'] }}</span></td>
-              <td><span data-morph="user-name-{{ r['id'] }}">{{ r['full_name'] }}</span></td>
+              <td>
+                <span class="lb-name">
+                  <span class="avatar avatar--sm" aria-hidden="true" data-morph="avatar-{{ r['id'] }}">
+                    {%- if r['avatar_file'] -%}
+                      <img src="{{ url_for('avatar_file', user_id=r['id']) }}" alt="" width="30" height="30" loading="lazy">
+                    {%- else -%}
+                      {{ r['full_name']|avatar_initials }}
+                    {%- endif -%}
+                  </span>
+                  <span data-morph="user-name-{{ r['id'] }}">{{ r['full_name'] }}</span>
+                </span>
+              </td>
               <td>{% if r['class_name'] %}<span class="tag">{{ r['class_name'] }}</span>{% endif %}</td>
               <td class="num">{{ r['solved'] }}</td>
               <td class="num">{{ r['accept_rate'] }}%</td>

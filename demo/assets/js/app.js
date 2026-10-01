@@ -738,6 +738,25 @@
     });
   }
 
+  /* Bộ đếm ký tự cho các ô có giới hạn độ dài.
+
+     `maxlength` một mình chặn được việc gõ quá, nhưng không cho biết còn bao
+     nhiêu chỗ — học sinh chỉ phát hiện ra khi đã gõ tới ký tự cuối và thấy không
+     gõ thêm được nữa, lúc đó phải tự xoá bớt mà không biết xoá bao nhiêu. Bộ đếm
+     biến giới hạn thành thứ nhìn thấy được.
+
+     Đích đến lấy từ `data-count-for` nên cùng một hàm dùng được cho mọi ô sau
+     này, không phải sửa JavaScript mỗi lần thêm một ô đếm. */
+  function initCharCount() {
+    document.querySelectorAll('[data-count-for]').forEach(function (field) {
+      var target = document.querySelector(field.getAttribute('data-count-for'));
+      if (!target) return;
+      var update = function () { target.textContent = field.value.length; };
+      field.addEventListener('input', update);
+      update();
+    });
+  }
+
   /* ---------- Boot ---------- */
   function boot() {
     initTheme();
@@ -752,6 +771,7 @@
     initConfirm();
     initLatexBar();
     initMath();
+    initCharCount();
 
     if (!reduceMotion && !hasViewTransitions) {
       runMorphFallback();
