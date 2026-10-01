@@ -18,6 +18,7 @@ Hai quy ước quan trọng, áp dụng cho toàn bộ mã nguồn:
 from __future__ import annotations
 
 import sqlite3
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -96,17 +97,48 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
     return conn
 
 
-def init_db(db_path: str | Path) -> None:
-    """Tạo thư mục và áp lược đồ. Gọi được nhiều lần."""
+def init_db(db_path: str | Path, attempts: int = 6) -> None:
+    """Tạo thư mục và áp lược đồ. Gọi được nhiều lần, và gọi song song được.
+
+    **Thử lại khi CSDL đang bị khoá** là cần thiết chứ không phải cho chắc:
+    gunicorn khởi động nhiều worker cùng lúc và mỗi worker gọi hàm này. Trên một
+    CSDL vừa được tạo, việc đặt ``journal_mode = WAL`` cần khoá độc quyền và
+    SQLite trả ``database is locked`` **ngay lập tức** cho tiến trình tới sau —
+    ``busy_timeout`` không cứu được trường hợp này, vì nó chỉ áp dụng cho việc
+    chờ khoá ghi thông thường. Không thử lại thì một worker chết lúc khởi động
+    và kéo cả master xuống.
+
+    Chạy lại an toàn vì mọi câu lệnh trong lược đồ đều có ``IF NOT EXISTS`` và
+    migration chỉ thêm cột còn thiếu.
+    """
     path = Path(db_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = connect(path)
-    try:
-        conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
-        _migrate(conn)
-        conn.commit()
-    finally:
-        conn.close()
+
+    last: Exception | None = None
+    for attempt in range(attempts):
+        conn = None
+        try:
+            # `connect()` cũng nằm TRONG vòng thử lại, không phải trước nó: chính
+            # nó chạy `PRAGMA journal_mode = WAL`, và đó là câu lệnh cần khoá độc
+            # quyền — tức là chỗ ném ra "database is locked" khi có tiến trình
+            # khác đang khởi tạo. Đặt nó ngoài vòng lặp thì không có gì được thử
+            # lại cả, và lỗi vẫn nguyên.
+            conn = connect(path)
+            conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+            _migrate(conn)
+            conn.commit()
+            return
+        except sqlite3.OperationalError as exc:
+            last = exc
+            if "locked" not in str(exc) and "busy" not in str(exc):
+                raise
+            # Chờ lâu dần giữa các lần thử: các worker khởi động gần như cùng
+            # lúc, nên khoảng chờ đầu tiên không cần dài.
+            time.sleep(0.15 * (attempt + 1))
+        finally:
+            if conn is not None:
+                conn.close()
+    raise last if last else RuntimeError("khong khoi tao duoc CSDL")
 
 
 # Các cột thêm sau khi CSDL đã chạy thật, dạng (bảng, cột, khai báo).
@@ -127,14 +159,34 @@ _ADDED_COLUMNS = (
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
-    """Thêm những cột còn thiếu. Chạy lại nhiều lần được."""
+    """Thêm những cột còn thiếu. Chạy lại nhiều lần được, và chạy song song được.
+
+    **Chạy song song được** là điều kiện bắt buộc, không phải chi tiết phụ:
+    gunicorn khởi động nhiều tiến trình worker cùng lúc, mỗi tiến trình gọi
+    ``create_app()`` và do đó gọi hàm này. Hai tiến trình cùng đọc thấy cột còn
+    thiếu, rồi cả hai cùng chạy ``ALTER TABLE``; tiến trình thứ hai nhận
+    ``duplicate column name`` và **chết ngay lúc khởi động**, kéo cả master
+    xuống theo (``Worker failed to boot``).
+
+    Lỗi này không lộ ra khi thử bằng máy chủ phát triển của Flask — nó chỉ có một
+    tiến trình, nên không có ai tranh. Nó chỉ hiện trên máy chủ thật, và chỉ ở
+    đúng lần triển khai đầu tiên sau khi thêm cột.
+    """
     for table, column, decl in _ADDED_COLUMNS:
         existing = {r["name"] for r in conn.execute("PRAGMA table_info(%s)" % table)}
         if not existing:
             # Bảng chưa tồn tại thì `schema.sql` đã tạo đủ cột rồi.
             continue
-        if column not in existing:
+        if column in existing:
+            continue
+        try:
             conn.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, column, decl))
+        except sqlite3.OperationalError as exc:
+            # Tiến trình khác đã thêm cột này trước ta trong lúc ta đang chạy.
+            # Kết quả cuối cùng vẫn đúng, nên đây không phải lỗi — bỏ qua. Mọi
+            # OperationalError khác (khoá CSDL, đĩa đầy, …) vẫn phải nổi lên.
+            if "duplicate column name" not in str(exc):
+                raise
 
 
 # ------------------------------------------------------- truy vấn tiện dụng

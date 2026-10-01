@@ -303,6 +303,83 @@ n = old.execute("SELECT COUNT(*) FROM users").fetchone()[0]
 old.close()
 check("chay migration lan hai khong nhan doi du lieu", n == 1, n)
 
+print()
+print("=== 11. Migration chay song song (gunicorn nhieu worker) ===")
+# Loi that da xay ra tren may chu: gunicorn khoi dong nhieu worker cung luc, moi
+# worker goi create_app() va do do goi migration. Hai worker cung doc thay cot
+# con thieu, roi ca hai cung ALTER; worker thu hai nhan "duplicate column name"
+# va chet ngay luc khoi dong. May chu phat trien cua Flask chi co mot tien
+# trinh nen khong bao gio tai hien duoc.
+
+
+class _StaleConn:
+    """Bọc kết nối thật nhưng giấu đi vài cột — mô phỏng tiến trình đọc chậm.
+
+    Nhờ lớp bọc này mà cuộc tranh trở nên **tất định**: ta tự tay dựng đúng
+    trạng thái "đã đọc xong bảng, chưa kịp ALTER" thay vì hy vọng hai luồng
+    chạy trúng nhau.
+    """
+
+    def __init__(self, real, hide):
+        self._real = real
+        self._hide = set(hide)
+
+    def execute(self, sql, params=()):
+        if sql.startswith("PRAGMA table_info"):
+            rows = self._real.execute(sql, params).fetchall()
+            return [r for r in rows if r["name"] not in self._hide]
+        return self._real.execute(sql, params)
+
+
+RACE = os.path.join(TMP, "race.db")
+db.init_db(RACE)          # da co du cot
+race = db.connect(RACE)
+try:
+    db._migrate(_StaleConn(race, {"avatar_file", "bio"}))
+    check("doc thay cot thieu nhung cot da co -> khong nem loi", True)
+except Exception as exc:                                  # noqa: BLE001
+    check("doc thay cot thieu nhung cot da co -> khong nem loi", False, exc)
+race.close()
+
+# Va mot lan chay that su song song, de bat ca truong hop khoa CSDL.
+import threading                                              # noqa: E402
+
+errors = []
+
+
+def _race_init(path, gate):
+    try:
+        gate.wait()
+        db.init_db(path)
+    except Exception as exc:                                  # noqa: BLE001
+        errors.append(exc)
+
+
+for _round in range(4):
+    R2 = os.path.join(TMP, "race%d.db" % _round)
+    # Tao CSDL cu (thieu cot) bang cach dung thang schema khong co hai cot moi.
+    old = sqlite3.connect(R2)
+    old.executescript("""
+    CREATE TABLE users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE,
+      full_name TEXT NOT NULL, class_name TEXT NOT NULL DEFAULT '',
+      role TEXT NOT NULL DEFAULT 'student', password_hash TEXT NOT NULL,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      must_change_password INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL, last_login_at TEXT);
+    """)
+    old.commit()
+    old.close()
+    gate = threading.Barrier(4)
+    threads = [threading.Thread(target=_race_init, args=(R2, gate)) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+check("4 tien trinh cung chay migration: khong tien trinh nao loi",
+      not errors, errors[:1])
+
 shutil.rmtree(TMP, ignore_errors=True)
 
 print()
