@@ -1,17 +1,23 @@
 [Unit]
-Description=Song Lo OJ — quick tunnel rieng (khong dung tunnel cua nguoi dung)
+Description=Song Lo OJ — named tunnel (hostname co dinh: oj.sarsed.eu.cc)
 After=network-online.target songlo-web.service
 Wants=network-online.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 Restart=always
 RestartSec=5
-# --config tro tep rieng: neu thieu, cloudflared doc /root/.cloudflared/config.yml
-# va ket noi vao tunnel co ten san co tren may (vi du `sarsed-gateway`) thay vi tao
-# quick tunnel. Ingress cua tunnel do khong co hostname nay => moi truy van tra 404.
-# Triệu chứng phân biệt: dòng `Settings:` trong journalctl co `credentials-file:`.
-ExecStart=/usr/bin/cloudflared tunnel --config /etc/songlo/cloudflared.yml --url http://127.0.0.1:8000
+# --config la BAT BUOC, va phai tro vao tep CO dong `tunnel:`.
+#
+# Thieu --config: cloudflared doc /root/.cloudflared/config.yml cua nguoi dung
+# va noi vao tunnel `sarsed-gateway`. Ingress cua tunnel do khong co hostname
+# nay => moi truy van tra 404. Trieu chung phan biet: dong `Settings:` trong
+# journalctl co `credentials-file:` tro ve /root/.cloudflared/.
+#
+# --no-autoupdate: cloudflared tu cap nhat roi tu khoi dong lai se lam tunnel
+# dut quang ngan; de systemd quan ly phien ban on dinh hon.
+ExecStart=/usr/bin/cloudflared tunnel --config /etc/songlo/cloudflared.yml --no-autoupdate run
 
 [Install]
 WantedBy=multi-user.target

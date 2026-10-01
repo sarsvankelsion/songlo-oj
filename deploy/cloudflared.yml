@@ -1,0 +1,24 @@
+# Cau hinh cloudflared cho Song Lo OJ — named tunnel, hostname co dinh.
+#
+# Dat tai /etc/songlo/cloudflared.yml, quyen 644 (khong chua bi mat).
+# Chung thu tunnel dat rieng o /etc/songlo/songlo-oj.json, quyen 600.
+#
+# LUON goi cloudflared kem `--config /etc/songlo/cloudflared.yml`. Khong co no,
+# cloudflared doc /root/.cloudflared/config.yml (cau hinh cua tunnel khac trong
+# cung tai khoan) va dung nham tunnel do.
+tunnel: a66b0d45-c5c4-4f59-8e0f-2fd69d537ba7
+credentials-file: /etc/songlo/songlo-oj.json
+
+# BAT BUOC tren may chu nay. UDP ra ngoai bi chan nen QUIC — giao thuc mac dinh
+# — khong dial duoc:
+#   ERR Failed to dial a quic connection ... timeout: no recent network activity
+# Tunnel se bao `active` nhung KHONG co ket noi nao, va Cloudflare tra
+# 530 / loi 1033 cho moi truy van. Thieu dung mot dong nay la mat ca buoi.
+# Kiem tra that: journalctl -u songlo-tunnel | grep 'Registered tunnel connection'
+protocol: http2
+
+ingress:
+  - hostname: oj.sarsed.eu.cc
+    service: http://127.0.0.1:8000
+  # Bat buoc phai co quy tac cuoi cung, neu khong cloudflared tu choi khoi dong.
+  - service: http_status:404

@@ -180,17 +180,88 @@ sudo apt install -y certbot python3-certbot-nginx
 sudo certbot --nginx -d songlo.example.edu.vn
 ```
 
-### Khi chưa có tên miền
+### Named tunnel — hostname cố định
 
-Muốn cho xem thử từ ngoài trước khi có tên miền thì dùng quick tunnel của
-cloudflared. **Phải trỏ `--config` vào một tệp riêng**:
+Dùng khi **đã có tên miền trên Cloudflare** nhưng không muốn mở cổng 80/443 ra
+ngoài (máy chủ sau NAT, hoặc không được phép mở cổng). Hostname **không đổi** giữa
+các lần khởi động, khác hẳn `*.trycloudflare.com`.
+
+Mỗi dịch vụ nên có **tunnel riêng**. `cert.pem` ở `/root/.cloudflared/` là chứng
+thư cấp **tài khoản**, nên tạo được tunnel mới hoàn toàn bằng dòng lệnh — không
+cần mở trình duyệt, không cần đụng vào tunnel đang chạy.
+
+```bash
+# 1. Tạo tunnel riêng. Lệnh ghi chứng thư vào /root/.cloudflared/<uuid>.json,
+#    chuyển nó sang /etc/songlo/ cho tách bạch.
+cloudflared tunnel create songlo-oj
+mv /root/.cloudflared/<uuid>.json /etc/songlo/songlo-oj.json
+chmod 600 /etc/songlo/songlo-oj.json
+
+# 2. Cấu hình (xem deploy/cloudflared.yml — nhớ đổi uuid)
+install -m 644 deploy/cloudflared.yml /etc/songlo/cloudflared.yml
+
+# 3. Trỏ hostname. --config VÀ uuid đều phải có — xem cảnh báo bên dưới.
+cloudflared tunnel --config /etc/songlo/cloudflared.yml \
+    route dns --overwrite-dns <uuid> oj.sarsed.eu.cc
+
+# 4. Chạy
+install -m 644 deploy/songlo-tunnel.service /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now songlo-tunnel
+```
+
+#### ⚠️ `route dns` đọc cấu hình mặc định, và có thể gắn bản ghi vào SAI tunnel
+
+Đây là bẫy đã xảy ra thật khi dựng hostname này. Lệnh
+
+```bash
+cloudflared tunnel route dns songlo-oj oj.sarsed.eu.cc     # SAI
+```
+
+chạy xong với mã thoát `0`, nhưng dòng log ghi:
+
+```
+INF Added CNAME oj.sarsed.eu.cc which will route to this tunnel
+    tunnelID=e1059c86-...        # <- tunnel KHÁC, không phải songlo-oj
+```
+
+cloudflared đọc `/root/.cloudflared/config.yml` — trong đó có dòng `tunnel:` của
+một tunnel khác cùng tài khoản — và lấy tunnel từ **đó**, bất kể tên truyền vào.
+Kết quả: một hostname mới bị gắn vào tunnel của dịch vụ khác. Bản ghi đó không
+làm hỏng dịch vụ kia (ingress của nó không có hostname này nên trả 404), nhưng nó
+là thay đổi ngoài ý muốn lên hệ thống đang chạy thật.
+
+Phòng: truyền **cả** `--config` (trỏ tệp có `tunnel:` đúng) **và** uuid thay vì
+tên. Hai lớp, vì thiếu một lớp là đủ để nó lặng lẽ dùng nhầm tunnel. Sau khi
+chạy, **đọc lại dòng log và đối chiếu `tunnelID=`** với uuid mình muốn.
+
+#### ⚠️ Thiếu `protocol: http2` thì tunnel `active` nhưng trả 530
+
+Máy chủ chặn UDP ra ngoài thì QUIC — giao thức mặc định — không dial được:
+
+```
+ERR Failed to dial a quic connection error="failed to dial to edge with quic:
+    timeout: no recent network activity"
+```
+
+systemd vẫn báo `active` vì tiến trình còn sống, nhưng **không có kết nối nào**
+tới edge và Cloudflare trả **530 / lỗi 1033** cho mọi truy vấn. Đừng tin
+`systemctl is-active`; kiểm tra kết nối thật:
+
+```bash
+journalctl -u songlo-tunnel --since '@'$(date -d '-2 min' +%s) --no-pager \
+  | grep 'Registered tunnel connection'
+# INF Registered tunnel connection connIndex=0 ... protocol=http2   <- đúng
+```
+
+Thiếu hẳn dòng đó thì dù `active` cũng chưa phục vụ được gì.
+
+### Quick tunnel — chỉ để xem thử
+
+Khi **chưa** có tên miền. **Phải trỏ `--config` vào một tệp riêng**:
 
 ```bash
 mkdir -p /etc/songlo
-cat > /etc/songlo/cloudflared.yml <<'YML'
-url: http://127.0.0.1:8000
-protocol: http2
-YML
+printf 'url: http://127.0.0.1:8000\nprotocol: http2\n' > /etc/songlo/cloudflared.yml
 cloudflared tunnel --config /etc/songlo/cloudflared.yml --url http://127.0.0.1:8000
 ```
 
@@ -202,11 +273,8 @@ của tunnel đó chỉ có hostname bạn đã cấu hình, nên mọi hostname
 — và bạn vừa vô tình thêm một connector vào hệ thống đang chạy thật. Triệu chứng
 phân biệt: dòng `Settings:` trong `journalctl` có `credentials-file:`.
 
-`--protocol http2` là bắt buộc trên máy chủ chặn UDP 7844; cloudflared vẫn chạy
-được qua QUIC nếu cổng đó mở, nhưng precheck sẽ báo *degraded transport*.
-
-Địa chỉ `*.trycloudflare.com` **đổi mỗi lần khởi động lại**, nên chỉ dùng để xem
-thử. Khi đã có tên miền thì dùng nginx và certbot ở trên.
+Địa chỉ `*.trycloudflare.com` **đổi mỗi lần khởi động lại** — không thể chọn,
+không thể đăng ký, không mang sang lần sau. Chỉ dùng để xem thử.
 
 ## 7. Kiểm tra sau khi dựng
 
