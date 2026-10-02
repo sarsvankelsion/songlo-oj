@@ -129,9 +129,11 @@ trị nào khác thì **200**. `aiwriter.py` đã đặt `SongLoOJ/1.0`; đổi 
 viện HTTP khác thì phải đặt lại, nếu không sẽ hỏng đúng trên máy chủ thật và đọc
 thì y như "sai khoá".
 
-**Phải nâng thời hạn của gunicorn.** Một lần nhờ AI viết mất khoảng 20 giây, mà
-gunicorn mặc định cắt ở 30 giây — sát tới mức một lần chậm hơn bình thường là giáo
-viên nhận 502 sau khi đã chờ. Thêm `--timeout 120` vào `ExecStart`:
+**Phải nâng thời hạn của gunicorn.** Một lần nhờ AI viết mất **16–35 giây** — đo
+thật hai lần liên tiếp trên máy chủ này, cùng một đề, chỉ khác nhau ở mức tải của
+máy chủ AI. Gunicorn mặc định cắt ở 30 giây, tức là nằm **giữa** khoảng đó: lần
+đo 16 giây chạy êm, còn lần 34 giây — nếu không nâng — đã trả 502 sau khi giáo
+viên chờ xong. Thêm `--timeout 120` vào `ExecStart`:
 
 ```ini
 ExecStart=/opt/songlo/.venv/bin/gunicorn \

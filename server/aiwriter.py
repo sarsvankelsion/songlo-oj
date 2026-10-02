@@ -38,7 +38,8 @@ DEFAULT_MODEL = "oc/space-bunny-free"
 
 # Thời gian chờ một lần gọi. Phải **nhỏ hơn** thời hạn của gunicorn, nếu không
 # gunicorn giết tiến trình trước và giáo viên nhận 502 thay vì một câu giải
-# thích. Đo thật: một đề cấp 2 mất khoảng 20 giây, nên 90 giây là rộng rãi.
+# thích. Đo thật hai lần cùng một đề: 16 giây và 34 giây — chênh nhau chỉ vì mức
+# tải của máy chủ AI. 90 giây là rộng rãi cho cả hai.
 DEFAULT_TIMEOUT = 90
 
 # Trần độ dài đề bài đưa vào. Đề cấp 2 dài nhất cũng chỉ vài nghìn ký tự; cắt ở
