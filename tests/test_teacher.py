@@ -1677,6 +1677,11 @@ check("24e han muc token da nang duoc gui trong yeu cau",
       sent.get("max_tokens") == aiwriter.MAX_TOKENS, sent.get("max_tokens"))
 check("24e han muc token thuc su rong hon muc cu 4000",
       aiwriter.MAX_TOKENS > 4000, aiwriter.MAX_TOKENS)
+# Doi mo hinh ma khong gui ten mo hinh di thi moi thu van "chay" — chi la chay
+# bang mo hinh cu. Phai kiem ten mo hinh co mat trong yeu cau.
+check("24e ten mo hinh duoc gui dung trong yeu cau",
+      sent.get("model") == "model-gia", sent.get("model"))
+check("24e co mo hinh mac dinh", bool(aiwriter.DEFAULT_MODEL), aiwriter.DEFAULT_MODEL)
 
 # Thiếu nửa cuối của khối thứ hai: phải báo lỗi, và lỗi phải nói rõ là bị cắt.
 got, err = _with_reply(_ai_reply(

@@ -34,7 +34,19 @@ import urllib.request
 # Giá trị mặc định chỉ là gợi ý; tuyến đường đọc từ cấu hình, và cấu hình đọc từ
 # biến môi trường. Đổi máy chủ AI thì không phải sửa mã nguồn.
 DEFAULT_BASE = "https://sarsed.eu.cc/v1"
-DEFAULT_MODEL = "oc/space-bunny-free"
+
+# Mô hình mặc định. Đã đổi từ `oc/space-bunny-free` sang `jw/claude-opus-4-8`.
+#
+# Vì sao: đo thật hai lần trên cùng một đề, dịch và chạy cả hai chương trình rồi
+# đối chiếu đáp án với một cài đặt độc lập bằng Python —
+#
+#   oc/space-bunny-free : lần 1 **không trả lời trong 90 giây**, lần 2 mất 34,9 s
+#   jw/claude-opus-4-8  : 15,0 s và 15,3 s, đúng 10/10 bộ cả hai lần
+#
+# Bản cũ không hẳn sai, nhưng **không ổn định**: cùng một đề mà lúc được lúc hết
+# giờ, và giáo viên không có cách nào đoán trước. Đổi mô hình thì đặt
+# `SONGLO_AI_MODEL` trong `/etc/songlo.env`, không phải sửa tệp này.
+DEFAULT_MODEL = "jw/claude-opus-4-8"
 
 # Thời gian chờ một lần gọi. Phải **nhỏ hơn** thời hạn của gunicorn, nếu không
 # gunicorn giết tiến trình trước và giáo viên nhận 502 thay vì một câu giải

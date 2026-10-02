@@ -111,12 +111,20 @@ ba dòng này vào `/etc/songlo.env`:
 ```ini
 SONGLO_AI_BASE=https://sarsed.eu.cc/v1
 SONGLO_AI_KEY=<khoá API>
-SONGLO_AI_MODEL=oc/space-bunny-free
+SONGLO_AI_MODEL=jw/claude-opus-4-8
 ```
 
 **Khoá phải nằm ở đây, không nằm trong mã nguồn.** Repo này là công khai; một khoá
 viết thẳng vào `app.py` là một khoá đã bị lộ, và xoá nó ở commit sau không thu hồi
 được — nó vẫn nằm trong lịch sử git. `.gitignore` đã chặn `.env`.
+
+**Đổi mô hình thì phải thử trước, và thử bằng cách chạy thật.** Đã gặp: mô hình
+đầu tiên (`oc/space-bunny-free`) trả về đúng ở lần đo này và **không trả lời trong
+90 giây** ở lần đo sau — cùng một đề. Đo hai lần trên cùng một đề, dịch cả hai
+chương trình, rồi **đối chiếu đáp án với một cài đặt độc lập** (viết bằng Python).
+Một lời giải mẫu sai vẫn sinh ra đủ bộ dữ liệu trông như thật, nên "sinh được" và
+"sinh đúng" là hai chuyện khác nhau. `_vps/_model_test.py` trong workspace làm
+đúng việc này; nó dùng đề Kadane vì trường hợp dãy toàn số âm là chỗ hay sai nhất.
 
 Ba điều đã đo thật trên máy chủ, không phải phỏng đoán:
 
