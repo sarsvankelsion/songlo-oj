@@ -47,8 +47,10 @@ DEFAULT_TIMEOUT = 90
 MAX_STATEMENT_CHARS = 6000
 
 # Trần token cho câu trả lời. Đo thật: một đề cấp 2 tốn khoảng 2000 token cho cả
-# hai chương trình. Để 4000 vì đề có dữ liệu phức tạp thì bộ sinh dài hơn nhiều.
-MAX_TOKENS = 4000
+# hai chương trình, nhưng đề phức tạp hơn thì vượt 4000 và bị cắt giữa chừng —
+# đã xảy ra thật. Endpoint nhận tới 32000, nên 8000 là mức rộng rãi mà vẫn còn
+# dư địa để nhận ra một câu trả lời bất thường.
+MAX_TOKENS = 8000
 
 # Cloudflare đứng trước máy chủ AI và chặn User-Agent mặc định của thư viện chuẩn
 # (`Python-urllib/3.x`) bằng 403. Đã đo thật: cùng một yêu cầu, không đặt
@@ -81,6 +83,9 @@ SYSTEM_PROMPT = """Bạn viết hai chương trình C++ cho một hệ thống c
 Ràng buộc chung: mỗi chương trình chạy dưới 5 giây và dưới 512 MB; mỗi tệp dữ
 liệu sinh ra dưới 256 KB; chỉ dùng thư viện chuẩn C++; không đọc ghi tệp, không
 dùng mạng, không gọi hệ thống.
+
+Viết GỌN. Chú thích tối đa một dòng cho mỗi ý và không nhắc lại đề bài trong
+chú thích — mã dài quá sẽ bị cắt giữa chừng và cả hai chương trình đều hỏng.
 
 Trả lời ĐÚNG định dạng sau, không thêm chữ nào khác:
 
@@ -185,6 +190,24 @@ def extract_blocks(text: str) -> tuple[str, str]:
         "khối mã). Đầu câu trả lời:\n\n%s" % (len(blocks), text.strip()[:400]))
 
 
+def _braces_balanced(code: str) -> bool:
+    """Số ngoặc nhọn mở và đóng có bằng nhau không.
+
+    Dùng để nhận ra một chương trình **bị cắt giữa chừng**. Chỉ có ý nghĩa như
+    một tín hiệu phụ, khi đã biết câu trả lời bị cắt vì hết token.
+
+    Vì sao không dùng "có dòng chỉ có ``}`` hay không": một chương trình viết gọn
+    trên một dòng (``int main(){return 0;}``) hoàn toàn đúng mà không có dòng nào
+    như thế, nên cách đó báo sai. Đếm ngoặc thì đúng cho cả hai dạng.
+
+    Không bỏ qua ngoặc nằm trong chuỗi ký tự hay trong chú thích. Với chương
+    trình của một đề cấp 2, ngoặc trong chuỗi là chuyện hiếm, và nếu có sai thì
+    cái giá chỉ là một thông báo "bị cắt" hơi nhầm — đổi lại là giáo viên bấm
+    lại, chứ không phải một lỗi dịch khó hiểu.
+    """
+    return code.count("{") == code.count("}")
+
+
 def _http_message(code: int, detail: str) -> str:
     """Dịch mã HTTP thành câu nói được với giáo viên."""
     if code == 401:
@@ -260,12 +283,31 @@ def write(statement: str, *, base: str, key: str, model: str,
 
     choice = choices[0]
     content = (choice.get("message") or {}).get("content") or ""
+    truncated = choice.get("finish_reason") == "length"
 
-    # Bị cắt vì hết token thì khối thứ hai thường thiếu nửa cuối, và trình dịch
-    # báo một lỗi cú pháp ở dòng cuối — đọc không ra là do bị cắt. Phải nói thẳng.
-    if choice.get("finish_reason") == "length":
-        raise AIError(
-            "AI viết quá dài nên bị cắt giữa chừng (chạm trần %d token). Đề bài "
-            "có thể quá phức tạp cho một lần — hãy thử lại, hoặc tách đề." % MAX_TOKENS)
+    def _too_long():
+        return AIError(
+            "AI viết dài quá trần %d token nên bị cắt giữa chừng, và phần nhận "
+            "được không đủ hai chương trình. Thử lại — mỗi lần nó viết một khác. "
+            "Nếu vẫn vậy, đề này có thể quá lớn cho một lần: hãy tách thành hai "
+            "đề nhỏ hơn, hoặc tự viết lời giải mẫu (thường ngắn hơn bộ sinh) rồi "
+            "chỉ nhờ AI viết bộ sinh." % MAX_TOKENS)
 
-    return extract_blocks(content)
+    # Bị cắt vì hết token **chưa chắc** đã hỏng: mô hình có thể đã viết xong cả
+    # hai chương trình rồi mới lan man thêm cho tới lúc hết chỗ. Bản trước báo
+    # lỗi ngay khi thấy `length`, nên nó từ chối cả những câu trả lời dùng được.
+    if not truncated:
+        return extract_blocks(content)
+
+    try:
+        gen, sol = extract_blocks(content)
+    except AIError:
+        raise _too_long() from None
+
+    # Tách được nhưng khối thứ hai có thể đã cụt giữa hàm. Nhận nó thì giáo viên
+    # bấm "Sinh bộ dữ liệu" và nhận một lỗi dịch ở dòng cuối — đọc không ra là do
+    # bị cắt. Nói thẳng ngay ở đây thì hơn.
+    if not (_braces_balanced(gen) and _braces_balanced(sol)):
+        raise _too_long()
+
+    return gen, sol

@@ -1468,6 +1468,10 @@ check("24b chi dan noi ro stdin va stdout",
       "stdin" in msgs[0]["content"] and "stdout" in msgs[0]["content"])
 check("24b chi dan noi ro moc tra loi",
       "===GEN===" in msgs[0]["content"] and "===SOL===" in msgs[0]["content"])
+# Mã dài quá thì bị cắt giữa chừng, nên chỉ dẫn phải yêu cầu viết gọn. Không có
+# câu này thì bộ sinh kèm chú thích dài chiếm phần lớn hạn mức token.
+check("24b chi dan yeu cau viet gon de khong bi cat",
+      "GỌN" in msgs[0]["content"])
 
 # --- 24c. Qua dung tuyen duong, voi ham goi AI gia -------------------------
 STUB = {"gen": GEN_OK, "sol": SOL_OK, "calls": 0, "statement": None, "kwargs": None}
@@ -1602,6 +1606,91 @@ page = text(teacher.get(TESTS_URL))
 check("24d chua co khoa thi khong hien the nho AI", "Nhờ AI viết" not in page)
 check("24d nhung the sinh du lieu thu cong van con",
       "Sinh dữ liệu từ lời giải mẫu" in page)
+
+# --- 24e. Bi cat vi het token: chua chac da hong ---------------------------
+# `finish_reason == "length"` chỉ nói mô hình dừng sớm, **không** nói hai chương
+# trình bị thiếu. Bản trước báo lỗi ngay khi thấy `length`, nên nó từ chối cả
+# những câu trả lời đã đủ hai chương trình — và đó là lỗi đã xảy ra thật.
+import json as _json                      # noqa: E402
+import urllib.request as _urlreq          # noqa: E402
+
+
+class _FakeResp:
+    def __init__(self, payload):
+        self._body = _json.dumps(payload).encode()
+
+    def read(self):
+        return self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def _ai_reply(content, finish):
+    return {"choices": [{"finish_reason": finish,
+                         "message": {"role": "assistant", "content": content}}]}
+
+
+def _with_reply(payload, capture=None):
+    """Chay `aiwriter.write` voi mot cau tra loi gia. Tra ve ``(ket qua, loi)``."""
+    real = _urlreq.urlopen
+
+    def _open(req, timeout=None):
+        if capture is not None:
+            capture["body"] = req.data
+        return _FakeResp(payload)
+
+    _urlreq.urlopen = _open
+    try:
+        return aiwriter.write("Đề bài thử", base="https://vidu.test/v1",
+                              key="khoa-gia", model="model-gia"), None
+    except aiwriter.AIError as exc:
+        return None, exc
+    finally:
+        _urlreq.urlopen = real
+
+
+CAPTURED = {}
+# Đủ hai chương trình rồi mới lan man cho tới lúc hết chỗ: **dùng được**.
+got, err = _with_reply(_ai_reply(
+    "Dưới đây là hai chương trình:\n\n===GEN===\n" + GEN_OK +
+    "\n===SOL===\n" + SOL_OK + "\n\nChúc thầy cô dạy tốt!", "length"), CAPTURED)
+check("24e bi cat nhung du hai chuong trinh thi van nhan",
+      err is None and got == (GEN_OK, SOL_OK), (err, got))
+
+# Chương trình viết gọn trên một dòng **không có dòng `}` nào cả**, mà vẫn đúng.
+# Đây là lý do việc nhận ra "bị cắt" phải dựa vào số ngoặc chứ không dựa vào
+# "có dòng `}` hay không".
+got, err = _with_reply(_ai_reply(
+    "===GEN===\nint main(){srand(1);}\n===SOL===\nint main(){return 0;}", "length"))
+check("24e chuong trinh viet tren mot dong van duoc nhan",
+      err is None and got == ("int main(){srand(1);}", "int main(){return 0;}"),
+      (err, got))
+
+# Và hạn mức token phải **thật sự** được gửi đi: đổi hằng số mà quên gửi thì
+# việc nâng trần không có tác dụng gì.
+sent = _json.loads(CAPTURED.get("body") or b"{}")
+check("24e han muc token da nang duoc gui trong yeu cau",
+      sent.get("max_tokens") == aiwriter.MAX_TOKENS, sent.get("max_tokens"))
+check("24e han muc token thuc su rong hon muc cu 4000",
+      aiwriter.MAX_TOKENS > 4000, aiwriter.MAX_TOKENS)
+
+# Thiếu nửa cuối của khối thứ hai: phải báo lỗi, và lỗi phải nói rõ là bị cắt.
+got, err = _with_reply(_ai_reply(
+    "===GEN===\n" + GEN_OK + "\n===SOL===\nint main() {", "length"))
+check("24e thieu chuong trinh thi bao loi", err is not None and got is None, got)
+check("24e loi noi ro bi cat vi het token",
+      err is not None and str(aiwriter.MAX_TOKENS) in str(err), str(err)[:90])
+
+# Không bị cắt mà vẫn không tách được: thông báo phải **khác**, không được đổ
+# cho việc hết token — nếu không thì giáo viên đi tăng trần token vô ích.
+got, err = _with_reply(_ai_reply("Tôi không viết được bài này.", "stop"))
+check("24e khong tach duoc thi bao loi", err is not None and got is None, got)
+check("24e khong do loi cho viec het token",
+      err is not None and "hết token" not in str(err), str(err)[:90])
 
 shutil.rmtree(TMP, ignore_errors=True)
 
