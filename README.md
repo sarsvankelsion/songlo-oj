@@ -4,7 +4,7 @@ Giao diện cho một **online judge** phục vụ nội bộ Trường THCS Sô
 
 > **Trạng thái: đã có backend.** Flask + SQLite, đăng nhập thật, phân quyền học sinh/giáo viên, hàng đợi bài nộp và một tiến trình chấm riêng dùng `g++` với giới hạn thời gian và bộ nhớ. Bộ dữ liệu mẫu trong `server/seed.py` là mã C++ thật và được chấm thật, nên mọi con số trên giao diện đều do bộ chấm sinh ra.
 >
-> Chưa xong, và đây là danh sách đầy đủ: quản lý kỳ thi (trang kỳ thi mới chỉ để xem), nhập danh sách tài khoản học sinh hàng loạt, xuất bảng điểm, và trang đổi mật khẩu ở lần đăng nhập đầu (cột `must_change_password` đã có trong CSDL nhưng chưa có trang).
+> Chưa xong, và đây là danh sách đầy đủ: **nhập danh sách tài khoản học sinh hàng loạt** (hiện tạo được từng em một, mà một lớp thật có thể hơn 40 em), **nhập đề kèm cả đề bài lẫn dữ liệu trong một tệp** (hiện tệp ZIP chỉ mang bộ dữ liệu), và **chuyển việc sinh bộ dữ liệu vào hàng đợi chấm** để chương trình do giáo viên gửi lên cũng được hạ quyền như mã học sinh. Xem mục “Bước tiếp theo” ở cuối.
 
 ## Ảnh chụp
 
@@ -83,7 +83,7 @@ không hạ được quyền — xem `deploy/README.md` để biết vì sao má
 ### Kiểm tra
 
 ```bash
-python tests/test_teacher.py       # quyền giáo viên, nhập ZIP, công khai đề, sinh dữ liệu
+python tests/test_teacher.py       # quyền giáo viên, nhập ZIP, công khai đề, sinh dữ liệu, xuất điểm
 python tests/test_account.py       # tài khoản, đổi mật khẩu, migration CSDL
 node   tests/test_tex.js           # chuyển LaTeX sang HTML
 python _tools/smoke.py             # mở thử mọi tuyến đường, bắt lỗi template
@@ -100,18 +100,37 @@ chạy, nên không đụng tới dữ liệu thật. Chúng chạy được ở
 điều này có chủ ý, vì phần lớn lỗi thật của hệ thống chỉ hiện ra trên một trong
 hai nền tảng: hạ quyền tiến trình con, đường dẫn `main.exe`, mã hoá tên tệp.
 
-`test_teacher.py` là bộ lớn nhất (195 điều) và đáng chú ý nhất ở phần **sinh bộ
-dữ liệu từ lời giải mẫu**: đây là chỗ duy nhất hệ thống **dịch và chạy chương
-trình do giáo viên gửi lên**. Ngoài đường đi đúng, nó kiểm cả sáu đường sai —
-bộ sinh không dịch được, bộ sinh không in gì, bộ sinh treo, lời giải mẫu thoát
-lỗi, thiếu một trong hai chương trình, mã nguồn quá dài — và đòi mỗi đường phải
-trả về một câu đọc được, không phải trang 500 và không phải im lặng. Nó cũng
-chạy **hai lần cùng một bộ sinh** để chứng minh cùng chỉ số bộ thì ra cùng dữ
-liệu, vì mất tính chất đó thì không sinh lại được đúng bộ cũ khi cần đối chiếu.
+`test_teacher.py` là bộ lớn nhất (254 điều) và đáng chú ý nhất ở hai phần.
+
+Phần **sinh bộ dữ liệu từ lời giải mẫu**: đây là chỗ duy nhất hệ thống **dịch và
+chạy chương trình do giáo viên gửi lên**. Ngoài đường đi đúng, nó kiểm cả sáu
+đường sai — bộ sinh không dịch được, bộ sinh không in gì, bộ sinh treo, lời giải
+mẫu thoát lỗi, thiếu một trong hai chương trình, mã nguồn quá dài — và đòi mỗi
+đường phải trả về một câu đọc được, không phải trang 500 và không phải im lặng.
+Nó cũng chạy **hai lần cùng một bộ sinh** để chứng minh cùng chỉ số bộ thì ra
+cùng dữ liệu, vì mất tính chất đó thì không sinh lại được đúng bộ cũ khi cần đối
+chiếu.
+
+Phần **xuất bảng điểm**: kiểm trực tiếp `grades.slug` và `grades.to_csv` trước,
+rồi mới kiểm qua mạng, vì ba lỗi của tệp CSV — thiếu BOM, sai dấu phân cách, ô
+bắt đầu bằng `=` bị Excel thực thi — đều **im lặng**, không có thông báo lỗi nào
+để dựa vào. Bộ kiểm đòi tệp có BOM, ngăn bằng `;`, chặn công thức ở ô **văn bản**
+nhưng **không** chạm vào ô số (thêm dấu nháy vào đó là mọi phép tính trong Excel
+hỏng), và phân biệt được ba trạng thái của một ô điểm: trống vì chưa nộp, trống
+vì chưa chấm xong, và số 0 vì đã nộp mà làm sai hết.
 
 `test_tex.js` chạy được bằng `node` mà không cần trình duyệt: nó nạp chính
 `demo/assets/js/app.js` mà trang thật dùng, nên không có chuyện bộ kiểm và mã
 chạy thật lệch nhau.
+
+`smoke.py` kiểm **hai** chặng cho học sinh, và cả hai đều cần thiết. Chặng đầu
+xác nhận guard đổi-mật-khẩu-lần-đầu chặn đúng: mọi trang trả 302 về `/account`,
+riêng `/account` mở được (không thì người dùng kẹt vòng lặp chuyển hướng). Chặng
+sau mới mở được các trang học sinh, nên nó chạy trên **bản sao CSDL** với cờ đó
+đã hạ xuống — sao bằng `Connection.backup` chứ không `copy2`, vì CSDL chạy ở chế
+độ WAL và chép mỗi tệp chính sẽ bỏ mất phần dữ liệu còn nằm trong `-wal`. Trước
+đây tệp này không có bước đó, nên phần học sinh báo **11 lỗi giả** và che mất
+toàn bộ một nhánh giao diện — một lưới an toàn hỏng còn tệ hơn không có.
 
 `test_edit_problem.py` **sao chép CSDL ra tệp tạm** trước khi làm việc, vì nó ghi
 chứ không chỉ đọc: nó tạo đề, sửa đề và công khai đề. Chạy thẳng trên CSDL thật
@@ -174,7 +193,8 @@ Nhóm **giáo viên** (bấm nút chuyển vai trò ở góc trên bên phải):
 | `teacher.html` | Tổng quan — tiến độ từng lớp, bài nộp gần đây, việc cần xử lý |
 | `teacher-problems.html` | Soạn đề — danh sách đề, biểu mẫu tạo đề, quản lý bộ dữ liệu kể cả bộ ẩn |
 | `teacher-problem-edit.html` | Sửa một đề — đề bài, giới hạn, độ khó, chủ đề và **trạng thái công khai**. Đây là chỗ duy nhất đổi được `status`, nên cũng là chỗ duy nhất công khai được một đề |
-| `teacher-classes.html` | Lớp học & điểm — sổ điểm từng lớp, lọc theo tên và trạng thái. Chưa cấp tài khoản hàng loạt và chưa xuất được bảng điểm ra tệp |
+| `teacher-classes.html` | Lớp học & điểm — sổ điểm từng lớp, lọc theo tên và trạng thái, nút **xuất bảng điểm ra CSV**. Chưa cấp tài khoản hàng loạt |
+| `teacher-contests.html` | Kỳ thi — danh sách kỳ thi, nút **xuất kết quả kỳ thi ra CSV**, cảnh báo khi còn bài chưa chấm |
 
 Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.html#panel-submit` mở thẳng phần nộp bài.
 
@@ -197,12 +217,13 @@ Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.h
 │   ├── sandbox.py            Chạy mã học sinh với giới hạn tài nguyên
 │   ├── judge.py              Dịch, so khớp kết quả, tính điểm
 │   ├── gendata.py            Sinh bộ dữ liệu từ bộ sinh + lời giải mẫu
+│   ├── grades.py             Kết xuất bảng điểm ra CSV (lớp, kỳ thi)
 │   ├── worker.py             Tiến trình chấm, tách khỏi tiến trình web
 │   ├── seed.py               Dữ liệu mẫu (kèm bài nộp C++ thật để chấm thử)
 │   ├── formatting.py         Định dạng số, ngày, nhãn tiếng Việt
 │   └── templates/            15 template Jinja
 ├── tests/                    Bộ kiểm thử chạy được ở mọi máy (xem “Kiểm tra”)
-│   ├── test_teacher.py       195 điều: quyền giáo viên, nhập ZIP, công khai đề, sinh dữ liệu
+│   ├── test_teacher.py       254 điều: quyền giáo viên, nhập ZIP, công khai đề, sinh dữ liệu, xuất điểm
 │   ├── test_account.py       55 điều: tài khoản, đổi mật khẩu, migration CSDL
 │   ├── test_tex.js           56 điều: chuyển LaTeX sang HTML
 │   └── _dump_tex.js          In HTML của một tài liệu .tex thật (để đối chiếu)
@@ -345,6 +366,9 @@ Về việc sinh bộ dữ liệu từ lời giải mẫu:
 - **Thư mục làm việc của việc sinh dữ liệu tách khỏi thư mục chấm bài, và đây là lỗi chỉ hiện trên máy chủ thật.** Trên máy chủ, `songlo-web` chạy bằng tài khoản `songlo` còn `songlo-worker` chạy bằng `root`; `/var/lib/songlo/judge` thuộc `root` nên tiến trình web không tạo được gì trong đó. Lần đầu triển khai, mọi lần bấm "Sinh bộ dữ liệu" trả về **lỗi 500** với `PermissionError`, trong khi việc chấm bài vẫn bình thường vì nó chạy bằng `root`. Nay việc sinh dữ liệu dùng `GENDATA_WORKSPACE` (`/var/lib/songlo/gendata`) do `songlo` sở hữu.
 - **Chương trình của giáo viên chạy bằng tài khoản web, không phải tài khoản hạ quyền.** Hạ quyền cần `root`; tiến trình web không phải `root`, và `sandbox` nuốt lỗi hạ quyền một cách có chủ ý. Giới hạn thời gian, bộ nhớ và kích thước tệp vẫn áp dụng; thiếu chỉ là tầng cách ly theo tài khoản. Bỏ được khác biệt này thì phải chuyển việc sinh dữ liệu vào hàng đợi của `worker.py` — ghi ở `deploy/README.md` mục 1.
 - **Một tiến trình bị giết vì tín hiệu có `exit_code = -1`, và đi thẳng vào nhánh "thoát với mã %d" thì giáo viên nhận câu "thoát với mã -1".** Trên Linux, `RLIMIT_CPU` gửi `SIGXCPU` rồi `SIGKILL`, nên một bộ sinh treo chết vì **tín hiệu** chứ không phải vì đồng hồ giờ thực; trên Windows không có `RLIMIT_CPU` nên cùng chương trình đó lại bị đồng hồ giờ thực giết. Hai đường phải được tách và mô tả riêng, và bài kiểm thử phải chấp nhận cả hai câu — đòi đúng một câu là bài kiểm chỉ đúng ở một nền tảng.
+- **Bảng điểm xuất ra CSV chứ không phải `.xlsx`, vì `requirements.txt` đã ghi rõ nguyên tắc giữ phụ thuộc ở mức tối thiểu** (kèm danh sách những gói cố ý không dùng). Trên máy chủ thật, cả `openpyxl` lẫn `xlsxwriter` đều **không** được cài, nên thêm một gói là phải cập nhật vá bảo mật cho nó mỗi tháng. Đổi lại, ba chi tiết của tệp CSV quyết định nó mở được hay không, và cả ba đều **im lặng** khi sai: thiếu **BOM UTF-8** thì Excel đoán bảng mã theo locale và mọi chữ có dấu thành rác; ngăn bằng `,` thì cả dòng dồn vào **một cột** (vì tiếng Việt dùng `,` làm dấu thập phân, nên dấu phân cách danh sách của Windows là `;`); và một ô bắt đầu bằng `=`, `+`, `-`, `@` thì Excel **thực thi như công thức** (CWE-1236). Chỉ ô **văn bản** mới được chặn công thức — thêm dấu nháy vào ô số là biến con số thành chuỗi và mọi phép tính trong Excel hỏng.
+- **Ô điểm có ba trạng thái, không phải hai.** Trống = chưa từng nộp *hoặc* chưa chấm xong; `0` = đã nộp và làm sai hết; số dương = điểm cao nhất. Gộp "chưa chấm xong" thành `0` là nói với giáo viên rằng em làm sai hết trong khi máy chấm còn đang chạy — cách mất điểm của học sinh trong im lặng. Vì vậy giao diện đếm số bài chưa chấm và hiện cảnh báo **cạnh nút xuất**, và bảng kết quả kỳ thi lấy học sinh theo **mọi** trạng thái chứ không chỉ `done`: lọc theo `done` sẽ làm một em đang chờ chấm **biến mất** khỏi sổ điểm.
+- **Điểm tối đa của mỗi cột tính lại từ `tests`, không lấy `MAX(submissions.max_score)`.** Con số sau là bản chụp lúc chấm, nên nếu giáo viên sửa bộ dữ liệu giữa kỳ thì bài cũ giữ thang cũ và bảng điểm trộn hai thang với nhau. Và `contest_problems.points` **không** phải thang điểm thật — chỉ `seed.py` ghi cột đó, không chỗ nào đọc; bộ chấm luôn cho mỗi đề tối đa 100 điểm, trừ chế độ `custom` (ví dụ 60+20 ⇒ cột hiện `(80)`).
 
 Về cách trình bày dữ liệu thời gian và cờ trình dịch:
 
@@ -381,13 +405,25 @@ Về cách trình bày dữ liệu thời gian và cờ trình dịch:
    thành N bộ dữ liệu hoàn chỉnh. Đây là thứ biến một đề lấy từ kho (LQDOJ, Tin
    học trẻ, đề HSG các tỉnh) thành một đề chấm được trong vài phút, vì các kho
    đó cho đề bài nhưng **không** cho dữ liệu chấm. Xem `docs/nguon-de.md`.
-6. Đã dựng trên máy chủ Linux của trường: <https://oj.sarsed.eu.cc>
+6. **Xuất bảng điểm ra CSV.** Hai tuyến đường: bảng điểm một lớp
+   (`/teacher/classes/export?class=…`) và kết quả một kỳ thi
+   (`/teacher/contests/<id>/export`). Cột là những đề **lớp đó đã thực sự làm**,
+   không phải mọi đề đang công khai; điểm tối đa tính từ định nghĩa đề nên đề
+   chấm theo thang tự chọn (ví dụ 60+20) hiện đúng `(80)` chứ không phải `(100)`.
+   Tệp có BOM UTF-8 và ngăn bằng `;` để Excel bản tiếng Việt mở đúng, và mọi ô
+   văn bản bắt đầu bằng `=`, `+`, `-`, `@` đều được chặn công thức. Xem
+   `server/grades.py` để biết vì sao chọn CSV thay vì `.xlsx`.
+7. Đã dựng trên máy chủ Linux của trường: <https://oj.sarsed.eu.cc>
 
 Còn lại:
 
 1. Chốt giao diện với giáo viên, sửa những chỗ chưa hợp ý.
 2. Việc chưa làm, đã biết — xếp theo mức độ cản trở công việc thật:
-   1. **Xuất bảng điểm** ra tệp để nộp sổ điểm.
+   1. **Chuyển việc sinh bộ dữ liệu vào hàng đợi `worker.py`.** Hiện bộ sinh và
+      lời giải mẫu do giáo viên gửi lên chạy **trong tiến trình web**, tức là
+      bằng tài khoản `songlo`, không qua `sandbox` hạ quyền như mã học sinh. Đây
+      là điều đáng sửa trước tiên: mã do người dùng gửi lên nên chạy cùng mức
+      quyền với mã học sinh, không phải cao hơn.
    2. **Nhập đề kèm cả đề bài lẫn dữ liệu trong một tệp.** Hiện tệp ZIP chỉ mang
       bộ dữ liệu; đề bài phải dán riêng.
    3. **Nhập tài khoản học sinh từ tệp danh sách lớp.** Hiện tạo được từng em

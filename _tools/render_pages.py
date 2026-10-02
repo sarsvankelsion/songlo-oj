@@ -9,6 +9,14 @@ ra `demo/_render/`. Đặt trong `demo/` là có chủ ý: template gọi tài s
 đường dẫn tuyệt đối `/assets/...`, nên chỉ cần phục vụ thư mục `demo/` là CSS và
 JS tải được, không phải sửa gì trong HTML.
 
+**Tài khoản học sinh đăng nhập trên một bản sao CSDL.** `seed.py` đặt
+``must_change_password = 1`` cho mọi học sinh, và guard ở tầng ứng dụng chuyển
+hướng mọi trang về `/account` cho tới khi đổi mật khẩu — nên trang bài nộp của
+học sinh không render được, và tệp `09-bai-nop-cua-em.html` **lặng lẽ biến mất**
+khỏi bộ ảnh chụp. Sao CSDL sang thư mục tạm rồi hạ cờ ở bản sao là cách duy nhất
+vừa render được, vừa không sửa dữ liệu thật. Sao bằng `Connection.backup` chứ
+không `copy2`: CSDL chạy ở chế độ WAL nên chép mỗi tệp chính sẽ mất phần `-wal`.
+
     python _tools/render_pages.py
     cd demo && python -m http.server 8813        # rồi mở http://127.0.0.1:8813/_render/
 
@@ -18,13 +26,18 @@ Sau đó chụp hoặc đo bố cục trên các tệp trong `_render/`.
 from __future__ import annotations
 
 import argparse
+import os
 import re
+import shutil
+import sqlite3
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from server import db  # noqa: E402
 from server.app import create_app  # noqa: E402
 
 CSRF_RE = re.compile(r'name="_csrf"\s+value="([^"]+)"')
@@ -69,6 +82,21 @@ def login(client, who: str) -> bool:
     return resp.status_code in (200, 302)
 
 
+def student_app(database: str, tmpdir: str):
+    """Ứng dụng trên bản sao CSDL đã hạ cờ đổi-mật-khẩu, để render được trang học sinh."""
+    tmp_db = os.path.join(tmpdir, "songlo.db")
+    src = db.connect(database)
+    dst = sqlite3.connect(tmp_db)
+    src.backup(dst)
+    dst.close()
+    src.close()
+    clone = db.connect(tmp_db)
+    with clone:
+        clone.execute("UPDATE users SET must_change_password = 0 WHERE role = 'student'")
+    clone.close()
+    return create_app({"DATABASE": tmp_db})
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--database", default=str(ROOT / "server" / "var" / "songlo.db"))
@@ -81,32 +109,38 @@ def main(argv=None) -> int:
     app = create_app({"DATABASE": args.database})
 
     clients: dict[str, object] = {"guest": app.test_client()}
-    for who in ("teacher", "student"):
-        client = app.test_client()
-        if login(client, who):
-            clients[who] = client
-        else:
-            print(f"  CẢNH BÁO: đăng nhập {who} thất bại; các trang của tài khoản này sẽ bị bỏ qua")
+    tmpdir = tempfile.mkdtemp(prefix="render-")
+    try:
+        for who in ("teacher", "student"):
+            # Học sinh lấy client từ bản sao CSDL; xem lý do ở docstring đầu tệp.
+            source = student_app(args.database, tmpdir) if who == "student" else app
+            client = source.test_client()
+            if login(client, who):
+                clients[who] = client
+            else:
+                print(f"  CẢNH BÁO: đăng nhập {who} thất bại; các trang của tài khoản này sẽ bị bỏ qua")
 
-    failures = []
-    for path, name, who in PAGES:
-        client = clients.get(who or "guest")
-        if client is None:
-            continue
-        resp = client.get(path)
-        html = resp.get_data(as_text=True)
-        if resp.status_code != 200:
-            failures.append((path, resp.status_code))
-            print(f"  LỖI {resp.status_code}  {path}")
-            continue
-        (outdir / f"{name}.html").write_text(html, encoding="utf-8")
-        print(f"  ok  {len(html):>6} byte  {name}.html")
+        failures = []
+        for path, name, who in PAGES:
+            client = clients.get(who or "guest")
+            if client is None:
+                continue
+            resp = client.get(path)
+            html = resp.get_data(as_text=True)
+            if resp.status_code != 200:
+                failures.append((path, resp.status_code))
+                print(f"  LỖI {resp.status_code}  {path}")
+                continue
+            (outdir / f"{name}.html").write_text(html, encoding="utf-8")
+            print(f"  ok  {len(html):>6} byte  {name}.html")
 
-    print()
-    print(f"Đã ghi vào {outdir}")
-    print("Xem: cd demo && python -m http.server 8813")
-    print(f"     rồi mở http://127.0.0.1:8813/_render/")
-    return 1 if failures else 0
+        print()
+        print(f"Đã ghi vào {outdir}")
+        print("Xem: cd demo && python -m http.server 8813")
+        print(f"     rồi mở http://127.0.0.1:8813/_render/")
+        return 1 if failures else 0
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 if __name__ == "__main__":

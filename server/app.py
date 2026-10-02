@@ -20,11 +20,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import (
-    Flask, abort, flash, jsonify, redirect, render_template, request,
+    Flask, Response, abort, flash, jsonify, redirect, render_template, request,
     send_from_directory, url_for,
 )
 
-from . import auth, avatars, db, formatting, gendata, themis
+from . import auth, avatars, db, formatting, gendata, grades, themis
 from .judge import COMPILE_FLAGS, VERDICT_LABEL
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -1430,9 +1430,26 @@ def _register_routes(app: Flask) -> None:
             "teacher_contests.html",
             active="teacher",
             contests=contests,
+            unjudged=grades.contest_unjudged(conn),
             all_problems=[dict(r) for r in db.query(
                 conn, "SELECT id, code, name, status FROM problems ORDER BY code")],
         )
+
+    @app.route("/teacher/contests/<int:contest_id>/export")
+    @auth.teacher_required
+    def teacher_contest_export(contest_id: int):
+        """Xuất kết quả một kỳ thi ra CSV.
+
+        Đây là tệp giáo viên thật sự cần để nộp sổ điểm: một bài kiểm tra là một
+        kỳ thi, và điểm cần nộp là điểm **trong kỳ thi đó**, không phải điểm tích
+        luỹ cả năm mà trang lớp học hiển thị.
+        """
+        conn = db.get_db()
+        table = grades.contest_table(conn, contest_id)
+        if table is None:
+            abort(404)
+        return _csv_response(table["filename"],
+                             grades.to_csv(table, request.args.get("sep") or ";"))
 
     def _contest_form(form) -> tuple[dict, str | None]:
         """Đọc và kiểm tra biểu mẫu kỳ thi. Trả về ``(giá trị, lỗi)``."""
@@ -1632,7 +1649,50 @@ def _register_routes(app: Flask) -> None:
             class_name=class_name,
             students=students,
             summary=summary,
+            unjudged=grades.class_unjudged(conn, class_name) if class_name else 0,
         )
+
+    def _csv_response(filename: str, body: bytes):
+        """Trả về một tệp CSV để tải xuống.
+
+        Ba chi tiết trong tiêu đề, mỗi cái vì một lý do đã kiểm chứng:
+
+        - `Content-Disposition` chứ **tên tệp không dấu**. Tiêu đề HTTP mặc định
+          là latin-1, nên đưa chữ có dấu vào đó thì hoặc ném lỗi, hoặc bị mã hoá
+          sai và trình duyệt lưu ra một tên tệp rác. `grades.slug` bỏ dấu trước
+          khi tên tệp tới đây.
+        - `charset=utf-8` khai báo đúng bảng mã. Thân tệp có BOM UTF-8, và BOM là
+          thứ Excel thật sự đọc — khai báo ở đây để mọi trình đọc khác cũng biết.
+        - `no-store` để không ai giữ lại một bản điểm cũ: nội dung tệp phụ thuộc
+          vào điểm đã chấm tới lúc nào, và một bản lưu đệm sẽ nói dối về điều đó.
+        """
+        return Response(
+            body,
+            content_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": 'attachment; filename="%s"' % filename,
+                "Cache-Control": "no-store",
+            },
+        )
+
+    @app.route("/teacher/classes/export")
+    @auth.teacher_required
+    def teacher_class_export():
+        """Xuất bảng điểm của một lớp ra CSV.
+
+        `sep` nhận từ chuỗi truy vấn nhưng **không có trong giao diện**: mặc
+        định `;` đã đúng cho cả Excel tiếng Việt lẫn Google Sheets (Google Sheets
+        tự nhận ra dấu phân cách), nên một ô chọn nữa chỉ làm giáo viên phải
+        quyết định một việc họ không có căn cứ để quyết. Giữ lại đường ghi đè cho
+        trường hợp dùng phần mềm khác.
+        """
+        conn = db.get_db()
+        table = grades.class_table(conn, request.args.get("class") or "")
+        if table is None:
+            flash("Em chưa chọn lớp nào để xuất điểm.", "warn")
+            return redirect(url_for("teacher_classes"))
+        return _csv_response(table["filename"],
+                             grades.to_csv(table, request.args.get("sep") or ";"))
 
 
 # ==========================================================================

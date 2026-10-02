@@ -6,9 +6,11 @@
   1. Bộ chọn lớp là liên kết thật (`?class=9A`) chứ không phải nút trang trí.
      Nhờ vậy giáo viên gửi được đường dẫn cho đồng nghiệp, và nút quay lại của
      trình duyệt hoạt động đúng.
-  2. Hai nút "Xuất bảng điểm" và "Cấp tài khoản" của bản demo đã bỏ. Chúng chưa
-     có phần xử lý phía sau; để lại một nút bấm không làm gì là nói dối người
-     dùng. Khi nào có route thật thì thêm lại.
+  2. Nút "Cấp tài khoản" của bản demo đã bỏ. Nó chưa có phần xử lý phía sau; để
+     lại một nút bấm không làm gì là nói dối người dùng.
+     Nút "Xuất bảng điểm" thì **đã có lại** — nay có tuyến đường thật
+     (`teacher_class_export`) kết xuất CSV cho đúng lớp đang xem. Xem
+     `server/grades.py` để biết vì sao là CSV chứ không phải `.xlsx`.
   3. Bộ lọc trạng thái dùng đúng cơ chế `data-filter-*` sẵn có trong app.js, nên
      không phát sinh thêm JavaScript.
 #}
@@ -24,10 +26,34 @@
         <p class="page-head__sub">Xem tiến độ từng học sinh trong lớp, số đề đã giải và tổng điểm đã tích lũy.</p>
       </div>
       <div class="page-head__actions">
+        {# Xuất CSV, không phải Excel: `requirements.txt` giữ phụ thuộc ở mức tối
+           thiểu nên không có thư viện ghi `.xlsx`. Tệp ra có BOM UTF-8 và ngăn
+           bằng dấu `;` nên Excel tiếng Việt mở đúng ngay khi bấm đúp — xem
+           `server/grades.py` để biết vì sao đúng hai chi tiết đó là quan trọng. #}
+        <a class="btn btn--outline" href="{{ url_for('teacher_class_export', **{'class': class_name}) }}">
+          Xuất bảng điểm (CSV)
+        </a>
         <a class="btn btn--outline" href="{{ url_for('teacher_problems') }}">Soạn đề</a>
         <a class="btn btn--primary" href="{{ url_for('leaderboard') }}">Bảng xếp hạng</a>
       </div>
     </div>
+
+    {# Bài chưa chấm xong phải nói ra trước khi giáo viên tải tệp về. Ô điểm của
+       những bài đó xuất ra là **trống**, không phải 0 — nhưng trống cũng có hai
+       nghĩa (chưa nộp / chưa chấm), và trong sổ điểm thì không phân biệt được về
+       sau. Cách duy nhất để giáo viên biết là nói trước. #}
+    {% if unjudged %}
+      <div class="alert alert--warn mb-4" role="note">
+        <div>
+          <p class="alert__title">Còn {{ unjudged }} bài chưa chấm xong</p>
+          <p class="mb-0 text-sm">
+            Bảng điểm xuất ra lúc này sẽ để <strong>trống</strong> ô điểm của những
+            bài đó — không phải vì học sinh làm sai, mà vì máy chấm chưa chạy
+            xong. Đợi vài giây rồi xuất lại.
+          </p>
+        </div>
+      </div>
+    {% endif %}
 
     {% if not classes %}
       <div class="card">

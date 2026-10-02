@@ -8,21 +8,37 @@ Chạy:
 
     python _tools/smoke.py                    # dùng CSDL đã seed
     python _tools/smoke.py --database <path>
+
+**Phần học sinh chạy trên một bản sao CSDL, không phải CSDL gốc.** `seed.py` đặt
+``must_change_password = 1`` cho mọi học sinh, và guard ở tầng ứng dụng chuyển
+hướng mọi trang về `/account` cho tới khi em đó đổi mật khẩu. Muốn mở được các
+trang của học sinh thì phải hạ cờ đó xuống — mà hạ trên CSDL thật là sửa dữ liệu
+của trường. Vì vậy tệp này sao CSDL sang thư mục tạm, hạ cờ ở bản sao, rồi mới
+đăng nhập. Trước đây không có bước sao chép đó nên phần học sinh báo **11 lỗi
+giả** và che mất toàn bộ một nhánh giao diện.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import re
+import shutil
+import sqlite3
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from server import db  # noqa: E402
 from server.app import create_app  # noqa: E402
 
 CSRF_RE = re.compile(r'name="_csrf"\s+value="([^"]+)"')
+
+TEACHER_LOGIN = ("cophang", "Songlo@GV2026")
+STUDENT_LOGIN = ("9A01", "Songlo@2026")
 
 # (đường dẫn, ghi chú)
 PUBLIC_ROUTES = [
@@ -150,7 +166,7 @@ def main(argv=None) -> int:
 
     print("\nGiáo viên (cophang):")
     teacher_client = app.test_client()
-    if not login(teacher_client, "cophang", "Songlo@GV2026"):
+    if not login(teacher_client, *TEACHER_LOGIN):
         print("  LỖI: đăng nhập giáo viên thất bại")
         failures.append(("giáo viên", "/login", 0, "đăng nhập thất bại"))
     else:
@@ -163,24 +179,69 @@ def main(argv=None) -> int:
             if not ok:
                 failures.append(("404", path, resp.status_code, f"mong đợi {expected}"))
 
-    print("\nHọc sinh (9A01):")
+    # -- Học sinh, phần 1: chưa đổi mật khẩu lần đầu ----------------------
+    # Đây là hành vi thật của một tài khoản mới, và nó phải được kiểm chứ không
+    # phải bị coi là lỗi: mọi trang đều chuyển hướng về `/account`, còn `/account`
+    # thì mở được — nếu không thì người dùng kẹt vòng lặp chuyển hướng.
+    print("\nHọc sinh (9A01) — chưa đổi mật khẩu lần đầu (guard phải chặn):")
     student_client = app.test_client()
-    if not login(student_client, "9A01", "Songlo@2026"):
+    if not login(student_client, *STUDENT_LOGIN):
         print("  LỖI: đăng nhập học sinh thất bại")
         failures.append(("học sinh", "/login", 0, "đăng nhập thất bại"))
     else:
-        check(student_client, STUDENT_ROUTES, failures, "học sinh")
-
-        print("  -- bài nộp của học sinh khác: phải bị chặn bằng 404 --")
-        for sid in OTHERS_SUBMISSIONS:
-            resp = student_client.get(f"/submissions/{sid}")
-            ok = resp.status_code == 404
-            print(f"  {'ok ' if ok else 'LỖI'} {resp.status_code}  /submissions/{sid}"
-                  f"{'':<25} (mong đợi 404)")
+        for path, note in STUDENT_ROUTES:
+            resp = student_client.get(path)
+            location = resp.headers.get("Location", "")
+            ok = resp.status_code == 302 and "/account" in location
+            print(f"  {'ok ' if ok else 'LỖI'} {resp.status_code}  {path:<40} -> {location}")
             if not ok:
-                failures.append(
-                    ("học sinh", f"/submissions/{sid}", resp.status_code,
-                     "xem được bài của học sinh khác"))
+                failures.append(("guard", path, resp.status_code,
+                                 f"mong đợi 302 tới /account, nhận {location!r}"))
+        resp = student_client.get("/account")
+        ok = resp.status_code == 200
+        print(f"  {'ok ' if ok else 'LỖI'} {resp.status_code}  {'/account':<40} "
+              f"trang đổi mật khẩu phải mở được")
+        if not ok:
+            failures.append(("guard", "/account", resp.status_code,
+                             "trang đổi mật khẩu không mở được"))
+
+    # -- Học sinh, phần 2: đã đổi mật khẩu, chạy trên bản sao CSDL --------
+    # Sao chép bằng `Connection.backup` chứ không `copy2`: CSDL chạy ở chế độ
+    # WAL, và chép mỗi tệp chính sẽ bỏ mất phần dữ liệu còn nằm trong `-wal`.
+    print("\nHọc sinh (9A01) — đã đổi mật khẩu (trên bản sao CSDL):")
+    tmpdir = tempfile.mkdtemp(prefix="smoke-")
+    try:
+        tmp_db = os.path.join(tmpdir, "songlo.db")
+        src = db.connect(args.database)
+        dst = sqlite3.connect(tmp_db)
+        src.backup(dst)
+        dst.close()
+        src.close()
+        clone = db.connect(tmp_db)
+        with clone:
+            clone.execute("UPDATE users SET must_change_password = 0 WHERE role = 'student'")
+        clone.close()
+
+        app2 = create_app({"DATABASE": tmp_db, "TESTING": False})
+        student_client = app2.test_client()
+        if not login(student_client, *STUDENT_LOGIN):
+            print("  LỖI: đăng nhập học sinh trên bản sao thất bại")
+            failures.append(("học sinh", "/login", 0, "đăng nhập trên bản sao thất bại"))
+        else:
+            check(student_client, STUDENT_ROUTES, failures, "học sinh")
+
+            print("  -- bài nộp của học sinh khác: phải bị chặn bằng 404 --")
+            for sid in OTHERS_SUBMISSIONS:
+                resp = student_client.get(f"/submissions/{sid}")
+                ok = resp.status_code == 404
+                print(f"  {'ok ' if ok else 'LỖI'} {resp.status_code}  /submissions/{sid}"
+                      f"{'':<25} (mong đợi 404)")
+                if not ok:
+                    failures.append(
+                        ("học sinh", f"/submissions/{sid}", resp.status_code,
+                         "xem được bài của học sinh khác"))
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
     print()
     if failures:

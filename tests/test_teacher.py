@@ -19,6 +19,7 @@ thứ gì. Một tệp không phải ZIP, một tệp ZIP rỗng, hay một tệ
 mà không có dữ liệu — cả ba đều phải trả về thông báo đọc được, không phải một
 trang lỗi 500.
 """
+import csv
 import io
 import os
 import re
@@ -29,7 +30,7 @@ import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from server import auth, db, themis                    # noqa: E402
+from server import auth, db, grades, themis             # noqa: E402
 from server.app import create_app                      # noqa: E402
 
 OK = []
@@ -1081,6 +1082,312 @@ conn = db.connect(DB)
 with conn:
     conn.execute("DELETE FROM problems WHERE code = 'SL901'")
 conn.close()
+
+print("\n=== 22. Xuat bang diem ra CSV ===")
+
+# Vi sao kiem phan nay: day la duong **duy nhat** dua diem ra khoi he thong. Mot
+# loi o day khong lam sap trang nao ca — no cho ra mot tep trong nhu that, va
+# giao vien chep so diem tu no. Ba nhom phai kiem:
+#
+#   1. Tep co mo duoc dung khong (BOM, dau phan cach, CRLF, chong cong thuc).
+#   2. Bang co dung noi dung khong (o trong khac o 0; diem chi trong pham vi
+#      dang xuat; hoc sinh khong nop bai van phai co ten).
+#   3. Quyen va cac duong sai.
+#
+# Khong chay bo cham that: thu dang kiem la phep ket xuat, khong phai phep cham.
+# Chen thang cac dong `submissions` da cham xong cho phep kiem dung nhung ca
+# muon kiem — o trong so voi so 0, thang diem `custom` khac 100 — ma khong phu
+# thuoc vao toc do cua g++.
+
+CLS = "9Z"
+OTHER = "8Z"
+
+
+def seed_grades():
+    """Dung du lieu diem cho muc §22. Xoa sach truoc de chay lai duoc."""
+    c = db.connect(DB)
+    with c:
+        for code in ("SL950", "SL951", "SL952"):
+            c.execute("DELETE FROM problems WHERE code = ?", (code,))
+        c.execute("DELETE FROM users WHERE username LIKE 'zzgd%'")
+        c.execute("DELETE FROM contests WHERE name = 'Kiem thu xuat diem'")
+    now = db.utc_now()
+    with c:
+        for u, name, cls in (("zzgd1", "Trần Văn Giỏi", CLS),
+                             ("zzgd2", "Lê Thị Khá", CLS),
+                             ("zzgd3", "Phạm Văn Vắng", CLS),
+                             ("zzgd4", "Hoàng Thị Lớp Khác", OTHER)):
+            c.execute(
+                """INSERT INTO users (username, full_name, class_name, role, password_hash,
+                                      is_active, must_change_password, created_at)
+                   VALUES (?,?,?,'student',?,1,0,?)""",
+                (u, name, cls, auth.hash_password("123456"), now))
+        # SL950 chia deu 2 bo -> toi da 100.
+        # SL951 che do `custom` voi 60+20 -> toi da 80, KHONG phai 100. Day la
+        # cho chung minh diem toi da duoc tinh tu dinh nghia de chu khong phai
+        # mot hang so 100 gan cung.
+        for code, name, mode in (("SL950", "Tổng dãy số", "even"),
+                                 ("SL951", "Đếm ước số", "custom"),
+                                 ("SL952", "Đề của lớp khác", "even")):
+            c.execute(
+                """INSERT INTO problems (code, name, statement, difficulty, topic,
+                        time_limit_ms, memory_limit_mb, points_mode, status, created_at, updated_at)
+                   VALUES (?,?,'', 'co-ban', '', 1000, 256, ?, 'live', ?, ?)""",
+                (code, name, mode, now, now))
+        pid = {r["code"]: r["id"] for r in db.query(c, "SELECT id, code FROM problems")}
+        for code, pts in (("SL950", [0, 0]), ("SL951", [60, 20]), ("SL952", [0, 0])):
+            for i, p in enumerate(pts, start=1):
+                c.execute("INSERT INTO tests (problem_id, ordinal, input, output, is_hidden,"
+                          " points, note) VALUES (?,?,?,'',1,?,'')", (pid[code], i, "1\n", p))
+        uid = {r["username"]: r["id"] for r in db.query(
+            c, "SELECT id, username FROM users WHERE username LIKE 'zzgd%'")}
+
+        def sub(user, code, score, mx, status="done", contest=None, verdict="AC"):
+            c.execute(
+                """INSERT INTO submissions (problem_id, user_id, contest_id, language, source,
+                        status, verdict, score, max_score, time_ms, memory_kb, created_at)
+                   VALUES (?,?,?,'cpp17','',?,?,?,?,1,1,?)""",
+                (pid[code], uid[user], contest, status, verdict, score, mx, now))
+
+        # zzgd1: diem tuyet doi ca hai de.
+        sub("zzgd1", "SL950", 100, 100)
+        sub("zzgd1", "SL951", 80, 80)
+        # zzgd2: nop nhieu lan, chi lay diem cao nhat; mot lan 0 diem that su.
+        sub("zzgd2", "SL950", 50, 100)
+        sub("zzgd2", "SL950", 70, 100)
+        sub("zzgd2", "SL951", 0, 80, verdict="WA")
+        # zzgd3: khong nop bai nao. Van phai co ten trong bang diem.
+        # zzgd4 thuoc lop khac: khong duoc lot vao bang diem cua lop 9Z.
+        sub("zzgd4", "SL952", 100, 100)
+        sub("zzgd4", "SL950", 100, 100)
+    c.close()
+    return pid, uid
+
+
+pid, uid = seed_grades()
+
+# --- 22a. slug va to_csv, kiem thang khong qua mang ------------------------
+check("slug bo dau tieng Viet", grades.slug("Kiểm tra giữa kỳ I") == "kiem-tra-giua-ky-i",
+      grades.slug("Kiểm tra giữa kỳ I"))
+check("slug bo dau d/Đ", grades.slug("Đội tuyển") == "doi-tuyen", grades.slug("Đội tuyển"))
+check("slug chuoi rong co gia tri du phong", grades.slug("   ") == "khong-ten")
+check("slug khong de gach noi lien nhau", "--" not in grades.slug("a  --  b"),
+      grades.slug("a  --  b"))
+
+raw = grades.to_csv({"header": ["Họ và tên", "Điểm"],
+                     "rows": [["Nguyễn Văn An", 100], ["=1+1", ""]]}, ";")
+check("CSV co BOM UTF-8", raw[:3] == b"\xef\xbb\xbf")
+check("CSV ngat dong bang CRLF", b"\r\n" in raw)
+check("CSV ngat cot bang dau cham phay", ";" in raw.decode("utf-8-sig"))
+check("CSV giu duoc chu co dau",
+      "Nguyễn Văn An" in raw.decode("utf-8-sig"), raw[:60])
+# O bat dau bang `=` bi Excel coi la cong thuc. Phai co mot dau nhay don chan lai.
+check("CSV chan o bat dau bang dau bang",
+      "'=1+1" in raw.decode("utf-8-sig"), raw.decode("utf-8-sig"))
+# Nhung o **so** thi khong duoc them dau nhay: them vao la moi phep tinh trong
+# Excel hong, vi con so tro thanh chuoi.
+check("CSV khong chan o so", ";100" in raw.decode("utf-8-sig"),
+      raw.decode("utf-8-sig"))
+check("CSV chan o bat dau bang @ va +",
+      all(("'" + bad) in grades.to_csv(
+          {"header": ["x"], "rows": [[bad]]}, ";").decode("utf-8-sig")
+          for bad in ("@SUM(A1)", "+1", "-1")), )
+check("dau phan cach la tuy chon", b"," in grades.to_csv(
+    {"header": ["a", "b"], "rows": [[1, 2]]}, ","))
+# Dau phan cach nam ngoai danh sach cho phep phai bi thay bang `;`, khong duoc
+# lot ra tep: mot tep ngat bang `|` thi Excel doc ca dong thanh mot o duy nhat.
+# Kiem dong tieu de cho chinh xac — dem dau `;` trong ca tep se dem ca dong du
+# lieu va khong noi len dieu gi.
+_bad = grades.to_csv({"header": ["a", "b"], "rows": [[1, 2]]}, "|").decode("utf-8-sig")
+check("dau phan cach la bi tu choi thi ve mac dinh",
+      _bad.splitlines()[0] == "a;b" and "|" not in _bad, _bad)
+
+
+def read_csv(body):
+    """Doc lai tep CSV thanh danh sach dong. Tra ``(dong_tieu_de, cac_dong)``."""
+    text = body.decode("utf-8-sig")
+    rows = list(csv.reader(io.StringIO(text), delimiter=";"))
+    return rows[0], rows[1:]
+
+
+def row_of(rows, name_part):
+    for r in rows:
+        if name_part in r[0]:
+            return r
+    return None
+
+
+# --- 22b. Bang diem cua lop, qua dung tuyen duong --------------------------
+r = teacher.get("/teacher/classes/export?class=%s" % CLS)
+check("xuat bang diem lop tra 200", r.status_code == 200, r.status_code)
+check("tra ve tep dinh kem", "attachment" in r.headers.get("Content-Disposition", ""),
+      r.headers.get("Content-Disposition"))
+check("khong cho luu dem tep diem", r.headers.get("Cache-Control") == "no-store",
+      r.headers.get("Cache-Control"))
+disp = r.headers.get("Content-Disposition", "")
+check("ten tep khong dau (tieu de HTTP la latin-1)", disp.isascii(), disp)
+check("ten tep co ma lop", "9z" in disp.lower(), disp)
+
+header, rows = read_csv(r.data)
+check("dong dau la ho ten", header[0] == "Họ và tên", header[:3])
+check("co cot lop", header[2] == "Lớp", header[:3])
+# Cot la nhung de **lop nay da lam**, theo ma de. SL952 chi co lop khac lam nen
+# khong duoc xuat hien — mot bang diem 30 cot toan o trong thi khong ai doc.
+check("cot de dung la hai de lop nay da lam",
+      [h.split()[0] for h in header if h.startswith("SL")] == ["SL950", "SL951"],
+      header)
+check("diem toi da lay tu dinh nghia de, khong phai hang so 100",
+      any(h.startswith("SL951") and "(80)" in h for h in header), header)
+check("de cua lop khac khong lot vao", not any("SL952" in h for h in header), header)
+check("co cot tong diem kem diem toi da",
+      any("Tổng điểm" in h and "180" in h for h in header), header)
+check("bang co du 3 hoc sinh cua lop", len(rows) == 3, [r0[0] for r0 in rows])
+check("hoc sinh lop khac khong co trong bang",
+      row_of(rows, "Lớp Khác") is None, [r0[0] for r0 in rows])
+
+# Hoc sinh khong nop bai nao van phai co ten: mot bang diem thieu ten mot em la
+# mot bang diem sai, va khong co gi bao loi ca.
+v = row_of(rows, "Vắng")
+check("hoc sinh khong nop bai van co dong", v is not None)
+if v:
+    check("o diem cua em khong nop bai la TRONG, khong phai 0",
+          all(cell == "" for cell in v[3:5]), v)
+    check("tong diem cua em khong nop bai la 0", v[5] == "0", v)
+
+g = row_of(rows, "Giỏi")
+check("hoc sinh diem tuyet doi co du hai cot", g is not None and g[3] == "100" and g[4] == "80", g)
+check("tong diem cong dung", g is not None and g[5] == "180", g)
+check("dem dung so bai giai tron ven", g is not None and g[6] == "2", g)
+
+k = row_of(rows, "Khá")
+# Nop hai lan cho SL950: phai lay diem CAO NHAT (70), khong phai lan cuoi (70 la
+# lan cuoi nen khong phan biet duoc) va cung khong phai lan dau (50).
+check("lay diem cao nhat trong cac lan nop", k is not None and k[3] == "70", k)
+# Da nop ma 0 diem thi phai la so 0, khac han o trong cua em khong nop bai.
+check("da nop ma 0 diem thi ghi 0, khong de trong", k is not None and k[4] == "0", k)
+check("so bai giai tron ven khong tinh bai 0 diem", k is not None and k[6] == "0", k)
+
+# --- 22c. Bang ket qua cua ky thi -----------------------------------------
+c = db.connect(DB)
+with c:
+    c.execute("""INSERT INTO contests (name, description, starts_at, ends_at, scoring,
+                                        status, created_at)
+                 VALUES ('Kiem thu xuat diem','','2026-09-01T00:00:00Z','2026-09-02T00:00:00Z',
+                         'ioi','closed',?)""", (db.utc_now(),))
+    cid = db.scalar(c, "SELECT id FROM contests WHERE name = 'Kiem thu xuat diem'")
+    # Thu tu cot lay theo `contest_problems.ordinal` — tuc la thu tu giao vien
+    # tich, khong phai theo ma de. Do la thong tin co nghia: de 1, de 2, de 3.
+    c.execute("INSERT INTO contest_problems (contest_id, problem_id, ordinal) VALUES (?,?,1)",
+              (cid, pid["SL951"]))
+    c.execute("INSERT INTO contest_problems (contest_id, problem_id, ordinal) VALUES (?,?,2)",
+              (cid, pid["SL950"]))
+    # Diem trong ky thi, khac han diem ngoai ky thi.
+    c.execute("""INSERT INTO submissions (problem_id, user_id, contest_id, language, source,
+                    status, verdict, score, max_score, time_ms, memory_kb, created_at)
+                 VALUES (?,?,?,'cpp17','','done','AC',90,100,1,1,?)""",
+              (pid["SL950"], uid["zzgd1"], cid, db.utc_now()))
+    c.execute("""INSERT INTO submissions (problem_id, user_id, contest_id, language, source,
+                    status, verdict, score, max_score, time_ms, memory_kb, created_at)
+                 VALUES (?,?,?,'cpp17','','done','AC',40,80,1,1,?)""",
+              (pid["SL951"], uid["zzgd1"], cid, db.utc_now()))
+    # Mot em dang cho cham: chua co diem, nhung da tham gia. Phai co ten trong
+    # bang — loc theo `done` se lam em do bien mat khoi so diem trong im lang.
+    c.execute("""INSERT INTO submissions (problem_id, user_id, contest_id, language, source,
+                    status, verdict, score, max_score, time_ms, memory_kb, created_at)
+                 VALUES (?,?,?,'cpp17','','pending','',0,0,0,0,?)""",
+              (pid["SL950"], uid["zzgd2"], cid, db.utc_now()))
+c.close()
+
+r = teacher.get("/teacher/contests/%d/export" % cid)
+check("xuat ket qua ky thi tra 200", r.status_code == 200, r.status_code)
+header, rows = read_csv(r.data)
+check("cot de cua ky thi theo thu tu giao vien tich",
+      [h.split()[0] for h in header if h.startswith("SL")] == ["SL951", "SL950"], header)
+check("bang ky thi chi co nguoi da tham gia", len(rows) == 2, [x[0] for x in rows])
+check("nguoi ngoai ky thi khong co trong bang",
+      row_of(rows, "Lớp Khác") is None, [x[0] for x in rows])
+gi = row_of(rows, "Giỏi")
+# Diem ngoai ky thi cua em nay la 100 va 80; trong ky thi la 90 va 40. Lay nham
+# se thoi phong diem cua hoc sinh, va do la loi te nhat ma phep kiem nay phai chan.
+check("chi lay diem TRONG ky thi, khong lay diem ca nam",
+      gi is not None and gi[3] == "40" and gi[4] == "90", gi)
+check("tong diem ky thi dung", gi is not None and gi[5] == "130", gi)
+kh = row_of(rows, "Khá")
+check("nguoi dang cho cham van co ten trong bang", kh is not None)
+# Bai dang cho cham thi o diem phai de **trong**, khong duoc ghi 0. Ghi 0 o day
+# la noi voi giao vien rang em nay lam sai het, trong khi su that la chua ai cham
+# — va do la cach mat diem cua hoc sinh trong im lang. O trong nghia la "chua co
+# diem"; canh bao `bài chưa chấm xong` o tren trang noi vi sao co o trong do.
+check("nguoi dang cho cham de trong o diem, khong ghi 0",
+      kh is not None and kh[4] == "", kh)
+check("nguoi dang cho cham van duoc dem la da nop",
+      kh is not None and kh[7] == "1", kh)
+
+check("ky thi khong ton tai tra 404",
+      teacher.get("/teacher/contests/99999/export").status_code == 404)
+
+# --- 22d. Quyen va cac duong sai ------------------------------------------
+r = student.get("/teacher/classes/export?class=%s" % CLS)
+check("hoc sinh khong xuat duoc bang diem", r.status_code in (302, 403), r.status_code)
+r = student.get("/teacher/contests/%d/export" % cid)
+check("hoc sinh khong xuat duoc ket qua ky thi", r.status_code in (302, 403), r.status_code)
+
+r = teacher.get("/teacher/classes/export?class=KHONGCOLOP", follow_redirects=True)
+check("lop khong ton tai thi bao loi, khong tra tep rong",
+      "chưa chọn lớp" in text(r), text(r)[:200])
+
+# Ghi de dau phan cach qua chuoi truy van (khong co trong giao dien).
+r = teacher.get("/teacher/classes/export?class=%s&sep=," % CLS)
+check("ghi de duoc dau phan cach bang ?sep=", b"," in r.data and b";" not in r.data[:200],
+      r.data[:80])
+
+# --- 22e. Man hinh phai co nut va phai noi ro khi con bai chua cham --------
+page = text(teacher.get("/teacher/classes?class=%s" % CLS))
+check("trang lop hoc co nut xuat bang diem", "Xuất bảng điểm" in page)
+check("nut tro dung tuyen duong", "/teacher/classes/export?class=9Z" in page, page[:100])
+check("co canh bao khi con bai chua cham", "bài chưa chấm xong" in page)
+
+page = text(teacher.get("/teacher/contests"))
+check("trang ky thi co nut xuat ket qua", "Xuất kết quả" in page)
+check("trang ky thi canh bao bai chua cham", "bài chưa chấm xong" in page)
+
+# --- 22f. De moi nop va chua cham xong van phai co cot ---------------------
+# Truong hop de bi mat: mot de ma **ca lop** moi nop va chua cham xong. Neu cot
+# duoc suy ra tu cac bai `done` thi de do khong co cot nao — no bien mat khoi so
+# diem, va khong co gi bao loi ngoai mot con so o trang khac.
+c = db.connect(DB)
+with c:
+    c.execute("""INSERT INTO problems (code, name, statement, difficulty, topic,
+                    time_limit_ms, memory_limit_mb, points_mode, status, created_at, updated_at)
+                 VALUES ('SL953','Đề mới chưa chấm','', 'co-ban','', 1000, 256, 'even',
+                         'live', ?, ?)""", (db.utc_now(), db.utc_now()))
+    p953 = db.scalar(c, "SELECT id FROM problems WHERE code = 'SL953'")
+    c.execute("INSERT INTO tests (problem_id, ordinal, input, output, is_hidden, points, note)"
+              " VALUES (?,1,'1\n','',1,0,'')", (p953,))
+    c.execute("""INSERT INTO submissions (problem_id, user_id, contest_id, language, source,
+                    status, verdict, score, max_score, time_ms, memory_kb, created_at)
+                 VALUES (?,?,NULL,'cpp17','','pending','',0,0,0,0,?)""",
+              (p953, uid["zzgd1"], db.utc_now()))
+c.close()
+
+header, rows = read_csv(teacher.get("/teacher/classes/export?class=%s" % CLS).data)
+check("de chi co bai dang cho cham van co cot, khong bi mat",
+      any(h.startswith("SL953") for h in header), header)
+p953_col = next(i for i, h in enumerate(header) if h.startswith("SL953"))
+check("o diem cua de chua cham la trong, khong phai 0",
+      row_of(rows, "Giỏi")[p953_col] == "", row_of(rows, "Giỏi"))
+page = text(teacher.get("/teacher/classes?class=%s" % CLS))
+check("trang lop canh bao bai chua cham sau khi co de moi", "bài chưa chấm xong" in page)
+
+# Don sach: xoa de, xoa ky thi, xoa tai khoan tam. Xoa theo thu tu de khong
+# vuong khoa ngoai.
+c = db.connect(DB)
+with c:
+    c.execute("DELETE FROM contests WHERE name = 'Kiem thu xuat diem'")
+    for code in ("SL950", "SL951", "SL952", "SL953"):
+        c.execute("DELETE FROM problems WHERE code = ?", (code,))
+    c.execute("DELETE FROM users WHERE username LIKE 'zzgd%'")
+c.close()
 
 shutil.rmtree(TMP, ignore_errors=True)
 

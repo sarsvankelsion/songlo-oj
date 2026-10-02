@@ -137,11 +137,20 @@
             {% endif %}
           </div>
 
-          <form method="post" action="{{ url_for('teacher_contest_delete', contest_id=c['id']) }}"
-                data-confirm="Xoá kỳ thi «{{ c['name'] }}»?{% if c['entries'] %} Kéo theo {{ c['entries'] }} lượt đăng ký.{% endif %} Bài nộp của học sinh vẫn được giữ lại, chỉ mất liên kết tới kỳ thi. Thao tác này không hoàn tác được.">
-            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-            <button class="btn btn--ghost btn--sm" type="submit">Xoá kỳ thi</button>
-          </form>
+          <div class="row" style="gap:8px">
+            {# Chỉ hiện khi kỳ thi đã có đề. Xuất một kỳ thi chưa chọn đề ra tệp
+               chỉ có cột tên và tổng điểm 0 — một tệp vô nghĩa trông như một
+               tệp thật, và giáo viên chỉ phát hiện ra sau khi đã mở nó. #}
+            {% if c['problems'] %}
+              <a class="btn btn--outline btn--sm"
+                 href="{{ url_for('teacher_contest_export', contest_id=c['id']) }}">Xuất kết quả (CSV)</a>
+            {% endif %}
+            <form method="post" action="{{ url_for('teacher_contest_delete', contest_id=c['id']) }}"
+                  data-confirm="Xoá kỳ thi «{{ c['name'] }}»?{% if c['entries'] %} Kéo theo {{ c['entries'] }} lượt đăng ký.{% endif %} Bài nộp của học sinh vẫn được giữ lại, chỉ mất liên kết tới kỳ thi. Thao tác này không hoàn tác được.">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <button class="btn btn--ghost btn--sm" type="submit">Xoá kỳ thi</button>
+            </form>
+          </div>
         </div>
 
         {% if not c['problems'] %}
@@ -151,6 +160,21 @@
               <p class="mb-0 text-sm">
                 Mở mục <strong>Chọn đề cho kỳ thi</strong> bên dưới và tích ít
                 nhất một đề. Để nguyên như vậy thì học sinh vào không có bài.
+              </p>
+            </div>
+          </div>
+        {% endif %}
+
+        {# Cùng lý do như cảnh báo tương ứng ở trang lớp học: bài chưa chấm xuất
+           ra với ô điểm **trống**, mà trống thì không phân biệt được với "chưa
+           nộp" khi nhìn lại tệp về sau. #}
+        {% if unjudged.get(c['id']) %}
+          <div class="alert alert--warn mb-4" role="note">
+            <div>
+              <p class="alert__title">Còn {{ unjudged[c['id']] }} bài chưa chấm xong</p>
+              <p class="mb-0 text-sm">
+                Xuất kết quả lúc này sẽ để <strong>trống</strong> ô điểm của những
+                bài đó. Đợi máy chấm chạy xong rồi xuất lại.
               </p>
             </div>
           </div>

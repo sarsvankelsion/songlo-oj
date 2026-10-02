@@ -89,6 +89,15 @@ def main(argv=None) -> int:
         app = create_app({"DATABASE": str(tmpdb), "TESTING": True})
         conn = db.connect(str(tmpdb))
 
+        # Hạ cờ đổi-mật-khẩu trên **bản sao**. `seed.py` đặt cờ đó cho mọi học
+        # sinh, và guard ở tầng ứng dụng chuyển hướng mọi trang về `/account`
+        # cho tới khi đổi mật khẩu — nên tài khoản học sinh ở đây không mở được
+        # trang nào, và hai phép kiểm "học sinh thấy đề" / "học sinh mở được đề"
+        # báo lỗi trong khi hệ thống vẫn đúng. Chỉ hạ trên bản sao nên dữ liệu
+        # thật không bị chạm.
+        with conn:
+            conn.execute("UPDATE users SET must_change_password = 0 WHERE role = 'student'")
+
         teacher = app.test_client()
         login(teacher, TEACHER)
         student = app.test_client()
