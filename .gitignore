@@ -33,3 +33,10 @@ desktop.ini
 .vscode/
 .idea/
 *.swp
+
+# Biến môi trường khi chạy thật — chứa SONGLO_SECRET và SONGLO_AI_KEY.
+#
+# Khoá API viết thẳng vào mã nguồn là khoá đã bị lộ, và xoá nó ở commit sau không
+# thu hồi được: nó vẫn nằm trong lịch sử git. Repo này là công khai.
+.env
+.env.*

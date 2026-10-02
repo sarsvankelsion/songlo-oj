@@ -30,7 +30,7 @@ import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from server import auth, db, grades, themis             # noqa: E402
+from server import aiwriter, auth, db, gendata, grades, themis   # noqa: E402
 from server.app import create_app                      # noqa: E402
 
 OK = []
@@ -1388,6 +1388,220 @@ with c:
         c.execute("DELETE FROM problems WHERE code = ?", (code,))
     c.execute("DELETE FROM users WHERE username LIKE 'zzgd%'")
 c.close()
+
+# ===========================================================================
+# Phần 24 — nhờ AI viết bộ sinh và lời giải mẫu
+# ===========================================================================
+# Không bài nào ở đây gọi ra Internet. Phần thuần của `aiwriter` được kiểm thẳng,
+# còn tuyến đường được kiểm bằng một hàm gọi AI **giả**: gọi thật một mô hình ngôn
+# ngữ vừa chậm vừa không ổn định, và sẽ làm bộ bài kiểm thử phụ thuộc vào mạng —
+# đúng thứ mà một bộ bài kiểm thử không nên phụ thuộc.
+print("\n=== 24. Nho AI viet bo sinh va loi giai mau ===")
+
+# Hai chuỗi này phải khác nhau ở một chỗ dễ nhận ra, vì bài kiểm quan trọng nhất
+# ở đây là **không được lẫn ô**: bộ sinh vào ô bộ sinh, lời giải vào ô lời giải.
+GEN_OK = "// BO SINH GIA\nint main(int argc, char** argv) {\n  srand(atoi(argv[1]));\n}"
+SOL_OK = "// LOI GIAI GIA\nint main() {\n  return 0;\n}"
+
+# --- 24a. Tach hai khoi ma nguon tu cau tra loi ----------------------------
+g, s = aiwriter.extract_blocks("===GEN===\n" + GEN_OK + "\n===SOL===\n" + SOL_OK + "\n")
+check("24a tach duoc theo moc", g == GEN_OK and s == SOL_OK, (g, s))
+
+g, s = aiwriter.extract_blocks(
+    "```cpp\n" + GEN_OK + "\n```\n===SOL===\n```cpp\n" + SOL_OK + "\n```")
+check("24a bo duoc hang rao ``` quanh moi khoi", g == GEN_OK and s == SOL_OK, (g, s))
+
+# Dạng câu trả lời hay gặp nhất, và là dạng đã làm hỏng một bản trước: mô hình
+# chào hỏi trước rồi mới vào mã. Nếu chỉ tìm mốc ở **đầu chuỗi** thì mất cả hai
+# khối, và lỗi hiện ra là "không tách được" — đọc không ra là vì lời dẫn.
+g, s = aiwriter.extract_blocks(
+    "Dưới đây là hai chương trình bạn cần:\n\n===GEN===\n" + GEN_OK +
+    "\n===SOL===\n" + SOL_OK + "\n\nChúc thầy cô dạy tốt!")
+check("24a bo qua duoc loi dan truoc va sau", g == GEN_OK and s == SOL_OK, (g, s))
+
+# Mã trần rồi thêm một câu kết: không có ``` để dựa vào nên phải dựa vào cấu trúc.
+# Không cắt thì câu kết nằm luôn trong ô lời giải mẫu, và trình dịch báo lỗi cú
+# pháp ở dòng cuối — đọc không ra là do đâu.
+g, s = aiwriter.extract_blocks("===GEN===\n" + GEN_OK + "\n===SOL===\n" + SOL_OK +
+                               "\n\nChúc thầy cô dạy tốt!")
+check("24a cat duoc loi ket sau ma tran", g == GEN_OK and s == SOL_OK, (g, s))
+
+# ...và không được cắt nhầm. Một khai báo như `struct Point { ... };` đóng ngoặc về
+# 0 **trước** `main`, nên cách đếm độ sâu ngoặc nhọn sẽ cắt cụt chương trình ở đây.
+STRUCT = "struct Point { int x, y; };\n\nint main() {\n  return 0;\n}"
+g, s = aiwriter.extract_blocks("===GEN===\nint main() { return 0; }\n===SOL===\n" + STRUCT)
+check("24a khong cat cut chuong trinh co struct truoc main", s == STRUCT, repr(s))
+
+g, s = aiwriter.extract_blocks("  ===GEN===  \n" + GEN_OK + "\n  ===SOL===  \n" + SOL_OK)
+check("24a chiu duoc khoang trang quanh moc", g == GEN_OK and s == SOL_OK, (g, s))
+
+# Không có mốc nhưng đúng hai khối: thứ tự gần như luôn là bộ sinh rồi lời giải.
+g, s = aiwriter.extract_blocks("```cpp\n" + GEN_OK + "\n```\n\n```cpp\n" + SOL_OK + "\n```")
+check("24a khong moc nhung dung hai khoi thi van nhan",
+      g == GEN_OK and s == SOL_OK, (g, s))
+
+for label, bad in (
+    ("rong", ""),
+    ("chi khoang trang", "   \n\n  "),
+    ("chi mot khoi", "```cpp\n" + GEN_OK + "\n```"),
+    ("ba khoi", "```cpp\na\n```\n```cpp\nb\n```\n```cpp\nc\n```"),
+    ("co GEN nhung thieu SOL", "===GEN===\n" + GEN_OK),
+    ("chi co van xuoi", "Toi khong viet duoc bai nay."),
+):
+    try:
+        aiwriter.extract_blocks(bad)
+        check("24a tu choi khi %s" % label, False, "da nhan nham")
+    except aiwriter.AIError:
+        check("24a tu choi khi %s" % label, True)
+
+# --- 24b. Cau hoi gui di phai mang du gioi han cua de ----------------------
+msgs = aiwriter.build_messages("Đếm số nguyên tố <= n.", 1500, 512, 12)
+check("24b co dung hai thong diep", len(msgs) == 2, len(msgs))
+check("24b thong diep dau la chi dan he thong", msgs[0]["role"] == "system")
+check("24b de bai nam trong cau hoi", "Đếm số nguyên tố <= n." in msgs[1]["content"])
+check("24b gui kem gioi han thoi gian cua de", "1500 ms" in msgs[1]["content"],
+      msgs[1]["content"])
+check("24b gui kem gioi han bo nho cua de", "512 MB" in msgs[1]["content"])
+check("24b gui kem so bo can sinh", "12 bộ" in msgs[1]["content"])
+check("24b chi dan noi ro argv[1]", "argv[1]" in msgs[0]["content"])
+check("24b chi dan noi ro stdin va stdout",
+      "stdin" in msgs[0]["content"] and "stdout" in msgs[0]["content"])
+check("24b chi dan noi ro moc tra loi",
+      "===GEN===" in msgs[0]["content"] and "===SOL===" in msgs[0]["content"])
+
+# --- 24c. Qua dung tuyen duong, voi ham goi AI gia -------------------------
+STUB = {"gen": GEN_OK, "sol": SOL_OK, "calls": 0, "statement": None, "kwargs": None}
+
+
+def stub_write(statement, **kw):
+    STUB["calls"] += 1
+    STUB["statement"] = statement
+    STUB["kwargs"] = kw
+    return STUB["gen"], STUB["sol"]
+
+
+def count_tests():
+    c = db.connect(DB)
+    try:
+        return db.scalar(c, "SELECT COUNT(*) FROM tests")
+    finally:
+        c.close()
+
+
+def textarea(page, name):
+    """Lấy nội dung một `<textarea name="...">` trong trang trả về."""
+    m = re.search(r'name="%s"[^>]*>(.*?)</textarea>' % name, page, re.S)
+    return m.group(1) if m else None
+
+
+_real_write = aiwriter.write
+aiwriter.write = stub_write
+app.config["AI_KEY"] = "khoa-gia"
+# SL001 chứ không phải SL002: SL002 bị xoá ở mục kiểm tra "xoá đề" phía trên, nên
+# dùng nó ở đây sẽ nhận 404 và mọi bài kiểm của mục này đạt một cách giả tạo.
+TESTS_URL = "/teacher/problems/SL001/tests"
+
+try:
+    tok = token(teacher, TESTS_URL)
+    n_before = count_tests()
+
+    resp = teacher.post(TESTS_URL, data={"action": "ai_write",
+                                         "statement": "Đếm số nguyên tố nhỏ hơn n.",
+                                         "_csrf": tok})
+    page = text(resp)
+    check("24c tuyen duong tra ve 200, khong chuyen huong",
+          resp.status_code == 200, resp.status_code)
+    check("24c goi AI dung mot lan", STUB["calls"] == 1, STUB["calls"])
+    # Đây là bài kiểm quan trọng nhất của mục này: hai ô không được lẫn nhau.
+    check("24c ma bo sinh nam dung o gen_source",
+          (textarea(page, "gen_source") or "").strip() == GEN_OK,
+          repr(textarea(page, "gen_source"))[:90])
+    check("24c ma loi giai nam dung o sol_source",
+          (textarea(page, "sol_source") or "").strip() == SOL_OK,
+          repr(textarea(page, "sol_source"))[:90])
+    check("24c de bai vua dan duoc giu lai tren trang",
+          (textarea(page, "statement") or "").strip() == "Đếm số nguyên tố nhỏ hơn n.",
+          repr(textarea(page, "statement"))[:90])
+    # Không được tự sinh dữ liệu: mã do AI viết chưa ai đọc.
+    check("24c KHONG tu them bo du lieu nao", count_tests() == n_before,
+          (n_before, count_tests()))
+    check("24c gui kem gioi han that cua de",
+          STUB["kwargs"].get("time_limit_ms") == 1000
+          and STUB["kwargs"].get("memory_limit_mb") == 256, STUB["kwargs"])
+
+    # Ô đề bài để trống thì lấy đề bài đã lưu của đề, không bắt dán lại.
+    STUB["statement"] = None
+    teacher.post(TESTS_URL, data={"action": "ai_write", "statement": "", "_csrf": tok})
+    check("24c o de bai trong thi lay de bai da luu cua de",
+          STUB["statement"] == "Đếm số nguyên tố nhỏ hơn n.", repr(STUB["statement"]))
+
+    # Số bộ phải bị kẹp trong trần, nếu không giáo viên gõ 999 là chờ hết ngân sách.
+    teacher.post(TESTS_URL, data={"action": "ai_write", "statement": "Đề",
+                                  "count": "999", "_csrf": tok})
+    check("24c so bo duoc kep trong tran", STUB["kwargs"]["count"] == gendata.MAX_COUNT,
+          STUB["kwargs"]["count"])
+
+    # Đề bài quá dài phải bị chặn **trước** khi gọi: chờ hai chục giây rồi mới
+    # biết là dán nhầm tệp là kiểu lỗi tốn thời gian nhất.
+    STUB["calls"] = 0
+    resp = teacher.post(TESTS_URL, data={
+        "action": "ai_write", "statement": "x" * (aiwriter.MAX_STATEMENT_CHARS + 1),
+        "_csrf": tok})
+    check("24c de bai qua dai thi khong goi AI", STUB["calls"] == 0, STUB["calls"])
+    check("24c de bai qua dai thi noi ro gioi han", "dài quá" in text(resp))
+
+    # Đường lỗi: thông báo của AI phải hiện cho giáo viên, và đề bài vừa dán phải
+    # còn nguyên — bắt dán lại sau khi chờ là kiểu làm phiền khiến người ta thôi dùng.
+    def stub_fail(statement, **kw):
+        raise aiwriter.AIError("Khoá API không đúng hoặc đã hết hạn (401).")
+
+    aiwriter.write = stub_fail
+    resp = teacher.post(TESTS_URL, data={"action": "ai_write", "statement": "Đề bài thử",
+                                         "_csrf": tok})
+    page = text(resp)
+    check("24c loi cua AI hien ra, khong dung trang loi",
+          resp.status_code == 200 and "hết hạn" in page, resp.status_code)
+    check("24c de bai vua dan van con sau khi loi",
+          (textarea(page, "statement") or "").strip() == "Đề bài thử",
+          repr(textarea(page, "statement"))[:90])
+    aiwriter.write = stub_write
+
+    # Đề không có đề bài và ô cũng để trống: phải nói rõ, và không tốn một lần gọi.
+    c = db.connect(DB)
+    with c:
+        c.execute("""INSERT INTO problems (code, name, statement, difficulty, topic,
+                        time_limit_ms, memory_limit_mb, points_mode, status, created_at, updated_at)
+                     VALUES ('SL954','Đề trống','', 'co-ban','', 1000, 256, 'even',
+                             'draft', ?, ?)""", (db.utc_now(), db.utc_now()))
+    c.close()
+    STUB["calls"] = 0
+    resp = teacher.post("/teacher/problems/SL954/tests",
+                        data={"action": "ai_write", "statement": "", "_csrf": tok})
+    check("24c khong co de bai thi khong goi AI", STUB["calls"] == 0, STUB["calls"])
+    check("24c khong co de bai thi noi ro", "Chưa có đề bài" in text(resp))
+
+    # Học sinh không được dùng đường này. Lấy token CSRF của chính phiên học sinh:
+    # dùng token của giáo viên thì yêu cầu bị chặn vì CSRF trước, và bài kiểm sẽ
+    # đạt một cách giả tạo.
+    stok = token(student, "/")
+    resp = student.post(TESTS_URL, data={"action": "ai_write", "statement": "Đề",
+                                         "_csrf": stok})
+    check("24c hoc sinh khong nho duoc AI viet de",
+          resp.status_code in (302, 403), resp.status_code)
+finally:
+    aiwriter.write = _real_write
+    app.config["AI_KEY"] = ""
+
+c = db.connect(DB)
+with c:
+    c.execute("DELETE FROM problems WHERE code = 'SL954'")
+c.close()
+
+# --- 24d. Chua cau hinh khoa thi the do khong duoc dung ra -----------------
+page = text(teacher.get(TESTS_URL))
+check("24d chua co khoa thi khong hien the nho AI", "Nhờ AI viết" not in page)
+check("24d nhung the sinh du lieu thu cong van con",
+      "Sinh dữ liệu từ lời giải mẫu" in page)
 
 shutil.rmtree(TMP, ignore_errors=True)
 

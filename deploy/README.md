@@ -102,6 +102,52 @@ cũng biết, nên dùng nó là để bất kỳ ai tự ký được cookie đ
 
 `SONGLO_VAR` là gốc chung: cả `server/app.py` lẫn `server/worker.py` đều suy ra
 đường dẫn CSDL và thư mục chấm từ nó, nên hai tiến trình không thể lệch nhau.
+
+### 3.1. Nhờ AI viết bộ sinh dữ liệu (tuỳ chọn)
+
+Không đặt gì thì tính năng ẩn hẳn — giáo viên không thấy thẻ đó. Muốn bật, thêm
+ba dòng này vào `/etc/songlo.env`:
+
+```ini
+SONGLO_AI_BASE=https://sarsed.eu.cc/v1
+SONGLO_AI_KEY=<khoá API>
+SONGLO_AI_MODEL=oc/space-bunny-free
+```
+
+**Khoá phải nằm ở đây, không nằm trong mã nguồn.** Repo này là công khai; một khoá
+viết thẳng vào `app.py` là một khoá đã bị lộ, và xoá nó ở commit sau không thu hồi
+được — nó vẫn nằm trong lịch sử git. `.gitignore` đã chặn `.env`.
+
+Ba điều đã đo thật trên máy chủ, không phải phỏng đoán:
+
+**`SONGLO_AI_BASE` phải là endpoint kiểu OpenAI** (`/v1/chat/completions`).
+Đường dẫn đầy đủ được ghép bằng `base.rstrip("/") + "/chat/completions"`.
+
+**Máy chủ AI đứng sau Cloudflare, và Cloudflare chặn User-Agent mặc định của thư
+viện chuẩn.** Cùng một yêu cầu: không đặt `User-Agent` thì **403**, đặt bất kỳ giá
+trị nào khác thì **200**. `aiwriter.py` đã đặt `SongLoOJ/1.0`; đổi sang một thư
+viện HTTP khác thì phải đặt lại, nếu không sẽ hỏng đúng trên máy chủ thật và đọc
+thì y như "sai khoá".
+
+**Phải nâng thời hạn của gunicorn.** Một lần nhờ AI viết mất khoảng 20 giây, mà
+gunicorn mặc định cắt ở 30 giây — sát tới mức một lần chậm hơn bình thường là giáo
+viên nhận 502 sau khi đã chờ. Thêm `--timeout 120` vào `ExecStart`:
+
+```ini
+ExecStart=/opt/songlo/.venv/bin/gunicorn \
+    --workers 2 --threads 4 --bind 127.0.0.1:8000 \
+    --timeout 120 \
+    --access-logfile - --error-logfile - \
+    "server.app:app"
+```
+
+`SONGLO_AI_TIMEOUT` (mặc định 90 giây) phải **nhỏ hơn** giá trị này, để lỗi hiện ra
+thành một câu giải thích thay vì một trang 502.
+
+Đổi lại: một yêu cầu treo sẽ giữ một luồng lâu hơn trước. Với `--workers 2
+--threads 4` và ba giáo viên thì không đáng lo; nếu trường mở cho nhiều giáo viên
+hơn thì nên chuyển việc gọi AI sang `worker.py` thành một việc trong hàng đợi, chứ
+đừng nâng thời hạn thêm nữa.
 Chỉ cần đặt biến này, không cần đặt `SONGLO_DB` riêng.
 
 ## 4. systemd
@@ -120,6 +166,7 @@ EnvironmentFile=/etc/songlo.env
 WorkingDirectory=/opt/songlo
 ExecStart=/opt/songlo/.venv/bin/gunicorn \
     --workers 2 --threads 4 --bind 127.0.0.1:8000 \
+    --timeout 120 \
     --access-logfile - --error-logfile - \
     "server.app:app"
 Restart=always
@@ -355,6 +402,12 @@ máy chủ** — sao lưu nằm cùng đĩa với dữ liệu gốc thì không 
 - [ ] Đã sao lưu thử và **phục hồi thử** một lần.
 - [ ] `server/var/` trong repo vẫn bị `.gitignore` loại trừ (kiểm tra bằng
       `git check-ignore -v server/var/songlo.db`).
+- [ ] Nếu bật phần nhờ AI viết: `SONGLO_AI_KEY` nằm trong `/etc/songlo.env` chứ
+      **không** nằm trong mã nguồn, và `git check-ignore -v .env` xác nhận.
+- [ ] `gunicorn` có `--timeout 120` (một lần nhờ AI viết mất ~20 giây, mặc định
+      30 giây là quá sát), và `SONGLO_AI_TIMEOUT` nhỏ hơn giá trị đó.
+- [ ] Đã thử **một lần thật**: dán một đề bài, bấm nhờ AI viết, rồi bấm sinh dữ
+      liệu — và đọc lại mã trước khi bấm.
 
 ## Giới hạn của cách ly
 

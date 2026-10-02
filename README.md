@@ -224,6 +224,7 @@ Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.h
 │   ├── sandbox.py            Chạy mã học sinh với giới hạn tài nguyên
 │   ├── judge.py              Dịch, so khớp kết quả, tính điểm
 │   ├── gendata.py            Sinh bộ dữ liệu từ bộ sinh + lời giải mẫu
+│   ├── aiwriter.py           Nhờ AI viết hai chương trình đó từ đề bài
 │   ├── grades.py             Kết xuất bảng điểm ra CSV (lớp, kỳ thi)
 │   ├── worker.py             Tiến trình chấm, tách khỏi tiến trình web
 │   ├── seed.py               Dữ liệu mẫu (kèm bài nộp C++ thật để chấm thử)
@@ -412,6 +413,11 @@ Về cách trình bày dữ liệu thời gian và cờ trình dịch:
    thành N bộ dữ liệu hoàn chỉnh. Đây là thứ biến một đề lấy từ kho (LQDOJ, Tin
    học trẻ, đề HSG các tỉnh) thành một đề chấm được trong vài phút, vì các kho
    đó cho đề bài nhưng **không** cho dữ liệu chấm. Xem `docs/nguon-de.md`.
+   Không viết được C++ thì có thẻ **nhờ AI viết**: dán đề bài, AI viết hai chương
+   trình rồi điền vào hai ô để giáo viên **đọc lại** trước khi bấm sinh. AI chỉ
+   viết mã nguồn — không tự sinh dữ liệu và không tự chạy gì, vì mã nó viết ra sẽ
+   được biên dịch rồi chạy trên máy chủ. Tính năng này cần khoá API đặt trên máy
+   chủ; không có khoá thì thẻ đó ẩn hẳn. Xem `deploy/README.md` mục 3.1.
 6. **Xuất bảng điểm ra CSV.** Hai tuyến đường: bảng điểm một lớp
    (`/teacher/classes/export?class=…`) và kết quả một kỳ thi
    (`/teacher/contests/<id>/export`). Cột là những đề **lớp đó đã thực sự làm**,
@@ -437,10 +443,11 @@ Còn lại:
       một; một lớp thật có thể hơn 40 em, nhập tay là không khả thi.
    4. **Trang "Nguồn đề" trong khu giáo viên**, để giáo viên khác trong trường
       đọc được mà không cần mở repo này.
-   5. **Sinh đề tự động từ lời giải mẫu**: hiện bộ sinh phải viết tay. Một bước
-      xa hơn là đọc giới hạn trong đề bài (``n ≤ 10^5``) rồi tự chọn kích thước
-      bộ dữ liệu — nhưng đọc hiểu đề bài tiếng Việt là bài toán khác hẳn, và
-      làm ẩu ở đây sẽ sinh ra bộ dữ liệu trông hợp lệ mà không kiểm được gì.
+   5. **Bộ dữ liệu sinh ra không được kiểm.** AI viết được bộ sinh và lời giải
+      mẫu, và nó nhận được giới hạn của đề để chọn kích thước dữ liệu — nhưng
+      không có gì xác nhận lời giải mẫu **đúng**, mà đáp án của mọi bộ đều lấy từ
+      nó. Một bước kiểm làm được: đối chiếu lời giải mẫu với một lời giải vét cạn
+      trên các bộ nhỏ; hai bên lệch nhau thì ít nhất một bên sai.
 
 Xem `docs/nguon-de.md` để biết lấy đề bài và dữ liệu chấm từ đâu.
 

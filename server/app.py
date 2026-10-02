@@ -20,11 +20,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import (
-    Flask, Response, abort, flash, jsonify, redirect, render_template, request,
-    send_from_directory, url_for,
+    Flask, Response, abort, current_app, flash, jsonify, redirect,
+    render_template, request, send_from_directory, url_for,
 )
 
-from . import auth, avatars, db, formatting, gendata, grades, themis
+from . import aiwriter, auth, avatars, db, formatting, gendata, grades, themis
 from .judge import COMPILE_FLAGS, VERDICT_LABEL
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -116,6 +116,17 @@ def create_app(config: dict | None = None) -> Flask:
         # ở máy phát triển. Dùng một thư mục riêng do tài khoản web sở hữu thì
         # không phải nới quyền cho thư mục chấm bài.
         GENDATA_WORKSPACE=str(var_dir / "gendata"),
+        # Nhờ AI viết bộ sinh dữ liệu và lời giải mẫu từ đề bài (xem
+        # `aiwriter.py`). Khoá **không** nằm trong mã nguồn: repo này là công
+        # khai, nên khoá đặt trong `/etc/songlo.env` của máy chủ — xem
+        # `deploy/README.md`. Không có khoá thì cả thẻ đó ẩn hẳn, vì hiện một
+        # nút bấm rồi báo "chưa cấu hình" là cách tệ nhất để tắt một tính năng.
+        AI_BASE=os.environ.get("SONGLO_AI_BASE", aiwriter.DEFAULT_BASE),
+        AI_KEY=os.environ.get("SONGLO_AI_KEY", ""),
+        AI_MODEL=os.environ.get("SONGLO_AI_MODEL", aiwriter.DEFAULT_MODEL),
+        # Phải nhỏ hơn thời hạn của gunicorn, nếu không gunicorn giết tiến trình
+        # trước và giáo viên nhận 502 thay vì một câu giải thích.
+        AI_TIMEOUT=int(os.environ.get("SONGLO_AI_TIMEOUT", aiwriter.DEFAULT_TIMEOUT)),
         COMPILER=os.environ.get("SONGLO_COMPILER", "g++"),
         DAILY_SUBMIT_LIMIT=DAILY_SUBMIT_LIMIT,
         MAX_SOURCE_LENGTH=MAX_SOURCE_LENGTH,
@@ -1124,21 +1135,14 @@ def _register_routes(app: Flask) -> None:
                 return _import_themis_zip(conn, problem, code)
             elif action == "generate":
                 return _generate_tests(conn, problem, code)
+            elif action == "ai_write":
+                return _ai_write_tests(conn, problem)
             else:
                 _add_test(conn, problem, request.form)
                 flash("Đã thêm bộ dữ liệu.", "ok")
             return redirect(url_for("teacher_problem_tests", code=code))
 
-        tests = db.query(
-            conn, "SELECT * FROM tests WHERE problem_id = ? ORDER BY ordinal", (problem["id"],))
-        return render_template(
-            "teacher_tests.html",
-            active="teacher",
-            problem=problem,
-            tests=tests,
-            max_count=gendata.MAX_COUNT,
-            compile_flags="g++ " + " ".join(COMPILE_FLAGS),
-        )
+        return _render_tests(conn, problem)
 
     @app.route("/teacher/problems/<code>/edit", methods=["GET", "POST"])
     @auth.teacher_required
@@ -2161,6 +2165,80 @@ def _import_themis_zip(conn, problem, code: str):
     msg += _publish_note(problem, published)
     flash(msg, "ok" if not leftovers else "warn")
     return redirect(url_for("teacher_problem_tests", code=code))
+
+
+def _render_tests(conn, problem, **extra):
+    """Dựng trang bộ dữ liệu của một đề.
+
+    Tách ra khỏi tuyến đường vì đường **nhờ AI viết** không chuyển hướng: nó phải
+    trả về chính trang này với hai ô mã nguồn đã điền sẵn. `flash` + `redirect`
+    là cách thường dùng, nhưng nó không mang theo được hai chương trình vừa nhận
+    — mà gọi lại AI thì tốn thêm hai chục giây.
+    """
+    tests = db.query(
+        conn, "SELECT * FROM tests WHERE problem_id = ? ORDER BY ordinal", (problem["id"],))
+    context = {
+        "active": "teacher",
+        "problem": problem,
+        "tests": tests,
+        "max_count": gendata.MAX_COUNT,
+        "compile_flags": "g++ " + " ".join(COMPILE_FLAGS),
+        # Chưa cấu hình khoá API thì thẻ nhờ AI viết không được dựng ra chút nào.
+        # Hiện một nút bấm rồi báo "chưa cấu hình" là cách tệ nhất để tắt một
+        # tính năng: giáo viên tưởng nó hỏng.
+        "ai_enabled": bool(current_app.config.get("AI_KEY")),
+    }
+    context.update(extra)
+    return render_template("teacher_tests.html", **context)
+
+
+def _ai_write_tests(conn, problem):
+    """Nhờ AI viết bộ sinh và lời giải mẫu, rồi **điền vào hai ô** của biểu mẫu.
+
+    Cố ý dừng ở đó, không sinh dữ liệu luôn. Mã do AI viết sẽ được biên dịch rồi
+    chạy trên máy chủ, và không có gì bảo đảm nó đúng — kể cả khi nó dịch được.
+    Giáo viên đọc lại rồi bấm nút: một bước, đổi lấy việc không chạy mã chưa ai
+    đọc. Đây cũng là lý do không có tham số kiểu "viết rồi sinh luôn".
+    """
+    statement = (request.form.get("statement") or problem["statement"] or "").strip()
+    if not statement:
+        flash("Chưa có đề bài để nhờ AI đọc. Dán đề bài vào ô trên, hoặc lưu đề "
+              "bài trong phần sửa đề trước.", "warn")
+        return _render_tests(conn, problem)
+
+    if len(statement) > aiwriter.MAX_STATEMENT_CHARS:
+        flash("Đề bài dài quá %d ký tự. Cắt bớt rồi thử lại."
+              % aiwriter.MAX_STATEMENT_CHARS, "warn")
+        return _render_tests(conn, problem, ai_statement=statement)
+
+    try:
+        count = int(request.form.get("count") or 10)
+    except (TypeError, ValueError):
+        count = 10
+
+    try:
+        gen, sol = aiwriter.write(
+            statement,
+            base=current_app.config["AI_BASE"],
+            key=current_app.config["AI_KEY"],
+            model=current_app.config["AI_MODEL"],
+            # Giới hạn của **chính đề này**, để bộ sinh biết phải tạo dữ liệu lớn
+            # tới đâu cho vừa thời gian chạy.
+            time_limit_ms=problem["time_limit_ms"],
+            memory_limit_mb=problem["memory_limit_mb"],
+            count=max(1, min(count, gendata.MAX_COUNT)),
+            timeout=current_app.config["AI_TIMEOUT"],
+        )
+    except aiwriter.AIError as exc:
+        # Giữ lại đề bài vừa dán: bắt dán lại sau khi chờ hai chục giây là kiểu
+        # làm phiền khiến người ta thôi dùng tính năng.
+        flash(str(exc), "warn")
+        return _render_tests(conn, problem, ai_statement=statement)
+
+    flash("AI đã viết xong. Đọc lại hai chương trình rồi bấm «Sinh bộ dữ liệu» ở "
+          "thẻ dưới. Đáp án của mọi bộ đều lấy từ lời giải mẫu, nên nó sai thì cả "
+          "bộ dữ liệu sai theo.", "ok")
+    return _render_tests(conn, problem, ai_statement=statement, ai_gen=gen, ai_sol=sol)
 
 
 def _generate_tests(conn, problem, code: str):

@@ -253,6 +253,72 @@
           </div>
         </section>
 
+        {% if ai_enabled %}
+        <section class="card mb-4" aria-labelledby="ai-title">
+          <div class="card__head">
+            <h2 id="ai-title">Nhờ AI viết bộ sinh và lời giải mẫu</h2>
+            <span class="badge badge--amber">Phải đọc lại trước khi dùng</span>
+          </div>
+
+          <div class="card__body">
+            {# Thẻ này chỉ được dựng khi máy chủ đã cấu hình khoá API — xem
+               `ai_enabled` trong `_render_tests`. Không có khoá thì giáo viên
+               không thấy gì cả, thay vì thấy một nút bấm rồi báo "chưa cấu
+               hình": hiện một nút hỏng là cách tệ nhất để tắt một tính năng.
+
+               Việc nó làm chỉ là **điền vào hai ô** của thẻ dưới. Không sinh dữ
+               liệu luôn, vì mã do AI viết sẽ được biên dịch rồi chạy trên máy
+               chủ và không có gì bảo đảm nó đúng. #}
+            <p class="text-sm text-muted">
+              Dán đề bài vào đây, AI viết giúp hai chương trình rồi điền vào hai ô
+              của thẻ <strong>Sinh dữ liệu từ lời giải mẫu</strong> bên dưới.
+              <strong>Đọc lại trước khi bấm sinh</strong> — đáp án của mọi bộ đều
+              lấy từ lời giải mẫu, nên nếu nó sai thì cả bộ dữ liệu sai theo và
+              không có gì phát hiện ra.
+            </p>
+
+            <form method="post" action="{{ url_for('teacher_problem_tests', code=problem['code']) }}"
+                  novalidate id="ai-form">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="ai_write">
+
+              <div class="field">
+                <label class="label" for="ai-statement">Đề bài</label>
+                <textarea class="textarea mono" id="ai-statement" name="statement" rows="10"
+                          spellcheck="false"
+                          placeholder="Dán nguyên đề bài, kể cả phần giới hạn và ví dụ.&#10;Ví dụ:&#10;Cho số nguyên dương n (1 &lt;= n &lt;= 10^6). Đếm số nguyên tố không vượt quá n.&#10;Dữ liệu vào: một dòng chứa n.&#10;Kết quả: in ra số lượng số nguyên tố &lt;= n.">{{ ai_statement or problem['statement'] }}</textarea>
+                <p class="hint">
+                  Càng đủ giới hạn và ví dụ thì bộ sinh càng sát đề. Mặc định lấy
+                  đề bài đã lưu của đề này.
+                </p>
+              </div>
+
+              <div class="row">
+                <button class="btn btn--primary" type="submit" id="ai-submit">Nhờ AI viết</button>
+                <span class="text-sm text-muted" id="ai-wait" hidden>
+                  Đang viết… thường mất 15–30 giây. Đừng bấm lại.
+                </span>
+              </div>
+            </form>
+          </div>
+
+          <div class="card__foot">
+            <p class="text-sm text-muted mb-0">
+              AI chỉ viết mã nguồn, <strong>không</strong> tự sinh dữ liệu và
+              <strong>không</strong> tự chạy gì. Giới hạn thời gian và bộ nhớ của
+              đề được gửi kèm để bộ sinh tạo dữ liệu vừa sức.
+            </p>
+          </div>
+        </section>
+
+        <script>
+          document.getElementById("ai-form").addEventListener("submit", function () {
+            document.getElementById("ai-submit").disabled = true;
+            document.getElementById("ai-wait").hidden = false;
+          });
+        </script>
+        {% endif %}
+
         <section class="card mb-4" aria-labelledby="gen-title">
           <div class="card__head">
             <h2 id="gen-title">Sinh dữ liệu từ lời giải mẫu</h2>
@@ -287,7 +353,7 @@
               <div class="field">
                 <label class="label" for="gen-source">Bộ sinh dữ liệu <span class="req" aria-hidden="true">*</span></label>
                 <textarea class="textarea mono" id="gen-source" name="gen_source" rows="9"
-                          spellcheck="false" placeholder="#include &lt;bits/stdc++.h&gt;&#10;using namespace std;&#10;int main(int argc, char** argv) {&#10;    int seed = argc &gt; 1 ? atoi(argv[1]) : 1;&#10;    srand(seed);&#10;    int n = 5 + rand() % 10;&#10;    cout &lt;&lt; n &lt;&lt; &quot;\n&quot;;&#10;    for (int i = 0; i &lt; n; i++) cout &lt;&lt; rand() % 100 &lt;&lt; &quot; &quot;;&#10;    cout &lt;&lt; &quot;\n&quot;;&#10;}"></textarea>
+                          spellcheck="false" placeholder="#include &lt;bits/stdc++.h&gt;&#10;using namespace std;&#10;int main(int argc, char** argv) {&#10;    int seed = argc &gt; 1 ? atoi(argv[1]) : 1;&#10;    srand(seed);&#10;    int n = 5 + rand() % 10;&#10;    cout &lt;&lt; n &lt;&lt; &quot;\n&quot;;&#10;    for (int i = 0; i &lt; n; i++) cout &lt;&lt; rand() % 100 &lt;&lt; &quot; &quot;;&#10;    cout &lt;&lt; &quot;\n&quot;;&#10;}">{{ ai_gen or '' }}</textarea>
                 <p class="hint">
                   In dữ liệu vào ra <span class="mono">stdout</span>. Chỉ số bộ nằm
                   ở <span class="mono">argv[1]</span> — dùng
@@ -299,7 +365,7 @@
               <div class="field">
                 <label class="label" for="sol-source">Lời giải mẫu <span class="req" aria-hidden="true">*</span></label>
                 <textarea class="textarea mono" id="sol-source" name="sol_source" rows="9"
-                          spellcheck="false" placeholder="#include &lt;bits/stdc++.h&gt;&#10;using namespace std;&#10;int main() {&#10;    int n; cin &gt;&gt; n;&#10;    long long s = 0, x;&#10;    while (n--) { cin &gt;&gt; x; s += x; }&#10;    cout &lt;&lt; s &lt;&lt; &quot;\n&quot;;&#10;}"></textarea>
+                          spellcheck="false" placeholder="#include &lt;bits/stdc++.h&gt;&#10;using namespace std;&#10;int main() {&#10;    int n; cin &gt;&gt; n;&#10;    long long s = 0, x;&#10;    while (n--) { cin &gt;&gt; x; s += x; }&#10;    cout &lt;&lt; s &lt;&lt; &quot;\n&quot;;&#10;}">{{ ai_sol or '' }}</textarea>
                 <p class="hint">
                   Đọc dữ liệu vào từ <span class="mono">stdin</span>, in đáp án ra
                   <span class="mono">stdout</span>. Phải là lời giải <em>đúng</em>:
