@@ -846,12 +846,92 @@
             .replace(/\\([&%$#_{}])/g, '$1');
   }
 
-  /* Nội dung một ô của bảng: trả dấu `&` thật về, rồi thoát HTML.
+  /* Nội dung một ô của bảng: trả dấu `&` thật về, rồi thoát HTML, rồi đổi lệnh.
 
-     Ô của bảng phải tự thoát HTML lấy, vì `texTabular` chạy **trước** bước thoát
-     HTML chung — nếu không thì dấu `&` ngăn cách ô đã thành `&amp;` mất rồi. */
+     Ô của bảng phải tự lo ba việc này lấy, vì `texTabular` chạy **trước** bước
+     thoát HTML chung — nếu không thì dấu `&` ngăn cách ô đã thành `&amp;` mất
+     rồi. Đổi lệnh cũng phải làm ở đây: tới bước 8c của đường ống chính thì bảng
+     đã nằm trong `store`, ngoài tầm với của bước đó, nên thiếu `texFontCommands`
+     là `\textbf{INPUT}` trong ô hiện ra nguyên văn. */
   function texCellHtml(cell) {
-    return texEscapeHtml(texUnescapeChars(cell.trim()).split(TEX_AMP).join('&'));
+    return texFontCommands(
+      texEscapeHtml(texUnescapeChars(cell.trim()).split(TEX_AMP).join('&')));
+  }
+
+  /* Đổi các lệnh định dạng chữ thành thẻ.
+
+     Tách ra thành hàm riêng vì có hai chỗ cần: văn bản chính (bước 8c) và nội
+     dung từng ô của bảng (`texCellHtml`). */
+  function texFontCommands(s) {
+    var pairs = [
+      [/\\textbf\{([^{}]*)\}/g, '<strong>$1</strong>'],
+      [/\\textit\{([^{}]*)\}/g, '<em>$1</em>'],
+      [/\\emph\{([^{}]*)\}/g, '<em>$1</em>'],
+      [/\\underline\{([^{}]*)\}/g, '<u>$1</u>'],
+      [/\\texttt\{([^{}]*)\}/g, '<code>$1</code>'],
+      [/\\text\{([^{}]*)\}/g, '$1'],
+      [/\\textnormal\{([^{}]*)\}/g, '$1']
+    ];
+    /* Lặp vài lượt để xử lý được lồng nhau (`\textbf{\textit{…}}`) mà không cần
+       bộ phân tích cú pháp thật. */
+    for (var pass = 0; pass < 3; pass++) {
+      pairs.forEach(function (p) { s = s.replace(p[0], p[1]); });
+    }
+    return s;
+  }
+
+  /* Đọc một nhóm trong ngoặc nhọn, có đếm độ sâu.
+
+     Không viết bằng regex được. Khai báo cột của bảng hay có ngoặc lồng:
+     `{|p{3cm}|r|}`, `{l@{\hspace{1cm}}r}`. `[^}]*` dừng ở dấu `}` đầu tiên, và
+     mọi cách viết regex cho ngoặc lồng đều chỉ chịu được **đúng một** mức —
+     `{l@{\hspace{1cm}}r}` có hai mức, và lúc đó cả khai báo bị hiểu sai hoặc
+     không nhận ra bảng nào cả. */
+  function texReadGroup(s, i) {
+    if (s.charAt(i) !== '{') return null;
+    var depth = 0;
+    for (var j = i; j < s.length; j++) {
+      var ch = s.charAt(j);
+      if (ch === '{') depth++;
+      else if (ch === '}') {
+        depth--;
+        if (depth === 0) return { value: s.slice(i + 1, j), next: j + 1 };
+      }
+    }
+    return null;   // ngoặc chưa đóng: bỏ qua còn hơn ăn hết phần còn lại của đề
+  }
+
+  /* Danh sách cột của một bảng, đọc từ khai báo.
+
+     Ba thứ phải bỏ ra khỏi khai báo trước khi đếm, vì chúng không phải cột:
+
+       - `@{…}` — khai báo khoảng cách giữa hai cột. Phải bỏ trước khi đếm, và
+         phải bỏ bằng bộ đọc ngoặc: `@{\hspace{1cm}}` có ngoặc lồng, và nếu để
+         lọt thì hai chữ `c` trong đó bị đếm thành hai cột canh giữa.
+       - `p{…}` — **một** cột canh trái, không phải bốn ký tự.
+       - `|` và mọi ký tự khác — đường kẻ, không phải cột.
+  */
+  function texSpecColumns(spec) {
+    var s = String(spec), kept = '', i = 0;
+    while (i < s.length) {
+      var ch = s.charAt(i);
+      if (ch === '@' && s.charAt(i + 1) === '{') {
+        var at = texReadGroup(s, i + 1);
+        i = at ? at.next : i + 1;
+        continue;
+      }
+      if (ch === 'p' && s.charAt(i + 1) === '{') {
+        var pw = texReadGroup(s, i + 1);
+        if (pw) { kept += 'l'; i = pw.next; continue; }
+      }
+      kept += ch;
+      i++;
+    }
+    var cols = [];
+    for (var k = 0; k < kept.length; k++) {
+      if ('lcr'.indexOf(kept.charAt(k)) >= 0) cols.push(kept.charAt(k));
+    }
+    return cols;
   }
 
   function texProtectMath(src, store) {
@@ -908,43 +988,54 @@
     return TEX_SIGNAL.test(src);
   }
 
+  /* Trả toán và bảng về chỗ cũ.
+
+     Phải chạy **lặp**: một bảng ngoài chứa chỗ giữ chỗ của bảng con, nên lượt
+     đầu chỉ mở được bảng ngoài, và chỗ giữ chỗ của bảng con nằm trong đoạn HTML
+     vừa chèn — mà `String.replace` không quét lại phần nó vừa chèn. Không lặp
+     thì trên màn hình hiện ra một chuỗi ký tự điều khiển, đúng chỗ đáng ra là
+     bảng con. */
   function texRestoreMath(out, store) {
-    return out.replace(new RegExp(TEX_MARK + '(\\d+)' + TEX_MARK, 'g'), function (_m, i) {
-      return store[+i];
-    });
-  }
-
-  /* Cất một đoạn HTML đã dựng sẵn vào `store` và để lại một chỗ giữ chỗ trong
-     văn bản. Dùng chung `store` với phần toán: cả hai đều là "HTML đã xong, đừng
-     đụng vào nữa", và `texRestoreMath` trả tất cả về cùng một lượt.
-
-     Cần hàm này cho bảng: bảng phải dựng **trước** bước thoát HTML (xem
-     `texToHtml`), mà bước đó sẽ thoát luôn các thẻ `<table>` vừa sinh ra nếu
-     chúng còn nằm trong văn bản. */
-  function texProtectHtml(src, store, re, build) {
-    return src.replace(re, function () {
-      store.push(build.apply(null, arguments));
-      return TEX_MARK + (store.length - 1) + TEX_MARK;
-    });
+    var re = new RegExp(TEX_MARK + '(\\d+)' + TEX_MARK, 'g');
+    for (var pass = 0; pass < 12; pass++) {
+      if (out.indexOf(TEX_MARK) === -1) break;
+      var next = out.replace(re, function (_m, i) { return store[+i]; });
+      if (next === out) break;
+      out = next;
+    }
+    return out;
   }
 
   /* Bảng `tabular`. Đây là thứ hay gặp nhất trong đề Themis vì phần "dữ liệu
      vào / dữ liệu ra" luôn được trình bày bằng bảng, và nếu không đổi thì cả
      khối `\begin{tabular}{|c|c|}` hiện nguyên văn giữa đề. */
   function texTabular(spec, body) {
-    var cols = [];
-    /* `p{3cm}` là MỘT cột, không phải bốn ký tự — phải thay nó bằng một ký tự
-       đại diện trước khi đếm, nếu không số cột sai và bảng lệch. */
-    var s = spec.replace(/p\{[^}]*\}/g, 'l').replace(/\|[^lcrp|]*/g, '');
-    for (var i = 0; i < s.length; i++) {
-      if ('lcr'.indexOf(s[i]) >= 0) cols.push(s[i]);
-    }
+    var cols = texSpecColumns(spec);
+    var rows = body.split(/\\\\/);
+
+    /* Số cột lấy từ **thân bảng**, không lấy từ spec.
+
+       Spec trong đề thật hay hỏng vì bị sửa tay: `\begin{tabular}{[l|l|l]}` (thừa
+       cặp ngoặc vuông) hay `\begin{tabular}{t|@{|}@{}}` (không có ký tự cột nào).
+       Đếm theo spec thì một bảng hai cột bị vẽ đường kẻ rộng ba cột — đúng cái
+       lệch nhìn thấy được trên màn hình. Thân bảng mới là sự thật: hàng
+       `\textbf{INPUT} & \textbf{OUTPUT}` có hai ô thì bảng có hai cột.
+
+       Spec vẫn còn dùng, nhưng chỉ để chọn căn lề cho từng ô. */
+    var ncols = 0;
+    rows.forEach(function (row) {
+      if (!row.replace(/\\hline/g, '').trim()) return;   // hàng chỉ có \hline
+      var n = row.split('&').length;
+      if (n > ncols) ncols = n;
+    });
+    if (!ncols) ncols = Math.max(cols.length, 1);
+
     var html = '<table class="tex-table">';
-    body.split(/\\\\/).forEach(function (row) {
+    rows.forEach(function (row) {
       var rule = /\\hline/.test(row);
       row = row.replace(/\\hline/g, '').trim();
       if (!row) {
-        if (rule) html += '<tr class="tex-rule"><td colspan="' + Math.max(cols.length, 1) + '"></td></tr>';
+        if (rule) html += '<tr class="tex-rule"><td colspan="' + ncols + '"></td></tr>';
         return;
       }
       html += '<tr>';
@@ -955,6 +1046,58 @@
       html += '</tr>';
     });
     return html + '</table>';
+  }
+
+  var TEX_TAB_BEGIN = '\\begin{tabular}';
+  var TEX_TAB_END = '\\end{tabular}';
+
+  /* Tìm một cặp `\begin{tabular}` … `\end{tabular}` **trong cùng**.
+
+     Cặp trong cùng = `\end{tabular}` ĐẦU TIÊN, ghép với `\begin{tabular}` CUỐI
+     CÙNG đứng trước nó. Giữa hai mốc đó không thể có `\begin{tabular}` nào khác
+     (vì ta lấy cái cuối cùng) và cũng không có `\end{tabular}` nào khác (vì ta
+     lấy cái đầu tiên) — nên đây đúng là một cặp khép kín, không lồng gì bên
+     trong.
+
+     Vì sao phải tìm cặp trong cùng: `texTabular` tách ô bằng dấu `&`, mà bảng
+     con cũng có dấu `&` trong thân nó. Dựng bảng con trước rồi để lại một chỗ
+     giữ chỗ (không chứa `&`) thì việc tách ô của bảng ngoài mới đúng. */
+  function texFindInnermostTabular(src) {
+    var end = src.indexOf(TEX_TAB_END);
+    if (end < 0) return null;
+    var begin = src.lastIndexOf(TEX_TAB_BEGIN, end);
+    if (begin < 0) return null;
+    return { begin: begin, end: end + TEX_TAB_END.length };
+  }
+
+  /* Dựng **mọi** bảng trong văn bản, từ trong ra ngoài.
+
+     Vì sao không dùng regex `[\s\S]*?`: nó dừng ở `\end{tabular}` đầu tiên, mà
+     với bảng lồng nhau thì đó là `\end{tabular}` của **bảng con**. Thân bảng
+     ngoài bị cắt cụt ở giữa, phần còn lại (`& 7 2 \\ \hline`) trôi ra ngoài
+     thành văn bản và thành những ô rác — đúng như ảnh chụp của anh Duy. */
+  function texTabularPass(src, store) {
+    var out = src;
+    /* Chặn trên 500 lượt: một tệp .tex hỏng có thể sinh vòng lặp không dừng, và
+       treo tab của giáo viên thì tệ hơn nhiều so với một bảng hiện sai. */
+    for (var guard = 0; guard < 500; guard++) {
+      var span = texFindInnermostTabular(out);
+      if (!span) break;
+
+      var after = span.begin + TEX_TAB_BEGIN.length;
+      // `\begin{tabular}[t]{|c|c|}` — tham số tuỳ chọn đứng trước khai báo cột.
+      var opt = /^[ \t]*\[[^\]]*\]/.exec(out.slice(after));
+      if (opt) after += opt[0].length;
+
+      var spec = texReadGroup(out, after);
+      if (!spec) break;          // không đọc được khai báo cột: để nguyên, đừng ăn
+
+      var body = out.slice(spec.next, span.end - TEX_TAB_END.length);
+      var idx = store.length;
+      store.push(texTabular(spec.value, body));
+      out = out.slice(0, span.begin) + TEX_MARK + idx + TEX_MARK + out.slice(span.end);
+    }
+    return out;
   }
 
   function texToHtml(src) {
@@ -993,13 +1136,7 @@
     // 6. Bảng. Phải chạy TRƯỚC bước thoát HTML, vì bước đó biến dấu `&` ngăn
     //    cách ô thành `&amp;` và việc tách ô sẽ sai. Bảng dựng ra được cất vào
     //    `store` nên bước thoát HTML không đụng tới nó.
-    /* Spec của `tabular` có thể chứa ngoặc lồng: `{|p{3cm}|r|}`. Dùng `[^}]*`
-       thì nó dừng ngay ở dấu `}` của `{3cm}` và phần còn lại của spec trôi vào
-       thân bảng — số cột sai, cả bảng lệch. Cho phép đúng một mức ngoặc lồng là
-       đủ cho mọi spec thật gặp trong đề của trường. */
-    out = texProtectHtml(out, store,
-      /\\begin\{tabular\}\{((?:[^{}]|\{[^{}]*\})*)\}([\s\S]*?)\\end\{tabular\}/g,
-      function (_m, spec, body) { return texTabular(spec, body); });
+    out = texTabularPass(out, store);
 
     // 6b. Phần `&` thật còn lại (ngoài bảng) trở về ký tự `&` để bước sau thoát.
     out = out.split(TEX_AMP).join('&');
@@ -1035,7 +1172,15 @@
       function (_m, env, body) { return '<div class="tex-' + env + '">' + body.trim() + '</div>'; });
     // Môi trường không nhận ra: bỏ vỏ, giữ ruột. Thà hiện nội dung còn hơn hiện
     // nguyên dòng `\begin{figure}` giữa đề bài.
-    out = out.replace(/\\(begin|end)\{[^}]*\}/g, '');
+    /* Phải gỡ **cả tham số tuỳ chọn** đi kèm. `\begin{table}[h]` để lại chữ
+       "[h]" lơ lửng giữa đề nếu chỉ gỡ phần trong ngoặc nhọn — và đó đúng là
+       thứ hiện ra trong ảnh chụp.
+
+       Dùng `[ \t]*` chứ không `\s*` cho khoảng trắng trước tham số: `\s` ăn cả
+       dấu xuống dòng, nên `\begin{center}` rồi xuống dòng rồi `[Ghi chú]` sẽ bị
+       hiểu là tham số tuỳ chọn và **mất chữ của giáo viên**. Tham số tuỳ chọn
+       trong LaTeX luôn nằm cùng dòng với lệnh. */
+    out = out.replace(/\\(begin|end)\{[^}]*\}[ \t]*(\[[^\]]*\])?/g, '');
 
     // 8b. Tiêu đề mục
     out = out.replace(/\\(section|subsection|subsubsection)\*?\{([\s\S]*?)\}/g,
@@ -1044,20 +1189,9 @@
         return '<' + tag + ' class="tex-head">' + body + '</' + tag + '>';
       });
 
-    // 8c. Lệnh định dạng chữ. Lặp vài lượt để xử lý được lồng nhau
-    //     (`\textbf{\textit{…}}`) mà không cần bộ phân tích cú pháp thật.
-    var pairs = [
-      [/\\textbf\{([^{}]*)\}/g, '<strong>$1</strong>'],
-      [/\\textit\{([^{}]*)\}/g, '<em>$1</em>'],
-      [/\\emph\{([^{}]*)\}/g, '<em>$1</em>'],
-      [/\\underline\{([^{}]*)\}/g, '<u>$1</u>'],
-      [/\\texttt\{([^{}]*)\}/g, '<code>$1</code>'],
-      [/\\text\{([^{}]*)\}/g, '$1'],
-      [/\\textnormal\{([^{}]*)\}/g, '$1']
-    ];
-    for (var pass = 0; pass < 3; pass++) {
-      pairs.forEach(function (p) { out = out.replace(p[0], p[1]); });
-    }
+    // 8c. Lệnh định dạng chữ — dùng chung `texFontCommands` với các ô trong bảng,
+    //     để một ô `\textbf{INPUT}` và một đoạn `\textbf{INPUT}` cho ra cùng kết quả.
+    out = texFontCommands(out);
 
     // 8d. Lệnh còn lại
     out = out.replace(/\\(newline|linebreak)\b/g, '<br>')

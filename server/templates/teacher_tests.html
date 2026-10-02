@@ -44,6 +44,41 @@
       </div>
     </div>
 
+    {# Trạng thái công khai là thông tin quan trọng nhất ở trang này. Đây là nơi
+       giáo viên vừa nhập xong bộ dữ liệu, và nếu không nói ra thì không ai biết
+       đề còn nằm ở bản nháp — đề nằm im, học sinh không thấy, giáo viên tưởng
+       hệ thống hỏng. Đề đã công khai thì không cần nhắc: huy hiệu ở trên đã ghi
+       "Đã công khai" rồi, thêm một hộp nữa chỉ làm rối trang. #}
+    {% if problem['status'] != 'live' %}
+      {% if tests|length %}
+      <div class="alert alert--warn mb-4" role="note">
+        <div>
+          <p class="alert__title">Đề còn ở bản nháp — học sinh chưa thấy</p>
+          <p class="mb-0 text-sm">
+            Đề đã có {{ tests|length }} bộ dữ liệu nên công khai được ngay.
+            Công khai xong, đề mới xuất hiện trong danh sách đề của học sinh.
+          </p>
+          <form method="post" action="{{ url_for('teacher_problem_status', code=problem['code']) }}" class="mt-3">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <input type="hidden" name="status" value="live">
+            <input type="hidden" name="back" value="{{ url_for('teacher_problem_tests', code=problem['code']) }}">
+            <button class="btn btn--primary btn--sm" type="submit">Công khai đề ngay</button>
+          </form>
+        </div>
+      </div>
+      {% else %}
+      <div class="alert alert--warn mb-4" role="note">
+        <div>
+          <p class="alert__title">Đề chưa có bộ dữ liệu nào</p>
+          <p class="mb-0 text-sm">
+            Chưa công khai được, vì học sinh nộp bài sẽ chỉ nhận "lỗi hệ thống chấm".
+            Nhập tệp ZIP ở cột bên phải — nhập xong đề <strong>tự được công khai</strong>.
+          </p>
+        </div>
+      </div>
+      {% endif %}
+    {% endif %}
+
     {# Cảnh báo sớm khi đề chưa đủ điều kiện công khai. Đây là lúc rẻ nhất để
        sửa: đang ở đúng trang nhập dữ liệu, không phải quay lại sau. #}
     {% if tests|length < 3 %}
@@ -183,6 +218,23 @@
                   Không tích thì dữ liệu trong tệp được thêm <em>vào sau</em> các
                   bộ đang có — an toàn hơn, và đây là mặc định. Chỉ tích khi thật
                   sự muốn thay cả bộ cũ, vì thao tác đó không hoàn tác được.
+                </p>
+              </div>
+
+              {# Ô này cố ý đặt ở thể **phủ định** và mặc định **không tích**:
+                 mặc định phải là "nhập xong thì công khai", vì đó là ý định thật
+                 của giáo viên. Một ô "công khai ngay" mặc định tích cũng cho ra
+                 hành vi đó, nhưng khi giáo viên bỏ tích thì biểu mẫu không gửi
+                 gì cả và ta không phân biệt được "bỏ tích" với "trình duyệt cũ".
+                 Thể phủ định thì chỉ có một chiều: gửi lên là giữ nháp. #}
+              <div class="field">
+                <label class="check" for="keep_draft">
+                  <input type="checkbox" id="keep_draft" name="keep_draft" value="1">
+                  <span>Giữ đề ở bản nháp, chưa công khai</span>
+                </label>
+                <p class="hint">
+                  Không tích thì nhập xong đề <strong>tự được công khai</strong> cho
+                  học sinh. Chỉ tích khi đang soạn dở và chưa muốn học sinh thấy.
                 </p>
               </div>
 

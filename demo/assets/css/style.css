@@ -500,6 +500,9 @@ kbd {
 .badge--red { background: var(--red-50); color: var(--red-700); }
 .badge--grey { background: var(--surface-3); color: var(--fg-muted); }
 .badge--green { background: var(--ac-bg); color: var(--ac-fg); }
+/* Hổ phách: "còn một bước nữa", khác hẳn xám là "không có gì phải làm".
+   Dùng cho đề còn ở bản nháp — tức là đề học sinh chưa thấy. */
+.badge--amber { background: var(--tle-bg); color: var(--tle-fg); }
 
 .tag {
   display: inline-flex; align-items: center;

@@ -195,6 +195,46 @@ def _test_count(conn, problem) -> int:
         conn, "SELECT COUNT(*) FROM tests WHERE problem_id = ?", (problem["id"],))
 
 
+def _publish_blocker(conn, problem) -> str | None:
+    """Lý do **không** công khai được đề này, hoặc None nếu công khai được.
+
+    Một chỗ duy nhất giữ luật này, vì có ba đường dẫn tới việc công khai: nút
+    trên danh sách đề, nút trong trang sửa đề, và bước tự công khai sau khi nhập
+    dữ liệu. Nếu mỗi nơi tự kiểm tra thì sớm muộn cũng có nơi quên, và đề không
+    có bộ dữ liệu sẽ ra tới học sinh.
+
+    Vì sao chặn: học sinh vẫn mở được đề, vẫn nộp được bài, nhưng bộ chấm không
+    có gì để chạy nên mọi bài đều ra "lỗi hệ thống chấm" — và lỗi ấy trông như
+    hệ thống hỏng, chứ không như đề thiếu dữ liệu. Giáo viên sẽ đi tìm lỗi ở
+    chỗ khác.
+    """
+    if not _test_count(conn, problem):
+        return ("Không công khai được vì đề chưa có bộ dữ liệu nào. "
+                "Thêm ít nhất một bộ ở trang bộ dữ liệu trước.")
+    return None
+
+
+def _set_problem_status(conn, problem, status: str) -> str | None:
+    """Đổi trạng thái biên tập của một đề. Trả về lỗi, hoặc None nếu xong.
+
+    Tách khỏi `_update_problem` để công khai một đề là **một** thao tác, không
+    phải mở biểu mẫu sửa đề, tìm ô chọn trạng thái, rồi bấm lưu. Đó chính là
+    chỗ mà một đề soạn xong nằm lại ở bản nháp mãi mãi: giáo viên soạn đề ở
+    trang soạn đề, nhưng chỗ đổi trạng thái lại nằm trong biểu mẫu sửa đề, và
+    không có gì trên màn hình nói rằng đề đang không hiện với học sinh.
+    """
+    if status not in PROBLEM_STATUSES:
+        return "Trạng thái không hợp lệ."
+    if status == "live":
+        blocker = _publish_blocker(conn, problem)
+        if blocker:
+            return blocker
+    with conn:
+        conn.execute("UPDATE problems SET status = ?, updated_at = ? WHERE id = ?",
+                     (status, db.utc_now(), problem["id"]))
+    return None
+
+
 def _user_best_by_problem(conn, user_id: int) -> dict[int, int]:
     """Điểm cao nhất của một học sinh cho mỗi đề. Dùng để hiện chấm trạng thái."""
     rows = db.query(
@@ -1028,7 +1068,12 @@ def _register_routes(app: Flask) -> None:
             if error:
                 flash(error, "warn")
             else:
-                flash("Đã lưu đề mới ở dạng bản nháp.", "ok")
+                # Nói rõ bước còn thiếu. Đề mới chưa có bộ dữ liệu nên **chưa**
+                # công khai được, và nếu chỉ báo "đã lưu ở dạng bản nháp" thì
+                # giáo viên không biết mình còn phải làm gì để học sinh thấy đề.
+                code = (request.form.get("code") or "").strip().upper()
+                flash("Đã tạo đề %s. Còn một bước: nhập bộ dữ liệu vào – ra, "
+                      "đề sẽ tự được công khai." % code, "ok")
             return redirect(url_for("teacher_problems"))
 
         rows = db.query(
@@ -1104,7 +1149,10 @@ def _register_routes(app: Flask) -> None:
                     test_count=_test_count(conn, problem),
                     values=_form_values(request.form, problem),
                 )
-            flash(f"Đã lưu thay đổi cho đề {problem['code']}.", "ok")
+            if request.form.get("publish"):
+                flash(f"Đã lưu và công khai đề {problem['code']} — học sinh đã thấy đề này.", "ok")
+            else:
+                flash(f"Đã lưu thay đổi cho đề {problem['code']}.", "ok")
             return redirect(url_for("teacher_problems"))
 
         return render_template(
@@ -1115,6 +1163,40 @@ def _register_routes(app: Flask) -> None:
             test_count=_test_count(conn, problem),
             values=_form_values({}, problem),
         )
+
+    # ------------------------------------------ khu giáo viên: công khai đề
+    @app.route("/teacher/problems/<code>/status", methods=["POST"])
+    @auth.teacher_required
+    def teacher_problem_status(code: str):
+        """Công khai hoặc thu hồi một đề — **một bấm**, ngay trên danh sách đề.
+
+        Trước đây chỗ duy nhất đổi được trạng thái là ô chọn nằm sâu trong biểu
+        mẫu sửa đề. Một đề soạn xong vì thế nằm lại ở bản nháp vĩnh viễn, và
+        trên màn hình không có gì nói rằng học sinh không thấy nó.
+        """
+        conn = db.get_db()
+        problem = db.query_one(conn, "SELECT * FROM problems WHERE code = ?", (code,))
+        if problem is None:
+            abort(404)
+
+        status = request.form.get("status") or ""
+        error = _set_problem_status(conn, problem, status)
+        if error:
+            flash(error, "warn")
+        elif status == "live":
+            flash("Đề %s đã công khai — học sinh đã thấy đề này." % code, "ok")
+        elif status == "review":
+            flash("Đề %s đã chuyển sang chờ duyệt." % code, "ok")
+        else:
+            flash("Đề %s đã thu hồi về bản nháp — học sinh không còn thấy đề này." % code, "ok")
+
+        # Chỉ nhận đường dẫn nội bộ. Một trường biểu mẫu điều khiển đích chuyển
+        # hướng là đủ để dựng một open redirect, mà không có lý do gì cần địa chỉ
+        # ngoài: các nút gửi kèm `back` đều là đường dẫn trong site này.
+        back = request.form.get("back") or ""
+        if not back.startswith("/") or back.startswith("//"):
+            back = url_for("teacher_problems")
+        return redirect(back)
 
     # ------------------------------------------ khu giáo viên: xoá đề
     @app.route("/teacher/problems/<code>/delete", methods=["POST"])
@@ -1852,10 +1934,11 @@ def _update_problem(conn, problem, form) -> str | None:
     (`/problems/SL001`, `/teacher/problems/SL001/tests`), nên đổi mã sẽ làm hỏng
     mọi liên kết đã chia sẻ cho học sinh. Muốn mã khác thì tạo đề mới.
 
-    Hàm này tồn tại chủ yếu để đổi được `status`: `_create_problem` luôn ghi
-    `'draft'`, và trước hàm này thì **không có chỗ nào trong toàn bộ mã nguồn ghi
-    lại cột `status`** — nghĩa là một đề do giáo viên tạo ra nằm ở dạng bản nháp
-    vĩnh viễn, không học sinh nào thấy, vì trang danh sách đề lọc `status = 'live'`.
+    Hàm này cũng đổi được `status`, nhưng đường dẫn **chính** để công khai một
+    đề là nút một bấm trên danh sách đề (`_set_problem_status`). Ô chọn trạng
+    thái trong biểu mẫu này là chỗ duy nhất đổi được trạng thái trước đây, và vì
+    nó nằm sâu trong biểu mẫu sửa đề nên một đề soạn xong cứ nằm lại ở bản nháp:
+    `_create_problem` luôn ghi `'draft'`, và trang danh sách đề lọc `status = 'live'`.
     """
     name = (form.get("name") or "").strip()
     statement = (form.get("statement") or "").strip()
@@ -1868,15 +1951,22 @@ def _update_problem(conn, problem, form) -> str | None:
     difficulty = _choice(form, "difficulty", DIFFICULTIES, "co-ban")
     points_mode = _choice(form, "points_mode", POINTS_MODES, "even")
     status = _choice(form, "status", PROBLEM_STATUSES, problem["status"])
+
+    # Nút "Lưu và công khai" gửi kèm `publish=1` và **đè** ô chọn trạng thái.
+    # Không đè thì giáo viên bấm "Lưu và công khai" mà ô chọn vẫn đang là "Bản
+    # nháp", và đề lại nằm im — đúng cái bẫy cần dẹp.
+    if form.get("publish"):
+        status = "live"
+
     time_ms, memory_mb = _parse_limits(form)
 
-    # Không cho công khai một đề chưa có bộ dữ liệu nào. Học sinh vẫn nộp được,
-    # nhưng bộ chấm không có gì để chạy nên mọi bài đều ra "lỗi hệ thống chấm" —
-    # và lỗi ấy trông như hệ thống hỏng, chứ không như đề thiếu dữ liệu.
+    # Không cho công khai một đề chưa có bộ dữ liệu nào — luật nằm ở
+    # `_publish_blocker`, dùng chung với nút công khai và bước tự công khai sau
+    # khi nhập dữ liệu.
     if status == "live":
-        if not _test_count(conn, problem):
-            return ("Không công khai được vì đề chưa có bộ dữ liệu nào. "
-                    "Thêm ít nhất một bộ ở trang bộ dữ liệu trước.")
+        blocker = _publish_blocker(conn, problem)
+        if blocker:
+            return blocker
 
     with conn:
         conn.execute(
@@ -1940,6 +2030,19 @@ def _import_themis_zip(conn, problem, code: str):
         conn.execute("UPDATE problems SET updated_at = ? WHERE id = ?",
                      (db.utc_now(), problem["id"]))
 
+    # Nhập xong bộ dữ liệu là lúc đề **đủ điều kiện** ra tới học sinh. Đây là
+    # chỗ hay bị bỏ sót nhất: giáo viên soạn đề ở trang soạn đề, nhập dữ liệu ở
+    # trang bộ dữ liệu, và không có gì trên màn hình nói rằng đề vẫn đang là bản
+    # nháp — nên đề nằm im, học sinh không thấy, và giáo viên tưởng hệ thống hỏng.
+    #
+    # Chỉ tự công khai khi đề đang ở `draft`, tức là chưa ai quyết định gì. Đề
+    # đang ở `review` là giáo viên đã chọn rõ ràng, không tự đổi. Muốn giữ nháp
+    # thì tích ô trong biểu mẫu nhập.
+    keep_draft = bool(request.form.get("keep_draft"))
+    published = False
+    if not keep_draft and problem["status"] == "draft":
+        published = _set_problem_status(conn, problem, "live") is None
+
     # Báo cáo nói cả phần **không** nhập được. Chỉ báo "đã nhập 24 bộ" mà bỏ qua
     # 6 tệp lẻ là để giáo viên tin rằng đề đã đủ dữ liệu, trong khi thực tế thiếu.
     msg = "Đã nhập %d bộ dữ liệu từ ZIP%s." % (
@@ -1953,6 +2056,12 @@ def _import_themis_zip(conn, problem, code: str):
         leftovers.append("%d tệp không nhận dạng được" % report["skipped"])
     if leftovers:
         msg += " Bỏ qua: " + ", ".join(leftovers) + "."
+    if published:
+        msg += " Đề đã được công khai — học sinh đã thấy đề này."
+    elif problem["status"] == "draft":
+        # Nói thẳng ra, vì "không thấy gì" là đúng cái đã làm giáo viên tưởng
+        # đề đã công khai.
+        msg += " Đề vẫn ở bản nháp, học sinh chưa thấy."
     flash(msg, "ok" if not leftovers else "warn")
     return redirect(url_for("teacher_problem_tests", code=code))
 

@@ -21,6 +21,30 @@
         <span class="text-sm text-muted">Tổng <strong>{{ problems|length }}</strong> đề</span>
       </div>
 
+      {# Cảnh báo này là thứ còn thiếu trước đây: một đề soạn xong vẫn nằm ở bản
+         nháp, học sinh không thấy, mà trên màn hình không có gì nói ra điều đó.
+         Đếm **mọi** trạng thái khác `live`, không chỉ `draft`: đề "Chờ duyệt"
+         cũng không hiện với học sinh, và bỏ sót nó thì con số đếm được lại nói
+         dối — đúng cái kiểu im lặng cần dẹp. #}
+      {% set drafts = problems|rejectattr('status', 'equalto', 'live')|list %}
+      {% if drafts %}
+      <div class="card__body">
+        <div class="alert alert--warn" role="note">
+          <div>
+            <p class="alert__title">
+              {{ drafts|length }} đề chưa công khai — học sinh không thấy
+            </p>
+            <p class="mb-0 text-sm">
+              Đề chỉ hiện với học sinh khi trạng thái là <strong>Đã công khai</strong>.
+              Bấm <strong>Công khai</strong> ngay dưới cột <em>Trạng thái</em>. Đề phải
+              có ít nhất một bộ dữ liệu mới công khai được; nhập tệp ZIP ở trang bộ
+              dữ liệu thì đề <em>tự được công khai</em> luôn.
+            </p>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
       <div class="table-wrap">
         <table class="table" data-sortable>
           <caption class="sr-only">Danh sách đề bài kèm trạng thái, số bộ dữ liệu và thao tác quản trị</caption>
@@ -30,9 +54,9 @@
               <th scope="col">Tên bài</th>
               <th scope="col" style="width:120px">Độ khó</th>
               <th scope="col" class="num" data-numeric style="width:130px">Bộ dữ liệu</th>
-              <th scope="col" style="width:140px">Trạng thái</th>
-              <th scope="col" style="width:170px">Người soạn</th>
-              <th scope="col" style="width:150px"><span class="sr-only">Thao tác</span></th>
+              <th scope="col" style="width:170px">Trạng thái</th>
+              <th scope="col" style="width:150px">Người soạn</th>
+              <th scope="col" style="width:210px"><span class="sr-only">Thao tác</span></th>
             </tr>
           </thead>
           <tbody>
@@ -45,7 +69,42 @@
                 {{ p['test_count'] }}
                 {% if p['hidden_count'] %}<span class="text-xs text-muted">({{ p['hidden_count'] }} ẩn)</span>{% endif %}
               </td>
-              <td><span class="{{ p['status']|problem_status_class }}">{{ p['status']|problem_status_text }}</span></td>
+              {# Nút công khai / thu hồi nằm ngay cạnh huy hiệu trạng thái, không
+                 nằm trong cột thao tác. Đây là thao tác giáo viên cần nhất sau
+                 khi soạn xong đề, và nó thuộc về **trạng thái** chứ không phải
+                 về danh sách thao tác sửa chữa — đặt cạnh nhau thì mắt đi từ
+                 "Bản nháp" sang "Công khai" trong một nhịp.
+
+                 Cột thao tác cũng đã có ba nút và `.table .toolbar` không xuống
+                 dòng, nên nút thứ tư ở đó sẽ tràn ra ngoài ô. #}
+              <td>
+                <span class="{{ p['status']|problem_status_class }}">{{ p['status']|problem_status_text }}</span>
+
+                {% if p['status'] == 'live' %}
+                  <form method="post" action="{{ url_for('teacher_problem_status', code=p['code']) }}" class="mt-2">
+                    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                    <input type="hidden" name="status" value="draft">
+                    <input type="hidden" name="back" value="{{ url_for('teacher_problems') }}">
+                    <button class="btn btn--ghost btn--sm" type="submit">Thu hồi</button>
+                  </form>
+                {% elif p['test_count'] %}
+                  <form method="post" action="{{ url_for('teacher_problem_status', code=p['code']) }}" class="mt-2">
+                    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                    <input type="hidden" name="status" value="live">
+                    <input type="hidden" name="back" value="{{ url_for('teacher_problems') }}">
+                    <button class="btn btn--primary btn--sm" type="submit">Công khai</button>
+                  </form>
+                {% else %}
+                  <div class="text-xs text-muted mt-2">Học sinh không thấy</div>
+                  {# Chưa có bộ dữ liệu thì không công khai được. Nút vẫn hiện
+                     nhưng mờ, kèm lý do — giấu nút đi thì giáo viên không biết
+                     là nó có tồn tại. #}
+                  <button class="btn btn--outline btn--sm mt-2" type="button" disabled
+                          title="Đề chưa có bộ dữ liệu nên chưa công khai được. Nhập tệp ZIP ở trang bộ dữ liệu trước.">
+                    Công khai
+                  </button>
+                {% endif %}
+              </td>
               <td class="text-sm">{{ p['author_name'] or '—' }}</td>
               <td>
                 <div class="toolbar">
@@ -126,7 +185,7 @@
     <section class="card" aria-labelledby="form-title">
       <div class="card__head">
         <h2 id="form-title">Soạn đề mới</h2>
-        <span class="badge badge--grey">Lưu ở dạng bản nháp</span>
+        <span class="badge badge--amber">Còn một bước: nhập bộ dữ liệu</span>
       </div>
 
       <div class="card__body">
@@ -236,6 +295,16 @@
             <button class="btn btn--primary" type="submit">Lưu đề</button>
             <button class="btn btn--ghost" type="reset">Xoá biểu mẫu</button>
           </div>
+
+          {# Nói trước bước tiếp theo. Đề mới chưa có bộ dữ liệu nên **chưa** công
+             khai được, và nếu không nói ra thì giáo viên soạn xong, mở trang học
+             sinh, không thấy đề, và tưởng hệ thống hỏng. #}
+          <p class="hint mt-3">
+            Lưu xong đề sẽ nằm ở <strong>bản nháp</strong> — học sinh chưa thấy. Vào
+            <strong>Thêm dữ liệu</strong> để nhập bộ dữ liệu vào – ra; nhập xong đề
+            <strong>tự được công khai</strong>. Muốn công khai tay thì bấm
+            <strong>Công khai</strong> ở danh sách phía trên.
+          </p>
         </form>
       </div>
     </section>

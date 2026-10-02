@@ -627,7 +627,199 @@ check("luot dang ky xoa theo", db.scalar(
     conn, "SELECT COUNT(*) FROM contest_entries WHERE contest_id = ?", (cid,)) == 0)
 conn.close()
 
-print("\n=== 18. Trang khac khong bi vo ===")
+print("\n=== 18. Cong khai de: soan xong la ra toi hoc sinh ===")
+
+# Tao de that qua dung bieu mau ma giao vien dung — khong chen thang vao CSDL,
+# vi chinh buoc tao de la cho sinh ra trang thai 'draft'.
+csrf = token(teacher, "/teacher/problems")
+r = teacher.post("/teacher/problems",
+                 data={"_csrf": csrf, "code": "SL900", "name": "Tính tổng kiểm thử",
+                       "statement": "Tính tổng dãy số.", "difficulty": "co-ban",
+                       "topic": "Số học", "points_mode": "even",
+                       "time_limit_s": "1", "memory_limit_mb": "256"},
+                 follow_redirects=True)
+body = text(r)
+check("tao duoc de moi", "Đã tạo đề SL900" in body, body[:300])
+check("thong bao tao de noi ro buoc con thieu", "nhập bộ dữ liệu" in body, body[:300])
+conn = db.connect(DB)
+row = db.query_one(conn, "SELECT status FROM problems WHERE code='SL900'")
+check("de moi ra doi o dang ban nhap", row is not None and row["status"] == "draft",
+      row and row["status"])
+conn.close()
+
+# SL900 dang la 'draft' va **chua co bo du lieu nao**. Cong khai phai bi chan,
+# va ly do phai noi ro buoc con thieu chu khong chi tra mot trang loi.
+csrf = token(teacher, "/teacher/problems")
+r = teacher.post("/teacher/problems/SL900/status",
+                 data={"_csrf": csrf, "status": "live"}, follow_redirects=True)
+check("chua co du lieu thi khong cong khai duoc",
+      "chưa có bộ dữ liệu" in text(r), text(r)[:300])
+conn = db.connect(DB)
+check("trang thai van la draft",
+      db.query_one(conn, "SELECT status FROM problems WHERE code='SL900'")["status"] == "draft")
+conn.close()
+
+# De ban nhap khong duoc ra toi hoc sinh — ca danh sach lan duong dan truc tiep.
+check("hoc sinh khong thay de ban nhap trong danh sach",
+      "SL900" not in text(student.get("/problems")))
+r = student.get("/problems/SL900")
+check("hoc sinh mo thang de ban nhap bi chan", r.status_code == 404, r.status_code)
+
+# Man hinh phai **noi ra** rang de dang khong hien voi hoc sinh. Thieu dong nay
+# chinh la ly do mot de soan xong nam im ma khong ai biet.
+page = text(teacher.get("/teacher/problems"))
+check("danh sach co canh bao de chua cong khai", "đề chưa công khai" in page)
+check("canh bao noi ro hoc sinh khong thay", "học sinh không thấy" in page)
+check("o trang thai ghi ro 'Hoc sinh khong thay'", "Học sinh không thấy" in page)
+check("nut Cong khai bi mo khi thieu du lieu", "chưa công khai được" in page)
+# Chua co du lieu thi chi co nut mo, khong co bieu mau nao de gui — nen trong
+# trang khong co `action=...` tro tới tuyến đường đổi trạng thái.
+check("thieu du lieu thi khong co bieu mau doi trang thai",
+      'action="/teacher/problems/SL900/status"' not in page)
+
+# Nhap du lieu vao mot de dang o ban nhap thi de **tu** cong khai. Day la duong
+# di that: soan de -> nhap bo du lieu -> hoc sinh thay. Khong co buoc thu ba.
+zip_bytes = make_zip({
+    "TEST01/SL900.INP": "1 2\n", "TEST01/SL900.OUT": "3\n",
+    "TEST02/SL900.INP": "3 4\n", "TEST02/SL900.OUT": "7\n",
+})
+r = teacher.post("/teacher/problems/SL900/tests",
+                 data={"_csrf": csrf, "action": "import",
+                       "zip": (io.BytesIO(zip_bytes), "bo.zip")},
+                 content_type="multipart/form-data", follow_redirects=True)
+body = text(r)
+check("nhap ZIP xong", "Đã nhập 2 bộ dữ liệu" in body, body[:400])
+check("thong bao noi de da cong khai", "đã được công khai" in body, body[:400])
+conn = db.connect(DB)
+check("trang thai thanh live sau khi nhap",
+      db.query_one(conn, "SELECT status FROM problems WHERE code='SL900'")["status"] == "live")
+conn.close()
+check("hoc sinh da thay de", "SL900" in text(student.get("/problems")))
+
+# Thu hoi ve ban nhap: de bien mat khoi danh sach cua hoc sinh.
+r = teacher.post("/teacher/problems/SL900/status",
+                 data={"_csrf": csrf, "status": "draft"}, follow_redirects=True)
+check("thu hoi duoc", "đã thu hồi" in text(r), text(r)[:300])
+check("thu hoi xong hoc sinh khong thay nua",
+      "SL900" not in text(student.get("/problems")))
+
+# Co du lieu roi thi dong tren danh sach phai co bieu mau cong khai that.
+page = text(teacher.get("/teacher/problems"))
+check("co du lieu thi co bieu mau doi trang thai tren danh sach",
+      'action="/teacher/problems/SL900/status"' in page)
+check("nut cong khai khong con bi mo", "chưa công khai được" not in page)
+
+# Cong khai lai bang mot bam.
+r = teacher.post("/teacher/problems/SL900/status",
+                 data={"_csrf": csrf, "status": "live"}, follow_redirects=True)
+check("cong khai lai duoc bang mot bam", "đã công khai" in text(r), text(r)[:300])
+check("hoc sinh thay lai", "SL900" in text(student.get("/problems")))
+
+# De o 'review' la giao vien da chon ro rang -> nhap du lieu KHONG tu doi.
+conn = db.connect(DB)
+with conn:
+    conn.execute("UPDATE problems SET status='review' WHERE code='SL900'")
+conn.close()
+teacher.post("/teacher/problems/SL900/tests",
+             data={"_csrf": csrf, "action": "import",
+                   "zip": (io.BytesIO(zip_bytes), "bo.zip")},
+             content_type="multipart/form-data", follow_redirects=True)
+conn = db.connect(DB)
+check("de o 'review' khong bi tu doi trang thai",
+      db.query_one(conn, "SELECT status FROM problems WHERE code='SL900'")["status"] == "review")
+conn.close()
+
+# O "Giu de o ban nhap" thi khong tu cong khai.
+conn = db.connect(DB)
+with conn:
+    conn.execute("UPDATE problems SET status='draft' WHERE code='SL900'")
+conn.close()
+r = teacher.post("/teacher/problems/SL900/tests",
+                 data={"_csrf": csrf, "action": "import", "keep_draft": "1",
+                       "zip": (io.BytesIO(zip_bytes), "bo.zip")},
+                 content_type="multipart/form-data", follow_redirects=True)
+check("tich giu nhap thi khong tu cong khai", "vẫn ở bản nháp" in text(r), text(r)[:400])
+conn = db.connect(DB)
+check("trang thai van la draft khi tich giu nhap",
+      db.query_one(conn, "SELECT status FROM problems WHERE code='SL900'")["status"] == "draft")
+conn.close()
+
+# Trang bo du lieu: da co du lieu thi phai co nut cong khai ngay tai cho.
+page = text(teacher.get("/teacher/problems/SL900/tests"))
+check("trang bo du lieu bao de chua cong khai", "học sinh chưa thấy" in page)
+check("trang bo du lieu co nut cong khai ngay", "Công khai đề ngay" in page)
+check("bieu mau nhap co o giu nhap", 'name="keep_draft"' in page)
+
+# Trang sua de: co nut "Luu va cong khai", va nut do phai **de** o chon trang
+# thai. Khong de thi bam nut ma de van nam o ban nhap — dung cai bay can dep.
+page = text(teacher.get("/teacher/problems/SL900/edit"))
+check("trang sua de co nut Luu va cong khai", 'name="publish"' in page)
+
+r = teacher.post("/teacher/problems/SL900/edit",
+                 data={"_csrf": csrf, "name": "Tính tổng", "statement": "Tính tổng dãy số.",
+                       "difficulty": "co-ban", "topic": "Số học", "points_mode": "even",
+                       "time_limit_s": "1", "memory_limit_mb": "256",
+                       "status": "draft", "publish": "1"}, follow_redirects=True)
+check("bam Luu va cong khai thi bao da cong khai",
+      "Đã lưu và công khai" in text(r), text(r)[:300])
+conn = db.connect(DB)
+check("o chon la 'draft' nhung trang thai thanh live",
+      db.query_one(conn, "SELECT status FROM problems WHERE code='SL900'")["status"] == "live")
+conn.close()
+
+# De chua co du lieu thi trang sua de khong hien nut do, nhung phai noi vi sao.
+conn = db.connect(DB)
+with conn:
+    conn.execute("DELETE FROM tests WHERE problem_id = "
+                 "(SELECT id FROM problems WHERE code='SL900')")
+    conn.execute("UPDATE problems SET status='draft' WHERE code='SL900'")
+conn.close()
+page = text(teacher.get("/teacher/problems/SL900/edit"))
+check("thieu du lieu thi an nut Luu va cong khai", 'name="publish"' not in page)
+check("thieu du lieu thi noi ro vi sao", "chưa có bộ dữ liệu nào" in page)
+
+print("\n=== 18b. Doi trang thai: chan cac duong di sai ===")
+
+# Hoc sinh khong duoc doi trang thai de. Dung token cua chinh phien hoc sinh,
+# neu khong thi bai kiem chi chung minh CSRF chan duoc chu khong chung minh
+# `teacher_required` chan duoc.
+s_csrf = token(student, "/account")
+r = student.post("/teacher/problems/SL001/status",
+                 data={"_csrf": s_csrf, "status": "draft"})
+check("hoc sinh khong doi duoc trang thai de", r.status_code in (302, 403), r.status_code)
+conn = db.connect(DB)
+check("trang thai SL001 khong bi hoc sinh doi",
+      db.query_one(conn, "SELECT status FROM problems WHERE code='SL001'")["status"] == "live")
+conn.close()
+
+# De khong ton tai -> 404, khong phai 500.
+r = teacher.post("/teacher/problems/KHONGCO/status",
+                 data={"_csrf": csrf, "status": "live"})
+check("doi trang thai de khong ton tai tra 404", r.status_code == 404, r.status_code)
+
+# Trang thai la -> tu choi, khong ghi gi.
+r = teacher.post("/teacher/problems/SL001/status",
+                 data={"_csrf": csrf, "status": "published"}, follow_redirects=True)
+check("trang thai la bi tu choi", "không hợp lệ" in text(r), text(r)[:300])
+conn = db.connect(DB)
+check("trang thai khong doi khi gia tri la",
+      db.query_one(conn, "SELECT status FROM problems WHERE code='SL001'")["status"] == "live")
+conn.close()
+
+# `back` la mot truong cua bieu mau: nhan bua thi thanh open redirect.
+r = teacher.post("/teacher/problems/SL001/status",
+                 data={"_csrf": csrf, "status": "live", "back": "https://example.com/x"})
+check("khong chuyen huong ra ngoai site",
+      "example.com" not in r.headers.get("Location", ""), r.headers.get("Location"))
+
+r = teacher.post("/teacher/problems/SL001/status",
+                 data={"_csrf": csrf, "status": "live",
+                       "back": "/teacher/problems/SL001/tests"})
+check("back noi bo duoc ton trong",
+      r.headers.get("Location", "").endswith("/teacher/problems/SL001/tests"),
+      r.headers.get("Location"))
+
+print("\n=== 19. Trang khac khong bi vo ===")
 for path in ("/", "/problems", "/submissions", "/leaderboard", "/contests",
              "/teacher", "/teacher/problems", "/teacher/classes", "/teacher/users",
              "/teacher/contests", "/teacher/problems/SL001/tests",
@@ -635,7 +827,7 @@ for path in ("/", "/problems", "/submissions", "/leaderboard", "/contests",
     r = teacher.get(path)
     check("giao vien mo duoc %s" % path, r.status_code == 200, r.status_code)
 
-print("\n=== 19. Tep khong ton tai tra 404, khong phai 500 ===")
+print("\n=== 20. Tep khong ton tai tra 404, khong phai 500 ===")
 for path in ("/teacher/problems/KHONGCO/tests", "/teacher/users/99999/update",
              "/teacher/users/99999/delete", "/teacher/users/99999/reset",
              "/teacher/contests/99999/update", "/teacher/contests/99999/delete"):

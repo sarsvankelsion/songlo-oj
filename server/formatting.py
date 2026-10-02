@@ -33,7 +33,11 @@ PROBLEM_STATUS_LABEL = {
 }
 
 PROBLEM_STATUS_CLASS = {
-    "draft": "badge badge--grey",
+    # "Bản nháp" dùng màu hổ phách, không dùng xám. Xám đọc như "bình thường,
+    # không có gì phải làm"; hổ phách đọc như "còn một bước nữa". Đề nằm ở bản
+    # nháp là đề **học sinh không thấy**, và đây đúng là thứ giáo viên cần để
+    # mắt tới.
+    "draft": "badge badge--amber",
     "review": "badge badge--red",
     "live": "badge badge--green",
 }

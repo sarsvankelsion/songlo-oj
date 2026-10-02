@@ -175,8 +175,26 @@
 
             <div class="row">
               <button class="btn btn--primary" type="submit">Lưu thay đổi</button>
+
+              {# Nút này gửi kèm `publish=1` và **đè** ô chọn trạng thái ở trên, để
+                 bấm một nút là vừa lưu vừa công khai. Không có nó thì giáo viên
+                 sửa đề xong, bấm Lưu, mà ô chọn vẫn đang là "Bản nháp" — đề lại
+                 nằm im, và đó đúng là cái bẫy cần dẹp. #}
+              {% if values['status'] != 'live' and test_count %}
+                <button class="btn btn--outline" type="submit" name="publish" value="1">
+                  Lưu và công khai
+                </button>
+              {% endif %}
+
               <a class="btn btn--ghost" href="{{ url_for('teacher_problems') }}">Huỷ</a>
             </div>
+            {% if values['status'] != 'live' and not test_count %}
+              <p class="hint mt-3">
+                Chưa có nút «Lưu và công khai» vì đề chưa có bộ dữ liệu nào.
+                <a href="{{ url_for('teacher_problem_tests', code=problem['code']) }}">Thêm bộ dữ liệu</a>
+                rồi công khai — nhập xong đề cũng tự được công khai.
+              </p>
+            {% endif %}
           </form>
         </div>
       </section>

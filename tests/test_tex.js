@@ -185,5 +185,99 @@ const verb = texToHtml(
 contains('verbatim bo xuong dong dau', verb,
   '<pre class="tex-pre">  int main() { return 0; }</pre>');
 
+/* ---- 7. De that lay tu kho Themis: bang long nhau trong bang ngoai ----
+
+   Day la nguyen doan .tex ma anh Duy dan vao va thay hong. Ba trieu chung
+   nhin thay duoc tren khung xem truoc:
+
+     - chu "[h]" hien lo lung giua de   <- `\begin{table}[h]`, tham so tuy chon
+                                            khong bi go
+     - o bang hien nguyen lenh          <- `\textbf{INPUT}` trong o bang khong
+        `\textbf{INPUT}`                   di qua buoc doi lenh
+     - phan duoi bang troi thanh o rac  <- bang long nhau: regex non-greedy
+                                            dung o `\end{tabular}` DAU TIEN,
+                                            tuc la cua bang con
+
+   Ca ba deu la loi im lang: khong bao loi, chi la de bai hien sai. */
+const realDoc = [
+  '\\documentclass[12pt]{article}',
+  '\\begin{document}',
+  'In ra trên một dòng gồm hai số nguyên: số thứ nhất là số lượng phần tử của',
+  'tập hợp $A \\cup B$, số thứ hai là số lượng phần tử của tập hợp $A \\cap B$.',
+  '',
+  '\\subsection*{Ví dụ}',
+  '',
+  '\\begin{table}[h]',
+  '\\centering',
+  '\\begin{tabular}{[l|l|l]}',
+  '\\hline',
+  '\\textbf{INPUT} & \\textbf{OUTPUT} \\\\ \\hline',
+  '\\begin{tabular}{t|@{|}@{}}',
+  '4 5 \\\\',
+  '1 2 3 4 \\\\',
+  '9 7 3 2 5',
+  '\\end{tabular} & 7 2 \\\\ \\hline',
+  '\\begin{tabular}{t|@{|}@{}}',
+  '4 5 \\\\',
+  '1 2 3 4 \\\\',
+  '9 7 10 11 5',
+  '\\end{tabular} & 9 0 \\\\ \\hline',
+  '\\end{tabular}',
+  '\\end{table}',
+  '\\end{document}'
+].join('\n');
+
+const realHtml = texToHtml(realDoc);
+
+missing('bo tham so tuy chon cua moi truong ([h])', realHtml, '[h]');
+missing('khong con lenh begin/end nao', realHtml, '\\begin');
+missing('khong con lenh textbf nao', realHtml, '\\textbf');
+missing('khong con lenh centering', realHtml, 'centering');
+
+// Hai o cua hang tieu de phai duoc doi lenh nhu moi o khac.
+contains('o bang duoc doi lenh (textbf -> strong)', realHtml,
+  '<td><strong>INPUT</strong></td><td><strong>OUTPUT</strong></td>');
+
+// Bang ngoai 2 cot, bang con 1 cot. Hang ke cua bang ngoai phai colspan="2".
+contains('hang ke bang ngoai dung 2 cot', realHtml, '<tr class="tex-rule"><td colspan="2"></td></tr>');
+
+// Neu bang long nhau bi cat cut thi `& 7 2` se troi ra thanh o rieng. Kiem
+// rang no nam trong CUNG mot hang voi bang con.
+//
+// Khong cat chuoi theo `<tr>` de dem hang: bang con cung co `<tr>` cua no, va
+// `String.split` khong biet the nao la the nao. Nhan dang bang **o chua bang
+// con** — do moi la thu phan anh viec cat cut.
+const nestedCells = realHtml.match(/<td><table class="tex-table">[\s\S]*?<\/table><\/td>/g) || [];
+check('co dung 2 o chua bang con', nestedCells.length, 2);
+
+// Bang ngoai chi co mot duong ke, va no phai rong dung 2 cot.
+check('bang ngoai co dung 1 hang ke',
+  (realHtml.match(/<tr class="tex-rule">/g) || []).length, 1);
+
+// Bang con phai giu **du ba dong**, va o `7 2` phai dung ngay sau no trong
+// cung mot hang. Day la dang loi ma anh Duy nhin thay: bang con bi cat con mot
+// phan, phan con lai troi thanh o rac.
+contains('bang con thu nhat du 3 dong, "7 2" cung hang', realHtml,
+  '<tr><td>9 7 3 2 5</td></tr></table></td><td>7 2</td>');
+contains('bang con thu hai du 3 dong, "9 0" cung hang', realHtml,
+  '<tr><td>9 7 10 11 5</td></tr></table></td><td>9 0</td>');
+
+/* ---- 8. `@{…}` khong phai la cot --------------------------------------- */
+
+// `@{\hspace{1cm}}` la khai bao khoang cach giua hai cot, khong phai mot cot.
+// Neu dem thang moi ky tu l/c/r trong spec thi no thanh HAI cot (chu `c` trong
+// `\hspace{1cm}`), va bang bi lech.
+const atSpec = texToHtml(
+  '\\begin{document}\n\\begin{tabular}{l@{\\hspace{1cm}}r}\n\\hline\na & b \\\\\n\\hline\n\\end{tabular}\n\\end{document}');
+contains('@{...} khong sinh cot', atSpec, '<tr class="tex-rule"><td colspan="2"></td></tr>');
+contains('cot r van can phai', atSpec, 'class="ta-r"');
+
+/* ---- 9. `\\begin{tabular}[t]{…}` — tham so tuy chon truoc spec ---------- */
+
+const posSpec = texToHtml(
+  '\\begin{document}\n\\begin{tabular}[t]{|c|c|}\n\\hline\na & b \\\\\n\\hline\n\\end{tabular}\n\\end{document}');
+contains('nhan duoc [t] truoc spec', posSpec, '<tr class="tex-rule"><td colspan="2"></td></tr>');
+missing('khong de lai [t]', posSpec, '[t]');
+
 console.log('\n' + pass + ' dat, ' + fail + ' hong');
 process.exit(fail ? 1 : 0);

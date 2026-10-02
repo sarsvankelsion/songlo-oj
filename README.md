@@ -188,7 +188,7 @@ Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.h
 │   ├── render_pages.py       Render các trang cần đăng nhập ra HTML tĩnh
 │   ├── shoot.py              Chụp ảnh từng trang (đo chiều cao trước khi chụp)
 │   └── check_morph.js        Kiểm tra tên morph trên DOM đã render
-├── docs/                     Ảnh chụp cho README
+├── docs/                     Ảnh chụp cho README, ghi chú nguồn đề (nguon-de.md)
 ├── assets/                   Ảnh gốc tải từ website nhà trường (kể cả huy hiệu)
 ├── research/                 Ghi chú khảo sát DMOJ/VNOJ
 │   ├── dmoj_install.md
@@ -333,29 +333,29 @@ Về cách trình bày dữ liệu thời gian và cờ trình dịch:
    bảng xếp hạng, kỳ thi có đếm ngược, tiến trình chấm riêng. Vòng soạn đề đã
    khép kín: tạo đề → thêm bộ dữ liệu → sửa đề → công khai.
 3. Bộ chấm đã chạy thật qua cả sáu loại kết quả: AC, WA, TLE, MLE, RE, CE.
+4. Giáo viên toàn quyền trên giao diện: quản lý tài khoản (tạo, sửa, đặt lại mật
+   khẩu, khoá, xoá), tạo và sửa kỳ thi, gán đề vào kỳ thi, sửa và xoá đề. Nhập
+   bộ dữ liệu từ tệp ZIP kiểu Themis. Đổi mật khẩu ở lần đăng nhập đầu. Công
+   khai đề bằng một bấm, và nhập bộ dữ liệu xong thì đề tự được công khai.
+5. Đã dựng trên máy chủ Linux của trường: <https://oj.sarsed.eu.cc>
 
 Còn lại:
 
-1. **Chốt phương án backend.** Xem mục "Kiến trúc backend" ở trên — repo này
-   đang đi hướng Flask tự chứa, còn báo cáo khuyến nghị VNOJ. Cần quyết trước
-   khi làm tiếp, vì hai hướng không ghép lại được.
-2. Dựng trên máy chủ Linux của trường theo `deploy/README.md`, rồi chấm thử một
-   bài C++ thật để xác nhận `RLIMIT_CPU` và việc hạ quyền hoạt động (hai thứ
-   này không kiểm chứng được trên Windows).
-3. Chốt giao diện với giáo viên, sửa những chỗ chưa hợp ý.
-4. Việc chưa làm, đã biết — xếp theo mức độ cản trở công việc thật:
-   1. **Quản lý kỳ thi.** Trang kỳ thi hiện chỉ đọc; chưa tạo/sửa kỳ thi hay
-      gán đề vào kỳ thi từ giao diện (dữ liệu mẫu do `server/seed.py` tạo).
-   2. **Nhập tài khoản học sinh hàng loạt.** 26 tài khoản mẫu do seed tạo; một
-      lớp thật có thể có hơn 40 em, nhập tay từng em một là không khả thi.
-   3. **Xuất bảng điểm** ra tệp để nộp sổ điểm.
-   4. **Trang đổi mật khẩu ở lần đăng nhập đầu.** CSDL đã có cột
-      `must_change_password` và `server/seed.py` đặt bằng 1 cho học sinh, nhưng
-      chưa có trang nào dùng cột đó — nên hiện tại lời nhắc đổi mật khẩu không
-      tồn tại trên giao diện.
-   5. **Xoá đề.** Chưa có đường xoá một đề đã tạo. Cân nhắc trước khi thêm: bài
-      nộp trỏ tới đề bằng khoá ngoại, nên xoá đề sẽ kéo theo hoặc mồ côi dữ liệu
-      điểm. Nhiều khả năng nên là "ẩn" (đổi về `draft`) chứ không phải xoá thật.
+1. Chốt giao diện với giáo viên, sửa những chỗ chưa hợp ý.
+2. Việc chưa làm, đã biết — xếp theo mức độ cản trở công việc thật:
+   1. **Xuất bảng điểm** ra tệp để nộp sổ điểm.
+   2. **Sinh bộ dữ liệu từ lời giải mẫu.** Tải lên một tệp `.cpp` là lời giải
+      đúng, hệ thống sinh N bộ ngẫu nhiên rồi tự tạo tệp đáp án. Đây là thứ biến
+      một đề lấy từ kho (LQDOJ, Tin học trẻ, đề HSG các tỉnh) thành một đề chấm
+      được trong vài phút. Xem `docs/nguon-de.md`.
+   3. **Nhập đề kèm cả đề bài lẫn dữ liệu trong một tệp.** Hiện tệp ZIP chỉ mang
+      bộ dữ liệu; đề bài phải dán riêng.
+   4. **Nhập tài khoản học sinh từ tệp danh sách lớp.** Hiện tạo được từng em
+      một; một lớp thật có thể hơn 40 em, nhập tay là không khả thi.
+   5. **Trang "Nguồn đề" trong khu giáo viên**, để giáo viên khác trong trường
+      đọc được mà không cần mở repo này.
+
+Xem `docs/nguon-de.md` để biết lấy đề bài và dữ liệu chấm từ đâu.
 
 ## Ghi chú về giấy phép
 
