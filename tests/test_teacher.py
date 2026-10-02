@@ -171,7 +171,11 @@ TMP = tempfile.mkdtemp(prefix="songlo-teacher-test-")
 DB = os.path.join(TMP, "songlo.db")
 print("\nCSDL tam:", DB)
 
-app = create_app({"TESTING": True, "DATABASE": DB, "SECRET_KEY": "test"})
+app = create_app({"TESTING": True, "DATABASE": DB, "SECRET_KEY": "test",
+                  # Cô lập luôn thư mục chấm. Mặc định nó là `server/var/judge`,
+                  # tức là bài kiểm thử sẽ ghi vào cây mã nguồn — và mục §21 dịch
+                  # và chạy chương trình thật, nên nó tạo ra tệp thật.
+                  "JUDGE_WORKSPACE": os.path.join(TMP, "judge")})
 app.config["MAX_CONTENT_LENGTH"] = 96 * 1024 * 1024   # cho phép ZIP lớn trong bài kiểm
 
 conn = db.connect(DB)
@@ -837,6 +841,224 @@ for path in ("/teacher/problems/KHONGCO/tests", "/teacher/users/99999/update",
              "/teacher/contests/99999/update", "/teacher/contests/99999/delete"):
     r = teacher.post(path, data={"_csrf": token(teacher, "/teacher/users")})
     check("%s tra 404" % path, r.status_code == 404, r.status_code)
+
+print("\n=== 21. Sinh bo du lieu tu bo sinh va loi giai mau ===")
+
+# Vì sao kiểm phần này kỹ: đây là đường **chạy chương trình do giáo viên gửi
+# lên**. Mọi thứ khác trong tệp này chỉ đọc/ghi CSDL; riêng ở đây có một tiến
+# trình được dịch và chạy thật. Ba nhóm phải kiểm:
+#
+#   1. Đường đúng: sinh ra bộ dữ liệu, đánh dấu ẩn, tự công khai.
+#   2. Cùng chỉ số bộ thì ra cùng dữ liệu — đây là lý do bộ sinh nhận `argv[1]`,
+#      và nếu mất tính chất này thì không sinh lại được đúng bộ cũ khi cần.
+#   3. Mọi đường sai đều phải trả về **một câu đọc được**, không phải trang 500
+#      và không phải im lặng: bộ sinh không dịch được, bộ sinh không in gì, bộ
+#      sinh treo, lời giải mẫu thoát lỗi, thiếu một trong hai, mã nguồn quá dài.
+
+GEN_OK = r'''
+#include <iostream>
+#include <cstdlib>
+using namespace std;
+int main(int argc, char** argv) {
+    int seed = argc > 1 ? atoi(argv[1]) : 1;
+    srand(seed);
+    int n = 3 + rand() % 5;
+    cout << n << "\n";
+    for (int i = 0; i < n; i++) cout << rand() % 100 << " ";
+    cout << "\n";
+    return 0;
+}
+'''
+
+SOL_OK = r'''
+#include <iostream>
+using namespace std;
+int main() {
+    int n; cin >> n;
+    long long s = 0, x;
+    while (n--) { cin >> x; s += x; }
+    cout << s << "\n";
+    return 0;
+}
+'''
+
+# Tao de qua dung bieu mau that, giong muc §18. De sinh ra o trang thai `draft`.
+csrf = token(teacher, "/teacher/problems")
+teacher.post("/teacher/problems",
+             data={"_csrf": csrf, "code": "SL901", "name": "Tổng dãy sinh tự động",
+                   "statement": "Tính tổng dãy số.", "difficulty": "co-ban",
+                   "topic": "Số học", "points_mode": "even",
+                   "time_limit_s": "1", "memory_limit_mb": "256"},
+             follow_redirects=True)
+
+TESTS_URL = "/teacher/problems/SL901/tests"
+
+
+def sl901_tests():
+    """Doc cac bo du lieu cua SL901 thang tu CSDL."""
+    c = db.connect(DB)
+    rows = db.query(
+        c, """SELECT t.ordinal, t.input, t.output, t.is_hidden, t.note
+                FROM tests t JOIN problems p ON p.id = t.problem_id
+               WHERE p.code = 'SL901' ORDER BY t.ordinal""")
+    c.close()
+    return rows
+
+
+def sl901_status():
+    c = db.connect(DB)
+    row = db.query_one(c, "SELECT status FROM problems WHERE code = 'SL901'")
+    c.close()
+    return row["status"]
+
+
+def wipe_sl901():
+    c = db.connect(DB)
+    with c:
+        c.execute("""DELETE FROM tests WHERE problem_id =
+                       (SELECT id FROM problems WHERE code = 'SL901')""")
+        c.execute("UPDATE problems SET status = 'draft' WHERE code = 'SL901'")
+    c.close()
+
+
+def gen(data, follow=True):
+    d = {"_csrf": csrf, "action": "generate",
+         "gen_source": GEN_OK, "sol_source": SOL_OK, "count": "3"}
+    d.update(data)
+    return teacher.post(TESTS_URL, data=d, follow_redirects=follow)
+
+
+# --- 21a. Duong dung -------------------------------------------------------
+r = gen({})
+body = text(r)
+check("sinh duoc 3 bo", "Đã sinh 3 bộ dữ liệu" in body, body[:400])
+rows = sl901_tests()
+check("CSDL co dung 3 bo", len(rows) == 3, len(rows))
+check("bo sinh ra deu la bo an", all(x["is_hidden"] == 1 for x in rows),
+      [(x["ordinal"], x["is_hidden"]) for x in rows])
+check("ghi chu noi ro bo nao do bo sinh tao",
+      [x["note"] for x in rows] == ["sinh 01", "sinh 02", "sinh 03"],
+      [x["note"] for x in rows])
+# Dap an phai la tong cua chinh du lieu vao — tuc la loi giai mau da chay tren
+# dung bo du lieu ma bo sinh vua tao, chu khong phai mot con so nao khac.
+ok_answers = True
+for x in rows:
+    nums = [int(v) for v in x["input"].split()]
+    if len(nums) < 1 or sum(nums[1:]) != int(x["output"].strip()):
+        ok_answers = False
+check("dap an dung la tong cua du lieu vao", ok_answers,
+      [(x["input"], x["output"]) for x in rows])
+check("de tu cong khai sau khi sinh", sl901_status() == "live", sl901_status())
+check("thong bao noi de da ra toi hoc sinh", "đã được công khai" in body, body[:400])
+check("hoc sinh thay de vua sinh du lieu", "SL901" in text(student.get("/problems")))
+
+# --- 21b. Cung chi so bo -> cung du lieu -----------------------------------
+# Sinh them 3 bo nua voi **cung** hai chuong trinh. Bo 4, 5, 6 phai trung bo 1,
+# 2, 3. Mat tinh chat nay nghia la khong tai tao duoc mot bo cu the khi can doi
+# chieu, va do la ly do duy nhat khien bo sinh nhan `argv[1]`.
+first = [x["input"] for x in sl901_tests()]
+r = gen({})
+again = [x["input"] for x in sl901_tests()]
+check("sinh them 3 bo nua", len(again) == 6, len(again))
+check("cung chi so bo thi ra cung du lieu", again[3:6] == first[0:3],
+      list(zip(first[0:3], again[3:6])))
+check("khong tu xoa bo cu khi sinh them", len(again) == 6, len(again))
+
+# --- 21c. count = 0 van phai sinh duoc mot bo ------------------------------
+# Keo ve 1 chu khong phai 0: mot yeu cau "sinh 0 bo" ma tra ve trang thai thanh
+# cong kem 0 bo la mot yeu cau im lang khong lam gi.
+wipe_sl901()
+r = gen({"count": "0"})
+check("count = 0 keo ve 1 bo", "Đã sinh 1 bộ dữ liệu" in text(r), text(r)[:300])
+check("CSDL co 1 bo", len(sl901_tests()) == 1, len(sl901_tests()))
+
+# --- 21d. Cac duong sai ----------------------------------------------------
+wipe_sl901()
+
+r = gen({"gen_source": "int main() { this is not cpp }"})
+body = text(r)
+check("bo sinh khong dich duoc: bao loi", "Bộ sinh dữ liệu không dịch được" in body,
+      body[:400])
+check("bo sinh khong dich duoc: khong them bo nao", len(sl901_tests()) == 0,
+      len(sl901_tests()))
+
+r = gen({"sol_source": "int main() { this is not cpp }"})
+check("loi giai mau khong dich duoc: bao loi",
+      "Lời giải mẫu không dịch được" in text(r), text(r)[:400])
+
+# Bo sinh chay xong ma khong in gi. Day la loi rat de mac: quen `cout`, hoac
+# ghi ra `cerr`. Neu khong chan thi se co mot bo du lieu vao rong, va moi bai
+# nop deu dung — de trong nhu vay khong ai nhan ra la de.
+r = gen({"gen_source": "int main() { return 0; }"})
+check("bo sinh khong in gi: bao loi doc duoc",
+      "không in ra gì" in text(r), text(r)[:400])
+check("bo sinh khong in gi: khong them bo nao", len(sl901_tests()) == 0,
+      len(sl901_tests()))
+
+# Loi giai mau chay xong voi ma thoat khac 0.
+r = gen({"sol_source": "int main() { return 3; }"})
+check("loi giai mau thoat loi: bao loi doc duoc",
+      "Lời giải mẫu thoát với mã 3" in text(r), text(r)[:400])
+
+r = gen({"gen_source": "   "})
+check("thieu bo sinh: bao loi", "Cần cả bộ sinh dữ liệu và lời giải mẫu" in text(r),
+      text(r)[:300])
+r = gen({"sol_source": ""})
+check("thieu loi giai mau: bao loi", "Cần cả bộ sinh dữ liệu và lời giải mẫu" in text(r),
+      text(r)[:300])
+
+# Ma nguon qua dai. Chan truoc khi ghi ra dia, khong phai sau khi dich.
+r = gen({"gen_source": "//" + "x" * (64 * 1024)})
+check("ma nguon qua dai: bao loi", "dài quá 64 KB" in text(r), text(r)[:300])
+
+# Bo sinh khong ket thuc. Day la duong nguy hiem nhat: khong co gioi han thi
+# mot worker cua gunicorn bi giu mai mai, va chi can vai lan la ca trang dung.
+# Chay that voi gioi han that (5 giay) chu khong ha xuong cho nhanh — ha xuong
+# thi bai kiem khong con chung minh duoc gioi han that su co tac dung.
+r = gen({"gen_source": "int main() { while (true) {} }"})
+check("bo sinh treo: bao loi doc duoc", "không kết thúc trong 5 giây" in text(r),
+      text(r)[:400])
+check("bo sinh treo: khong them bo nao", len(sl901_tests()) == 0, len(sl901_tests()))
+
+# --- 21e. keep_draft: giao vien dang soan do ------------------------------
+wipe_sl901()
+r = gen({"keep_draft": "1"})
+body = text(r)
+check("keep_draft: van sinh duoc du lieu", "Đã sinh 3 bộ dữ liệu" in body, body[:400])
+check("keep_draft: de van o ban nhap", sl901_status() == "draft", sl901_status())
+check("keep_draft: thong bao noi ro hoc sinh chua thay",
+      "vẫn ở bản nháp" in body, body[:400])
+
+# --- 21f. Quyen va CSRF ----------------------------------------------------
+# Dung token cua **chinh phien hoc sinh**. Lay token cua giao vien thi bai kiem
+# chi chung minh CSRF chan duoc, chu khong chung minh `teacher_required` chan
+# duoc — ma day moi la thu can chung minh.
+s_csrf = token(student, "/account")
+r = student.post(TESTS_URL, data={"_csrf": s_csrf, "action": "generate",
+                                  "gen_source": GEN_OK, "sol_source": SOL_OK,
+                                  "count": "1"})
+check("hoc sinh khong sinh duoc du lieu", r.status_code in (302, 403), r.status_code)
+
+r = teacher.post(TESTS_URL, data={"action": "generate",
+                                  "gen_source": GEN_OK, "sol_source": SOL_OK,
+                                  "count": "1"})
+check("thieu CSRF thi bi chan", r.status_code == 400, r.status_code)
+
+# --- 21g. Bieu mau phai co du truong --------------------------------------
+page = text(teacher.get(TESTS_URL))
+check("bieu mau sinh co o bo sinh", 'name="gen_source"' in page)
+check("bieu mau sinh co o loi giai mau", 'name="sol_source"' in page)
+check("bieu mau sinh co o so bo", 'name="count"' in page)
+check("bieu mau sinh noi ro tran so bo", 'max="30"' in page)
+check("bieu mau sinh co o giu nhap", 'name="keep_draft"' in page)
+check("bieu mau sinh noi ro bo sinh nhan argv",
+      "argv[1]" in page, page[:200])
+
+# Don sach de khong anh huong cac muc sau.
+conn = db.connect(DB)
+with conn:
+    conn.execute("DELETE FROM problems WHERE code = 'SL901'")
+conn.close()
 
 shutil.rmtree(TMP, ignore_errors=True)
 

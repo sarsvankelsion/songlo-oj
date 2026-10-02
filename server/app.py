@@ -24,7 +24,7 @@ from flask import (
     send_from_directory, url_for,
 )
 
-from . import auth, avatars, db, formatting, themis
+from . import auth, avatars, db, formatting, gendata, themis
 from .judge import COMPILE_FLAGS, VERDICT_LABEL
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -1111,6 +1111,8 @@ def _register_routes(app: Flask) -> None:
                 flash("Đã xoá bộ dữ liệu.", "ok")
             elif action == "import":
                 return _import_themis_zip(conn, problem, code)
+            elif action == "generate":
+                return _generate_tests(conn, problem, code)
             else:
                 _add_test(conn, problem, request.form)
                 flash("Đã thêm bộ dữ liệu.", "ok")
@@ -1123,6 +1125,7 @@ def _register_routes(app: Flask) -> None:
             active="teacher",
             problem=problem,
             tests=tests,
+            max_count=gendata.MAX_COUNT,
             compile_flags="g++ " + " ".join(COMPILE_FLAGS),
         )
 
@@ -1981,6 +1984,58 @@ def _update_problem(conn, problem, form) -> str | None:
     return None
 
 
+def _autopublish_after_import(conn, problem, keep_draft: bool) -> bool:
+    """Sau khi nhập **hoặc sinh** bộ dữ liệu: tự công khai nếu đang ở bản nháp.
+
+    Một chỗ duy nhất giữ luật này, vì có hai đường dẫn tới đây (nhập tệp ZIP và
+    sinh từ lời giải mẫu) và mỗi nơi tự quyết thì sớm muộn có nơi quên.
+
+    Chỉ tự công khai khi đề đang ở ``draft``, tức là chưa ai quyết định gì. Đề
+    đang ở ``review`` là giáo viên đã chọn rõ ràng, không tự đổi.
+    """
+    if keep_draft or problem["status"] != "draft":
+        return False
+    return _set_problem_status(conn, problem, "live") is None
+
+
+def _publish_note(problem, published: bool) -> str:
+    """Câu nối vào thông báo, nói rõ đề có ra tới học sinh hay chưa.
+
+    Không nói gì là chỗ dễ sai nhất: giáo viên nhập xong, mở trang học sinh,
+    không thấy đề, và tưởng hệ thống hỏng. Nên khi đề vẫn ở bản nháp thì phải
+    nói thẳng ra.
+    """
+    if published:
+        return " Đề đã được công khai — học sinh đã thấy đề này."
+    if problem["status"] == "draft":
+        return " Đề vẫn ở bản nháp, học sinh chưa thấy."
+    return ""
+
+
+def _insert_tests(conn, problem, tests, replace: bool) -> None:
+    """Ghi các bộ dữ liệu vào CSDL, tiếp nối số thứ tự đang có.
+
+    Bộ nhập từ ngoài vào mặc định là **ẩn**: đề của trường thường lấy từ kho
+    chung, và nếu hiện hết thì học sinh chỉ cần mở đề là thấy toàn bộ đáp án.
+    """
+    with conn:
+        if replace:
+            conn.execute("DELETE FROM tests WHERE problem_id = ?", (problem["id"],))
+
+        ordinal = db.scalar(
+            conn, "SELECT COALESCE(MAX(ordinal), 0) FROM tests WHERE problem_id = ?",
+            (problem["id"],))
+        for t in tests:
+            ordinal += 1
+            conn.execute(
+                """INSERT INTO tests (problem_id, ordinal, input, output, is_hidden, points, note)
+                   VALUES (?, ?, ?, ?, 1, 0, ?)""",
+                (problem["id"], ordinal, t["input"], t["output"], t["name"]),
+            )
+        conn.execute("UPDATE problems SET updated_at = ? WHERE id = ?",
+                     (db.utc_now(), problem["id"]))
+
+
 def _import_themis_zip(conn, problem, code: str):
     """Nhập bộ dữ liệu từ tệp ZIP kiểu Themis.
 
@@ -2010,38 +2065,14 @@ def _import_themis_zip(conn, problem, code: str):
         return redirect(url_for("teacher_problem_tests", code=code))
 
     replace = bool(request.form.get("replace"))
-    with conn:
-        if replace:
-            conn.execute("DELETE FROM tests WHERE problem_id = ?", (problem["id"],))
-
-        ordinal = db.scalar(
-            conn, "SELECT COALESCE(MAX(ordinal), 0) FROM tests WHERE problem_id = ?",
-            (problem["id"],))
-        for t in tests:
-            ordinal += 1
-            # Bộ dữ liệu nhập từ tệp mặc định là **ẩn**: đề của trường thường lấy
-            # từ kho chung, và nếu hiện hết thì học sinh chỉ cần mở đề là thấy
-            # toàn bộ đáp án.
-            conn.execute(
-                """INSERT INTO tests (problem_id, ordinal, input, output, is_hidden, points, note)
-                   VALUES (?, ?, ?, ?, 1, 0, ?)""",
-                (problem["id"], ordinal, t["input"], t["output"], t["name"]),
-            )
-        conn.execute("UPDATE problems SET updated_at = ? WHERE id = ?",
-                     (db.utc_now(), problem["id"]))
+    _insert_tests(conn, problem, tests, replace)
 
     # Nhập xong bộ dữ liệu là lúc đề **đủ điều kiện** ra tới học sinh. Đây là
     # chỗ hay bị bỏ sót nhất: giáo viên soạn đề ở trang soạn đề, nhập dữ liệu ở
     # trang bộ dữ liệu, và không có gì trên màn hình nói rằng đề vẫn đang là bản
     # nháp — nên đề nằm im, học sinh không thấy, và giáo viên tưởng hệ thống hỏng.
-    #
-    # Chỉ tự công khai khi đề đang ở `draft`, tức là chưa ai quyết định gì. Đề
-    # đang ở `review` là giáo viên đã chọn rõ ràng, không tự đổi. Muốn giữ nháp
-    # thì tích ô trong biểu mẫu nhập.
     keep_draft = bool(request.form.get("keep_draft"))
-    published = False
-    if not keep_draft and problem["status"] == "draft":
-        published = _set_problem_status(conn, problem, "live") is None
+    published = _autopublish_after_import(conn, problem, keep_draft)
 
     # Báo cáo nói cả phần **không** nhập được. Chỉ báo "đã nhập 24 bộ" mà bỏ qua
     # 6 tệp lẻ là để giáo viên tin rằng đề đã đủ dữ liệu, trong khi thực tế thiếu.
@@ -2056,13 +2087,60 @@ def _import_themis_zip(conn, problem, code: str):
         leftovers.append("%d tệp không nhận dạng được" % report["skipped"])
     if leftovers:
         msg += " Bỏ qua: " + ", ".join(leftovers) + "."
-    if published:
-        msg += " Đề đã được công khai — học sinh đã thấy đề này."
-    elif problem["status"] == "draft":
-        # Nói thẳng ra, vì "không thấy gì" là đúng cái đã làm giáo viên tưởng
-        # đề đã công khai.
-        msg += " Đề vẫn ở bản nháp, học sinh chưa thấy."
+    msg += _publish_note(problem, published)
     flash(msg, "ok" if not leftovers else "warn")
+    return redirect(url_for("teacher_problem_tests", code=code))
+
+
+def _generate_tests(conn, problem, code: str):
+    """Sinh bộ dữ liệu từ một bộ sinh và một lời giải mẫu.
+
+    Đây là đường trả lời cho câu hỏi thật của giáo viên: *"lấy dữ liệu chấm ở
+    đâu?"* — xem `docs/nguon-de.md`. Các kho đề Việt Nam cho đề bài nhưng không
+    cho dữ liệu; không có dữ liệu thì đề không chấm được.
+
+    Khác `_import_themis_zip` ở chỗ nào: ở đây giáo viên **không** tải tệp lên,
+    mà đưa hai chương trình C++ và hệ thống tự tạo dữ liệu. Cùng kết quả cuối
+    (các bộ ``input``/``output`` nằm trong CSDL), nên phần ghi vào CSDL và phần
+    tự công khai dùng chung helper với đường nhập ZIP.
+    """
+    gen_source = request.form.get("gen_source") or ""
+    sol_source = request.form.get("sol_source") or ""
+
+    if not gen_source.strip() or not sol_source.strip():
+        flash("Cần cả bộ sinh dữ liệu và lời giải mẫu.", "warn")
+        return redirect(url_for("teacher_problem_tests", code=code))
+
+    # Chặn theo số byte trước khi chạm tới trình dịch: `compile_source` ghi mã
+    # nguồn ra đĩa, nên một ô dán nhầm cả tệp log cũng thành một tệp trên ổ đĩa.
+    for label, src in (("Bộ sinh dữ liệu", gen_source), ("Lời giải mẫu", sol_source)):
+        if len(src.encode("utf-8")) > gendata.MAX_SOURCE_BYTES:
+            flash("%s dài quá %d KB." % (label, gendata.MAX_SOURCE_BYTES // 1024), "warn")
+            return redirect(url_for("teacher_problem_tests", code=code))
+
+    try:
+        count = int(request.form.get("count") or 10)
+    except (TypeError, ValueError):
+        count = 10
+
+    tests, error = gendata.generate_tests(
+        gen_source, sol_source, count, app.config["JUDGE_WORKSPACE"])
+
+    # Sinh được một phần vẫn ghi phần đó vào: giáo viên đã chờ, và bỏ đi thì họ
+    # chẳng được gì. Thông báo lỗi nói rõ đã dừng ở đâu.
+    if not tests:
+        flash(error or "Không sinh được bộ dữ liệu nào.", "warn")
+        return redirect(url_for("teacher_problem_tests", code=code))
+
+    _insert_tests(conn, problem, tests, replace=False)
+    published = _autopublish_after_import(
+        conn, problem, keep_draft=bool(request.form.get("keep_draft")))
+
+    msg = "Đã sinh %d bộ dữ liệu." % len(tests)
+    msg += _publish_note(problem, published)
+    if error:
+        msg += " " + error
+    flash(msg, "warn" if error else "ok")
     return redirect(url_for("teacher_problem_tests", code=code))
 
 

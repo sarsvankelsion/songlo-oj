@@ -253,6 +253,98 @@
           </div>
         </section>
 
+        <section class="card mb-4" aria-labelledby="gen-title">
+          <div class="card__head">
+            <h2 id="gen-title">Sinh dữ liệu từ lời giải mẫu</h2>
+            <span class="badge badge--amber">Khi không có sẵn bộ dữ liệu</span>
+          </div>
+
+          <div class="card__body">
+            {# Vì sao có thẻ này: các kho đề Việt Nam (LQDOJ, Tin học trẻ, đề HSG
+               các tỉnh) cho **đề bài** nhưng không cho **dữ liệu chấm** — xem
+               `docs/nguon-de.md`. Không có dữ liệu thì đề không chấm được, nên
+               thực tế giáo viên phải gõ tay từng bộ, và một đề 20 bộ tốn cả buổi.
+
+               Cách làm là cách chuẩn của mọi hệ thống chấm: đưa hai chương trình
+               — một bộ sinh tạo dữ liệu vào, một lời giải mẫu tạo đáp án. Hệ
+               thống chạy bộ sinh để lấy dữ liệu vào, rồi chạy lời giải mẫu trên
+               chính dữ liệu đó. Không phải tự nghĩ ra đáp án.
+
+               Bộ sinh nhận chỉ số bộ qua `argv[1]` chứ không qua stdin: nó không
+               có dữ liệu vào, nó *tạo* dữ liệu. Nhận chỉ số là để viết được
+               `srand(atoi(argv[1]))` — cùng chỉ số thì ra cùng dữ liệu. #}
+            <p class="text-sm text-muted">
+              Đưa hai chương trình C++: một <strong>bộ sinh</strong> tạo dữ liệu
+              vào, một <strong>lời giải mẫu</strong> đọc dữ liệu đó và in đáp án.
+              Hệ thống ghép lại thành các bộ dữ liệu hoàn chỉnh — dùng khi đề
+              không có sẵn bộ dữ liệu để nhập từ ZIP.
+            </p>
+
+            <form method="post" action="{{ url_for('teacher_problem_tests', code=problem['code']) }}" novalidate>
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="generate">
+
+              <div class="field">
+                <label class="label" for="gen-source">Bộ sinh dữ liệu <span class="req" aria-hidden="true">*</span></label>
+                <textarea class="textarea mono" id="gen-source" name="gen_source" rows="9"
+                          spellcheck="false" placeholder="#include &lt;bits/stdc++.h&gt;&#10;using namespace std;&#10;int main(int argc, char** argv) {&#10;    int seed = argc &gt; 1 ? atoi(argv[1]) : 1;&#10;    srand(seed);&#10;    int n = 5 + rand() % 10;&#10;    cout &lt;&lt; n &lt;&lt; &quot;\n&quot;;&#10;    for (int i = 0; i &lt; n; i++) cout &lt;&lt; rand() % 100 &lt;&lt; &quot; &quot;;&#10;    cout &lt;&lt; &quot;\n&quot;;&#10;}"></textarea>
+                <p class="hint">
+                  In dữ liệu vào ra <span class="mono">stdout</span>. Chỉ số bộ nằm
+                  ở <span class="mono">argv[1]</span> — dùng
+                  <span class="mono">srand(atoi(argv[1]))</span> để cùng chỉ số thì
+                  ra cùng dữ liệu, sinh lại được đúng bộ cũ khi cần.
+                </p>
+              </div>
+
+              <div class="field">
+                <label class="label" for="sol-source">Lời giải mẫu <span class="req" aria-hidden="true">*</span></label>
+                <textarea class="textarea mono" id="sol-source" name="sol_source" rows="9"
+                          spellcheck="false" placeholder="#include &lt;bits/stdc++.h&gt;&#10;using namespace std;&#10;int main() {&#10;    int n; cin &gt;&gt; n;&#10;    long long s = 0, x;&#10;    while (n--) { cin &gt;&gt; x; s += x; }&#10;    cout &lt;&lt; s &lt;&lt; &quot;\n&quot;;&#10;}"></textarea>
+                <p class="hint">
+                  Đọc dữ liệu vào từ <span class="mono">stdin</span>, in đáp án ra
+                  <span class="mono">stdout</span>. Phải là lời giải <em>đúng</em>:
+                  đáp án của mọi bộ đều lấy từ chương trình này.
+                </p>
+              </div>
+
+              <div class="field" style="max-width:220px">
+                <label class="label" for="gen-count">Số bộ cần sinh</label>
+                <input class="input" id="gen-count" name="count" type="number"
+                       min="1" max="{{ max_count }}" step="1" value="10">
+                <p class="hint">Tối đa {{ max_count }} bộ một lần.</p>
+              </div>
+
+              {# Cùng thể phủ định và cùng lý do như ô tương ứng ở biểu mẫu nhập
+                 ZIP: mặc định phải là "sinh xong thì công khai", còn một ô dương
+                 tính mặc định tích thì khi bỏ tích biểu mẫu không gửi gì và ta
+                 không phân biệt được "bỏ tích" với "trình duyệt cũ". #}
+              <div class="field">
+                <label class="check" for="gen-keep-draft">
+                  <input type="checkbox" id="gen-keep-draft" name="keep_draft" value="1">
+                  <span>Giữ đề ở bản nháp, chưa công khai</span>
+                </label>
+                <p class="hint">
+                  Không tích thì sinh xong đề <strong>tự được công khai</strong> cho
+                  học sinh.
+                </p>
+              </div>
+
+              <div class="row">
+                <button class="btn btn--primary" type="submit">Sinh bộ dữ liệu</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="card__foot">
+            <p class="text-sm text-muted mb-0">
+              Bộ sinh và lời giải mẫu đều bị giới hạn 5 giây và 512 MB mỗi lần chạy.
+              Bộ dữ liệu sinh ra được đánh dấu <strong>ẩn</strong> và đề <strong>tự
+              được công khai</strong> sau khi sinh xong. Nếu bộ sinh chạy quá chậm,
+              hệ thống dừng ở mốc 20 giây và giữ lại những bộ đã sinh được.
+            </p>
+          </div>
+        </section>
+
         <section class="card" aria-labelledby="ta-title">
           <div class="card__head">
             <h2 id="ta-title">Thêm một bộ dữ liệu bằng tay</h2>

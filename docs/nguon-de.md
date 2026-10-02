@@ -102,8 +102,23 @@ Bài tập trong sách. Ngắn, đúng chương trình, nhưng phải tự đặ
 ## Nhóm 3 — Tự sinh dữ liệu
 
 Với đề ở nhóm 2, cách chắc chắn nhất là: viết một **lời giải mẫu**, cho nó chạy
-trên dữ liệu sinh ngẫu nhiên, lấy kết quả làm đáp án. Việc này làm được nhưng
-hiện chưa có công cụ trong hệ thống — xem mục "Còn thiếu gì" ở dưới.
+trên dữ liệu sinh ngẫu nhiên, lấy kết quả làm đáp án. **Hệ thống đã làm được
+việc này**: vào *Bộ dữ liệu* của một đề, mục **“Sinh dữ liệu từ lời giải mẫu”**,
+dán vào hai chương trình C++ rồi chọn số bộ.
+
+Hai chương trình đó là:
+
+- **Bộ sinh** — in ra dữ liệu vào. Chỉ số bộ nằm ở `argv[1]`, nên viết
+  `srand(atoi(argv[1]))` là cùng chỉ số thì ra cùng dữ liệu; sinh lại được đúng
+  bộ cũ khi cần đối chiếu.
+- **Lời giải mẫu** — đọc dữ liệu vào từ `stdin`, in đáp án ra `stdout`. Phải là
+  lời giải **đúng**: đáp án của mọi bộ đều lấy từ chương trình này, nên một lời
+  giải sai sẽ tạo ra một đề chấm sai và không có gì phát hiện ra.
+
+Một chỗ cần cẩn thận: **bộ sinh quyết định đề kiểm được gì**. Sinh toàn số ngẫu
+nhiên trong `[1, 100]` thì đề không chặn được cách làm sai nào; phải cố ý sinh
+thêm dữ liệu ở biên — giá trị nhỏ nhất, giá trị lớn nhất, dãy đã sắp xếp, dãy
+ngược, toàn số bằng nhau, và một bộ lớn nhất đúng bằng giới hạn ghi trong đề.
 
 ## Quy trình cho một đề lấy từ nguồn không có dữ liệu
 
@@ -112,12 +127,11 @@ Ví dụ lấy một đề bảng B từ `tinhoctre.vn`:
 1. Mở đề, **dán thẳng vào ô soạn đề** ở trang *Soạn đề*. Dán cả tệp `.tex` cũng
    được — hệ thống tự đổi tiêu đề mục, bảng và chữ đậm.
 2. Viết **lời giải mẫu** bằng C++, chạy thử vài bộ nhỏ để chắc là đúng.
-3. Tạo **10–20 bộ dữ liệu**: vài bộ nhỏ để học sinh nhìn thấy, phần lớn là bộ
-   lớn để chặn những cách làm sai mà vẫn qua được ví dụ.
-4. **Đánh dấu ẩn** cho các bộ lớn. Không đánh dấu thì học sinh mở tab *Đề bài*
-   là thấy hết đáp án.
-5. Nhập bằng ZIP, hoặc gõ tay từng bộ nếu chỉ có vài bộ. Nhập ZIP xong đề **tự
-   được công khai**.
+3. Viết **bộ sinh**, dựng dữ liệu ở cả biên chứ không chỉ ngẫu nhiên đều.
+4. Vào *Bộ dữ liệu* của đề, mục *Sinh dữ liệu từ lời giải mẫu*, chọn **10–20
+   bộ**. Sinh xong đề **tự được công khai**, các bộ đều ở chế độ **ẩn**.
+5. Mở vài bộ ra xem bằng mắt — bộ sinh có thể tạo ra thứ không đúng định dạng
+   mà hệ thống không phát hiện được, vì nó chỉ biết “chạy được, có in ra gì”.
 6. Mở đề bằng một tài khoản học sinh thử, nộp một bài cố tình sai, xem có ra
    `WA` không. Nếu ra `AC` thì bộ dữ liệu chưa chặn được gì.
 
@@ -144,11 +158,13 @@ Ví dụ lấy một đề bảng B từ `tinhoctre.vn`:
 
 Chưa có trong hệ thống, xếp theo mức độ hữu ích:
 
-1. **Sinh dữ liệu từ lời giải mẫu.** Tải lên một tệp `.cpp` là lời giải đúng, hệ
-   thống sinh N bộ ngẫu nhiên rồi tự tạo tệp đáp án. Đây là thứ biến một đề lấy
-   từ nhóm 2 thành một đề chấm được trong vài phút, thay vì cả buổi gõ tay. Hệ
-   thống đã có sẵn bộ chấm chạy được C++ trong sandbox nên dùng lại được.
-2. **Nhập đề kèm cả đề bài lẫn dữ liệu trong một tệp.** Hiện ZIP chỉ mang dữ
+1. **Nhập đề kèm cả đề bài lẫn dữ liệu trong một tệp.** Hiện ZIP chỉ mang dữ
    liệu; đề bài phải dán riêng.
-3. **Trang "Nguồn đề" trong khu giáo viên**, để giáo viên khác trong trường đọc
+2. **Trang "Nguồn đề" trong khu giáo viên**, để giáo viên khác trong trường đọc
    được mà không cần mở repo này.
+3. **Đọc giới hạn từ đề bài để tự chọn kích thước bộ dữ liệu.** Hiện bộ sinh
+   phải viết tay, và người viết phải tự nhớ `n ≤ 10^5`. Đọc hiểu đề bài tiếng
+   Việt là bài toán khác hẳn, và làm ẩu ở đây sẽ sinh ra bộ dữ liệu trông hợp lệ
+   mà không kiểm được gì — nên đây là việc để sau, không phải việc dễ.
+4. **Sinh dữ liệu cho đề nhiều tệp vào** (một số đề cho nhiều tệp thay vì một
+   luồng `stdin`). Hiện bộ sinh chỉ in ra một luồng.

@@ -83,6 +83,9 @@ không hạ được quyền — xem `deploy/README.md` để biết vì sao má
 ### Kiểm tra
 
 ```bash
+python tests/test_teacher.py       # quyền giáo viên, nhập ZIP, công khai đề, sinh dữ liệu
+python tests/test_account.py       # tài khoản, đổi mật khẩu, migration CSDL
+node   tests/test_tex.js           # chuyển LaTeX sang HTML
 python _tools/smoke.py             # mở thử mọi tuyến đường, bắt lỗi template
 python _tools/test_edit_problem.py # kiểm thử chức năng sửa đề (trên bản sao CSDL)
 python _tools/test_paths.py        # ba tiến trình có suy ra cùng một CSDL không
@@ -91,6 +94,24 @@ python _tools/render_pages.py      # render các trang cần đăng nhập ra de
 python _tools/shoot.py --url http://127.0.0.1:8814 --theme light   # chụp ảnh từng trang
 node _tools/check_morph.js _shots/dom_*.html                       # tên morph có trùng không
 ```
+
+Ba bộ trong `tests/` chạy trên **CSDL tạm và thư mục chấm tạm**, tự dọn sau khi
+chạy, nên không đụng tới dữ liệu thật. Chúng chạy được ở cả Windows lẫn Linux —
+điều này có chủ ý, vì phần lớn lỗi thật của hệ thống chỉ hiện ra trên một trong
+hai nền tảng: hạ quyền tiến trình con, đường dẫn `main.exe`, mã hoá tên tệp.
+
+`test_teacher.py` là bộ lớn nhất (195 điều) và đáng chú ý nhất ở phần **sinh bộ
+dữ liệu từ lời giải mẫu**: đây là chỗ duy nhất hệ thống **dịch và chạy chương
+trình do giáo viên gửi lên**. Ngoài đường đi đúng, nó kiểm cả sáu đường sai —
+bộ sinh không dịch được, bộ sinh không in gì, bộ sinh treo, lời giải mẫu thoát
+lỗi, thiếu một trong hai chương trình, mã nguồn quá dài — và đòi mỗi đường phải
+trả về một câu đọc được, không phải trang 500 và không phải im lặng. Nó cũng
+chạy **hai lần cùng một bộ sinh** để chứng minh cùng chỉ số bộ thì ra cùng dữ
+liệu, vì mất tính chất đó thì không sinh lại được đúng bộ cũ khi cần đối chiếu.
+
+`test_tex.js` chạy được bằng `node` mà không cần trình duyệt: nó nạp chính
+`demo/assets/js/app.js` mà trang thật dùng, nên không có chuyện bộ kiểm và mã
+chạy thật lệch nhau.
 
 `test_edit_problem.py` **sao chép CSDL ra tệp tạm** trước khi làm việc, vì nó ghi
 chứ không chỉ đọc: nó tạo đề, sửa đề và công khai đề. Chạy thẳng trên CSDL thật
@@ -175,10 +196,16 @@ Liên kết sâu tới từng thẻ hoạt động được, ví dụ `problem.h
 │   ├── schema.sql            Lược đồ CSDL
 │   ├── sandbox.py            Chạy mã học sinh với giới hạn tài nguyên
 │   ├── judge.py              Dịch, so khớp kết quả, tính điểm
+│   ├── gendata.py            Sinh bộ dữ liệu từ bộ sinh + lời giải mẫu
 │   ├── worker.py             Tiến trình chấm, tách khỏi tiến trình web
 │   ├── seed.py               Dữ liệu mẫu (kèm bài nộp C++ thật để chấm thử)
 │   ├── formatting.py         Định dạng số, ngày, nhãn tiếng Việt
 │   └── templates/            15 template Jinja
+├── tests/                    Bộ kiểm thử chạy được ở mọi máy (xem “Kiểm tra”)
+│   ├── test_teacher.py       195 điều: quyền giáo viên, nhập ZIP, công khai đề, sinh dữ liệu
+│   ├── test_account.py       55 điều: tài khoản, đổi mật khẩu, migration CSDL
+│   ├── test_tex.js           56 điều: chuyển LaTeX sang HTML
+│   └── _dump_tex.js          In HTML của một tài liệu .tex thật (để đối chiếu)
 ├── deploy/                   Hướng dẫn dựng trên máy chủ Linux
 ├── _tools/                   Script kiểm tra và sinh ảnh chụp
 │   ├── smoke.py              Mở thử 46 tuyến đường theo ba vai trò
@@ -307,6 +334,15 @@ Về vòng soạn đề:
 - **Giá trị trong ô chọn đi qua whitelist, không lấy thẳng từ biểu mẫu.** `difficulty` và `points_mode` quyết định tên lớp CSS và được tra trong `DIFFICULTY_LABEL`; một giá trị lạ lọt vào CSDL sẽ hiện ra mã thô (`co-ban2`) ở chỗ đáng lẽ là nhãn tiếng Việt.
 - **Lưu thất bại thì hiện lại đúng những gì giáo viên vừa gõ**, không phải bản cũ trong CSDL. Mất cả một đề dài vì một ô còn thiếu là lý do người ta bỏ luôn trang này.
 
+Về việc sinh bộ dữ liệu từ lời giải mẫu:
+
+- **Ngân sách thời gian 20 giây là do gunicorn quyết định, không phải do chọn tuỳ ý.** Dịch vụ chạy với thời hạn mặc định 30 giây, và một yêu cầu vượt quá nó bị cắt với lỗi 502 — giáo viên mất công chờ rồi nhận một trang lỗi, và không biết đã sinh được bao nhiêu. Dừng ở 20 giây, giữ lại những bộ đã sinh, và nói rõ đã dừng ở đâu thì hơn hẳn. Con số này nằm ở `TOTAL_BUDGET_MS`, và nó phải được xem lại nếu ai đổi thời hạn của gunicorn.
+- **Hai thư mục làm việc riêng cho bộ sinh và lời giải mẫu.** `judge.compile_source` luôn ghi mã nguồn thành `main.cpp` trong thư mục nó nhận và tạo tệp chạy tên `main`; dùng chung một thư mục thì chương trình thứ hai ghi đè chương trình thứ nhất.
+- **Bộ sinh nhận chỉ số bộ qua `argv[1]`, không qua stdin.** Nó không có dữ liệu vào — nó *tạo* dữ liệu. Nhận chỉ số là để viết được `srand(atoi(argv[1]))`: cùng chỉ số thì ra cùng dữ liệu, nên sinh lại được đúng bộ cũ khi cần đối chiếu. Bộ kiểm thử chạy hai lần cùng một bộ sinh và so từng byte để chốt tính chất này.
+- **Sinh được một phần vẫn ghi phần đó vào.** Bỏ đi thì giáo viên mất công chờ mà không được gì; im lặng trả về phần thiếu thì họ tưởng đề đã đủ dữ liệu — đúng kiểu lỗi im lặng cần tránh. Nên hàm trả về **cả** danh sách bộ đã sinh **lẫn** thông báo lỗi, và tuyến đường ghi cả hai.
+- **Sáu đường sai đều phải trả về một câu đọc được**: bộ sinh không dịch được, không in gì, treo, lời giải mẫu thoát lỗi, thiếu một trong hai chương trình, mã nguồn quá dài. Trường hợp "bộ sinh không in gì" là trường hợp dễ bị bỏ qua nhất — nó *chạy thành công* và tạo ra một bộ dữ liệu vào rỗng, và với dữ liệu vào rỗng thì mọi bài nộp đều đúng.
+- **Trần 256 KB cho một tệp dữ liệu không phải vì CSDL.** Đề cấp 2 không chạm tới con số đó, nhưng một bộ sinh viết nhầm (`while (true) cout << i;`) thì chạm rất nhanh, và mỗi byte lọt vào là một byte nằm trong CSDL vĩnh viễn.
+
 Về cách trình bày dữ liệu thời gian và cờ trình dịch:
 
 - **`vn_range` là filter riêng cho khoảng thời gian.** Mẫu cũ là `{{ starts_at|vn_date_long }} – {{ ends_at|vn_time }}`; `vn_date_long` đã kèm cả giờ nên kỳ thi 23/09 → 03/10 hiện thành "Thứ Tư, 23/09/2026 · 19:44 – 19:44", đọc như kỳ thi dài 0 phút vì **ngày kết thúc biến mất**. Lỗi này nằm ở cả ba trang (trang chủ, kỳ thi, tổng quan giáo viên) vì cùng một mẫu được chép tay ba lần.
@@ -337,23 +373,28 @@ Về cách trình bày dữ liệu thời gian và cờ trình dịch:
    khẩu, khoá, xoá), tạo và sửa kỳ thi, gán đề vào kỳ thi, sửa và xoá đề. Nhập
    bộ dữ liệu từ tệp ZIP kiểu Themis. Đổi mật khẩu ở lần đăng nhập đầu. Công
    khai đề bằng một bấm, và nhập bộ dữ liệu xong thì đề tự được công khai.
-5. Đã dựng trên máy chủ Linux của trường: <https://oj.sarsed.eu.cc>
+5. **Sinh bộ dữ liệu từ lời giải mẫu.** Giáo viên dán vào hai chương trình C++ —
+   một bộ sinh tạo dữ liệu vào, một lời giải mẫu tạo đáp án — và hệ thống ghép
+   thành N bộ dữ liệu hoàn chỉnh. Đây là thứ biến một đề lấy từ kho (LQDOJ, Tin
+   học trẻ, đề HSG các tỉnh) thành một đề chấm được trong vài phút, vì các kho
+   đó cho đề bài nhưng **không** cho dữ liệu chấm. Xem `docs/nguon-de.md`.
+6. Đã dựng trên máy chủ Linux của trường: <https://oj.sarsed.eu.cc>
 
 Còn lại:
 
 1. Chốt giao diện với giáo viên, sửa những chỗ chưa hợp ý.
 2. Việc chưa làm, đã biết — xếp theo mức độ cản trở công việc thật:
    1. **Xuất bảng điểm** ra tệp để nộp sổ điểm.
-   2. **Sinh bộ dữ liệu từ lời giải mẫu.** Tải lên một tệp `.cpp` là lời giải
-      đúng, hệ thống sinh N bộ ngẫu nhiên rồi tự tạo tệp đáp án. Đây là thứ biến
-      một đề lấy từ kho (LQDOJ, Tin học trẻ, đề HSG các tỉnh) thành một đề chấm
-      được trong vài phút. Xem `docs/nguon-de.md`.
-   3. **Nhập đề kèm cả đề bài lẫn dữ liệu trong một tệp.** Hiện tệp ZIP chỉ mang
+   2. **Nhập đề kèm cả đề bài lẫn dữ liệu trong một tệp.** Hiện tệp ZIP chỉ mang
       bộ dữ liệu; đề bài phải dán riêng.
-   4. **Nhập tài khoản học sinh từ tệp danh sách lớp.** Hiện tạo được từng em
+   3. **Nhập tài khoản học sinh từ tệp danh sách lớp.** Hiện tạo được từng em
       một; một lớp thật có thể hơn 40 em, nhập tay là không khả thi.
-   5. **Trang "Nguồn đề" trong khu giáo viên**, để giáo viên khác trong trường
+   4. **Trang "Nguồn đề" trong khu giáo viên**, để giáo viên khác trong trường
       đọc được mà không cần mở repo này.
+   5. **Sinh đề tự động từ lời giải mẫu**: hiện bộ sinh phải viết tay. Một bước
+      xa hơn là đọc giới hạn trong đề bài (``n ≤ 10^5``) rồi tự chọn kích thước
+      bộ dữ liệu — nhưng đọc hiểu đề bài tiếng Việt là bài toán khác hẳn, và
+      làm ẩu ở đây sẽ sinh ra bộ dữ liệu trông hợp lệ mà không kiểm được gì.
 
 Xem `docs/nguon-de.md` để biết lấy đề bài và dữ liệu chấm từ đâu.
 
