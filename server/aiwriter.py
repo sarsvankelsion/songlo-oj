@@ -22,12 +22,18 @@ Bốn nguyên tắc thiết kế, và lý do của từng cái:
 - **Lỗi phải đọc được.** Mọi thất bại ở đây đều ném `AIError` với câu tiếng Việt
   nói rõ chuyện gì xảy ra và làm gì tiếp — người đọc là giáo viên, không phải
   người đọc log.
+- **Thử lại, nhưng theo con số máy chủ đưa.** Khi hết hạn mức, máy chủ trả về
+  đúng thời gian còn phải chờ (``reset after 1m 29s``), nên `write` chờ theo đó
+  thay vì đoán. Vẫn có một ngân sách chặn trên (`MAX_TOTAL_SECONDS`) vì vượt thời
+  hạn của gunicorn thì giáo viên nhận 502 trắng thay vì câu giải thích — xem
+  `write`.
 """
 
 from __future__ import annotations
 
 import json
 import re
+import time
 import urllib.error
 import urllib.request
 
@@ -46,6 +52,10 @@ DEFAULT_BASE = "https://sarsed.eu.cc/v1"
 # Bản cũ không hẳn sai, nhưng **không ổn định**: cùng một đề mà lúc được lúc hết
 # giờ, và giáo viên không có cách nào đoán trước. Đổi mô hình thì đặt
 # `SONGLO_AI_MODEL` trong `/etc/songlo.env`, không phải sửa tệp này.
+#
+# Đổi lại, mô hình này có **hạn mức theo từng đợt**: gọi dồn dập thì bị chặn
+# khoảng hai phút rồi tự hết. Xem `_Transient` và `write` — chỗ đó đọc con số máy
+# chủ đưa ra thay vì đoán.
 DEFAULT_MODEL = "jw/claude-opus-4-8"
 
 # Thời gian chờ một lần gọi. Phải **nhỏ hơn** thời hạn của gunicorn, nếu không
@@ -53,6 +63,28 @@ DEFAULT_MODEL = "jw/claude-opus-4-8"
 # thích. Đo thật hai lần cùng một đề: 16 giây và 34 giây — chênh nhau chỉ vì mức
 # tải của máy chủ AI. 90 giây là rộng rãi cho cả hai.
 DEFAULT_TIMEOUT = 90
+
+# Ngân sách cho **cả** lần nhờ viết, kể cả các lần thử lại. Phải nhỏ hơn thời hạn
+# của gunicorn (`--timeout 120`, xem deploy/README.md): vượt qua thì gunicorn giết
+# tiến trình và giáo viên nhận 502 trắng thay vì một câu giải thích. 100 giây chừa
+# 20 giây cho phần còn lại của yêu cầu.
+#
+# Cố ý **không** đưa thành biến môi trường: đây là ràng buộc giữa tệp này và cấu
+# hình máy chủ, đổi một bên mà quên bên kia thì hỏng theo cách rất khó lần.
+MAX_TOTAL_SECONDS = 100
+
+# Nghỉ bao lâu trước mỗi lần thử lại, khi máy chủ **không** nói còn phải chờ bao
+# lâu. Một lần thôi: đo thật cho thấy thử lại mù quáng gần như không cứu được gì
+# (5 lần gọi liên tiếp, có thử lại, vẫn 3/5 như khi chưa có), nên nó chỉ có ích
+# cho một cái ngắt thật sự thoáng qua — mạng chập chờn, kết nối bị đóng.
+RETRY_DELAYS = (1.0,)
+
+# Chờ tại chỗ nhiều nhất bao nhiêu giây khi máy chủ **có** nói thời gian chờ.
+#
+# Máy chủ nói "reset after 1m 29s" — chờ đủ 90 giây thì giáo viên ngồi nhìn vòng
+# xoay suốt một phút rưỡi, và ăn hết ngân sách của cả yêu cầu. Quá 25 giây thì
+# thà báo thẳng "còn 1 phút 29 giây nữa" để giáo viên chủ động, còn hơn bắt chờ.
+MAX_WAIT_SECONDS = 25
 
 # Trần độ dài đề bài đưa vào. Đề cấp 2 dài nhất cũng chỉ vài nghìn ký tự; cắt ở
 # đây là để một lần dán nhầm cả tệp không đốt sạch hạn mức token.
@@ -111,6 +143,10 @@ _FENCE_RE = re.compile(r"```[a-zA-Z0-9+#._-]*[ \t]*\n(.*?)```", re.S)
 _MARK_GEN_RE = re.compile(r"^[ \t]*===GEN===[ \t]*$", re.M)
 _MARK_SOL_RE = re.compile(r"^[ \t]*===SOL===[ \t]*$", re.M)
 
+# Máy chủ nói còn bao lâu mới dùng lại được, khi hết hạn mức:
+#     "(reset after 1m 29s)"  hoặc  "(reset after 40s)"
+_RESET_RE = re.compile(r"reset after\s+(?:(\d+)\s*m\s*)?(\d+)\s*s", re.I)
+
 
 class AIError(Exception):
     """Lỗi khi nhờ AI viết.
@@ -118,6 +154,28 @@ class AIError(Exception):
     Thông báo của lớp này đi thẳng vào `flash()` và hiện cho giáo viên, nên phải
     là câu tiếng Việt đọc được — không phải thông báo của thư viện.
     """
+
+
+class _Transient(AIError):
+    """Lỗi có thể tự hết sau vài giây, và máy chủ thường nói rõ là bao lâu.
+
+    Khác `AIError` ở chỗ: gặp loại này thì **thử lại có ý nghĩa**. Kèm theo đó là
+    `retry_after` — số giây máy chủ nói còn phải chờ, hoặc `None` nếu nó không
+    nói. Có con số đó thì không phải đoán.
+
+    Đo thật ngày 02/10/2026, `jw/claude-opus-4-8`:
+
+        HTTP 503  {"error":{"message":"[anthropic-compatible-.../claude-opus-4-8]
+                   [403]: HTTP 403 (reset after 1m 29s)"}}
+
+    Tức là **hạn mức theo mô hình**, reset sau khoảng 90 giây — không phải một
+    cái ngắt thoáng qua. Cùng lúc đó `oc/space-bunny-free` qua 10/10 yêu cầu liên
+    tiếp, nên đây không phải hạn mức của cả khoá.
+    """
+
+    def __init__(self, message: str, retry_after: float | None = None):
+        super().__init__(message)
+        self.retry_after = retry_after
 
 
 def build_messages(statement: str, time_limit_ms: int = 1000,
@@ -220,6 +278,46 @@ def _braces_balanced(code: str) -> bool:
     return code.count("{") == code.count("}")
 
 
+def _parse_body(raw: str) -> dict:
+    """Đọc thân phản hồi, chấp nhận **cả hai** dạng mà endpoint trả về.
+
+    Cùng một địa chỉ, cùng một yêu cầu, nhưng có mô hình trả về một đối tượng
+    JSON, có mô hình trả về **SSE** — từng dòng ``data: {...}``, mỗi dòng một
+    mẩu ``delta.content``. Đã gặp thật: ``jw/claude-opus-4-8`` trả SSE trong khi
+    ``oc/space-bunny-free`` trả JSON.
+
+    Chỉ đọc một dạng thì mô hình kia hỏng với thông báo "trả về dữ liệu không
+    phải JSON" — trong khi dữ liệu vẫn nguyên vẹn trong thân phản hồi, chỉ là
+    đóng gói khác. Hàm này gom SSE về **đúng dạng** mà phần còn lại của tệp đang
+    dùng, nên không phải sửa gì ở dưới.
+    """
+    text = raw.strip()
+    if not text.startswith("data:"):
+        return json.loads(text)
+
+    pieces, finish = [], None
+    for line in text.splitlines():
+        line = line.strip()
+        if not line.startswith("data:"):
+            continue
+        payload = line[5:].strip()
+        if not payload or payload == "[DONE]":
+            continue
+        try:
+            obj = json.loads(payload)
+        except ValueError:
+            continue
+        for choice in obj.get("choices") or []:
+            delta = choice.get("delta") or {}
+            if delta.get("content"):
+                pieces.append(delta["content"])
+            if choice.get("finish_reason"):
+                finish = choice["finish_reason"]
+
+    return {"choices": [{"finish_reason": finish,
+                         "message": {"role": "assistant", "content": "".join(pieces)}}]}
+
+
 def _http_message(code: int, detail: str) -> str:
     """Dịch mã HTTP thành câu nói được với giáo viên."""
     if code == 401:
@@ -236,13 +334,54 @@ def _http_message(code: int, detail: str) -> str:
     return head + ("\n\n" + detail if detail else "")
 
 
-def write(statement: str, *, base: str, key: str, model: str,
-          time_limit_ms: int = 1000, memory_limit_mb: int = 256,
-          count: int = 10, timeout: int = DEFAULT_TIMEOUT) -> tuple[str, str]:
-    """Gọi mô hình và trả về ``(mã bộ sinh, mã lời giải mẫu)``.
+def _reset_after_seconds(*texts) -> float | None:
+    """Máy chủ nói còn bao lâu nữa mới dùng lại được, nếu nó có nói.
 
-    Chặn ở mọi đường thoát để tuyến đường gọi hàm này chỉ phải bắt một loại lỗi.
+    Phản hồi thật khi bị chặn (xem `_Transient`):
+    ``... [403]: HTTP 403 (reset after 1m 29s)``. Con số đó là thời gian chờ
+    **chính xác** — tốt hơn hẳn mọi giá trị đoán. Không có thì trả ``None``, và
+    lúc đó mới dùng tới `RETRY_DELAYS`.
+
+    Đọc cả tiêu đề `Retry-After` (chuẩn HTTP, đơn vị giây) ở chỗ gọi.
     """
+    for t in texts:
+        if not t:
+            continue
+        m = _RESET_RE.search(t)
+        if m:
+            return int(m.group(1) or 0) * 60 + int(m.group(2))
+    return None
+
+
+def _human_seconds(seconds: float) -> str:
+    """``89`` -> ``"1 phút 29 giây"``. Để câu báo lỗi đọc lên là hiểu ngay."""
+    total = int(round(seconds))
+    if total < 60:
+        return "%d giây" % total
+    phut, giay = divmod(total, 60)
+    return "%d phút" % phut if not giay else "%d phút %d giây" % (phut, giay)
+
+
+def _retry_after(exc, detail: str) -> float | None:
+    """Số giây phải chờ, lấy từ thân phản hồi hoặc từ tiêu đề ``Retry-After``.
+
+    Thân phản hồi được ưu tiên vì đó là con số của **đúng mô hình này**. Tiêu đề
+    `Retry-After` là chuẩn HTTP nên đọc thêm, phòng khi máy chủ chỉ gửi nó.
+    """
+    from_body = _reset_after_seconds(detail)
+    if from_body is not None:
+        return from_body
+    try:
+        value = (exc.headers or {}).get("Retry-After")
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _call_once(statement: str, *, base: str, key: str, model: str,
+               time_limit_ms: int = 1000, memory_limit_mb: int = 256,
+               count: int = 10, timeout: int = DEFAULT_TIMEOUT) -> tuple[str, str]:
+    """Một lần gọi. Không thử lại — việc đó ở `write`."""
     if not key:
         raise AIError("Chưa cấu hình khoá API cho tính năng nhờ AI viết.")
     if not statement.strip():
@@ -274,16 +413,30 @@ def write(statement: str, *, base: str, key: str, model: str,
             detail = exc.read().decode("utf-8", errors="replace")[:300]
         except Exception:
             pass
-        raise AIError(_http_message(exc.code, detail)) from exc
+        message = _http_message(exc.code, detail)
+        # 429 và 5xx là "lúc này chưa được", không phải "yêu cầu sai" — thử lại có
+        # ý nghĩa. Đã gặp thật: mô hình mặc định trả 503 trong đó bao một 403 của
+        # nhà cung cấp, kèm luôn thời gian chờ.
+        #
+        # 401 và 403 để nguyên là `AIError`: khoá sai thì thử lại chỉ tốn thời
+        # gian, còn thử lại vài lần rồi mới báo thì giáo viên chờ vô ích thêm một
+        # phút. Riêng 403 có thể là Cloudflare chặn — câu chữ ở `_http_message`
+        # đã nói cả hai khả năng.
+        if exc.code == 429 or exc.code >= 500:
+            raise _Transient(message, retry_after=_retry_after(exc, detail)) from exc
+        raise AIError(message) from exc
     except urllib.error.URLError as exc:
-        raise AIError(
+        # Mạng chập chờn, hoặc máy chủ AI đóng kết nối giữa chừng. Cả hai đều có
+        # thể qua ở lần sau.
+        raise _Transient(
             "Không gọi được máy chủ AI trong %d giây (%s). Thử lại, hoặc dán mã "
             "nguồn bằng tay vào ô bên dưới." % (timeout, exc.reason)) from exc
     except TimeoutError as exc:
-        raise AIError("Máy chủ AI không trả lời trong %d giây. Thử lại sau." % timeout) from exc
+        raise _Transient(
+            "Máy chủ AI không trả lời trong %d giây. Thử lại sau." % timeout) from exc
 
     try:
-        data = json.loads(raw)
+        data = _parse_body(raw)
     except ValueError as exc:
         raise AIError("Máy chủ AI trả về dữ liệu không phải JSON:\n\n" + raw[:300]) from exc
 
@@ -323,3 +476,98 @@ def write(statement: str, *, base: str, key: str, model: str,
         raise _too_long()
 
     return gen, sol
+
+
+def _delay_before_retry(exc, index: int, deadline: float) -> float | None:
+    """Chờ bao lâu trước lần thử sau. ``None`` nghĩa là **đừng thử nữa**.
+
+    Ưu tiên con số máy chủ đưa, vì nó chính xác: đo thật, khi hết hạn mức thì
+    máy chủ trả ``(reset after 1m 29s)`` và chặn đủ 89 giây. Thử lại mù quáng sau
+    1 giây chỉ tốn thêm một lượt gọi mà chắc chắn vẫn bị chặn — đã đo, 5 lần gọi
+    liên tiếp có thử lại vẫn 3/5 như khi chưa có.
+
+    Chặn lâu hơn `MAX_WAIT_SECONDS` thì không chờ: bắt giáo viên nhìn vòng xoay
+    suốt một phút rưỡi, mà ngân sách của cả yêu cầu cũng hết. Báo thẳng số giây
+    còn lại thì hơn.
+    """
+    if index >= len(RETRY_DELAYS):
+        return None
+
+    if exc.retry_after is not None:
+        if exc.retry_after > MAX_WAIT_SECONDS:
+            return None
+        delay = exc.retry_after + 1.0            # +1 giây cho đồng hồ lệch
+    else:
+        delay = RETRY_DELAYS[index]
+
+    # Phải chừa chỗ cho **chính lần gọi sau**, không chỉ cho thời gian nghỉ.
+    if time.monotonic() + delay + 5 > deadline:
+        return None
+    return delay
+
+
+def write(statement: str, *, base: str, key: str, model: str,
+          time_limit_ms: int = 1000, memory_limit_mb: int = 256,
+          count: int = 10, timeout: int = DEFAULT_TIMEOUT) -> tuple[str, str]:
+    """Nhờ AI viết, tự thử lại khi thất bại chỉ là tạm thời.
+
+    Vì sao cần: mô hình mặc định nhanh gấp ba lần mô hình cũ nhưng **hết hạn mức
+    theo từng đợt**. Đo thật ngày 02/10/2026, gọi 5 lần liên tiếp cùng một đề: 3
+    lần qua (12,0–13,6 giây), 2 lần nhận 503 — bên trong là 403 của nhà cung cấp
+    kèm dòng ``(reset after 1m 29s)``. Cùng lúc đó ``oc/space-bunny-free`` qua
+    10/10 yêu cầu liên tiếp, nên đây là hạn mức **của riêng mô hình này**, và
+    cách dùng nhiều lần liên tiếp là thứ làm nó cạn.
+
+    Ngân sách thời gian: tổng mọi lần thử không vượt `MAX_TOTAL_SECONDS`, và thời
+    gian chờ của **từng lần** bị cắt theo phần ngân sách còn lại. Thiếu phần này
+    thì hai lần × 90 giây = 180 giây, vượt thời hạn gunicorn — giáo viên nhận 502
+    trắng và không có gì giải thích.
+
+    Chỉ thử lại `_Transient` (429, 5xx, lỗi mạng, quá hạn). Lỗi khác — khoá sai,
+    câu trả lời không tách được, bị cắt vì hết token — ném thẳng: thử lại chỉ làm
+    giáo viên chờ thêm mà kết quả không đổi.
+    """
+    deadline = time.monotonic() + MAX_TOTAL_SECONDS
+    attempts = len(RETRY_DELAYS) + 1
+    tried, last, started = 0, None, time.monotonic()
+
+    for i in range(attempts):
+        remaining = deadline - time.monotonic()
+        if remaining < 1:
+            break
+        tried += 1
+        try:
+            return _call_once(
+                statement, base=base, key=key, model=model,
+                time_limit_ms=time_limit_ms, memory_limit_mb=memory_limit_mb,
+                count=count,
+                # Cắt theo ngân sách còn lại, không phải lúc nào cũng `timeout`.
+                timeout=max(1, int(min(timeout, remaining))),
+            )
+        except _Transient as exc:
+            last = exc
+            delay = _delay_before_retry(exc, i, deadline)
+            if delay is None:
+                break
+            time.sleep(delay)
+
+    waited = time.monotonic() - started
+
+    # Hết hạn mức là chuyện khác hẳn với "mạng chập chờn": biết chính xác còn bao
+    # lâu thì nói ra, đừng để giáo viên tự đoán "một lát" là bao lâu.
+    if last is not None and last.retry_after is not None:
+        raise AIError(
+            "Mô hình này đã hết hạn mức gọi (đã thử %d lần trong %d giây). Máy "
+            "chủ nói còn khoảng %s nữa mới dùng lại được. Đây là hạn mức tạm "
+            "thời, không phải lỗi cấu hình — chờ hết khoảng đó rồi bấm lại, hoặc "
+            "làm việc khác trong lúc chờ.\n\nChi tiết lần cuối:\n\n%s"
+            % (tried, round(waited), _human_seconds(last.retry_after), last))
+
+    if tried:
+        head = "đã thử %d lần trong %d giây mà chưa qua" % (tried, round(waited))
+    else:
+        head = "không còn đủ thời gian để thử (ngân sách %d giây)" % MAX_TOTAL_SECONDS
+    raise AIError(
+        "Máy chủ AI tạm thời không nhận yêu cầu: %s. Đây thường là quá tải, không "
+        "phải lỗi cấu hình — chờ một lát rồi bấm lại.\n\nChi tiết lần cuối:\n\n%s"
+        % (head, last or ""))

@@ -126,7 +126,7 @@ Một lời giải mẫu sai vẫn sinh ra đủ bộ dữ liệu trông như th
 "sinh đúng" là hai chuyện khác nhau. `_vps/_model_test.py` trong workspace làm
 đúng việc này; nó dùng đề Kadane vì trường hợp dãy toàn số âm là chỗ hay sai nhất.
 
-Ba điều đã đo thật trên máy chủ, không phải phỏng đoán:
+Bốn điều đã đo thật trên máy chủ, không phải phỏng đoán:
 
 **`SONGLO_AI_BASE` phải là endpoint kiểu OpenAI** (`/v1/chat/completions`).
 Đường dẫn đầy đủ được ghép bằng `base.rstrip("/") + "/chat/completions"`.
@@ -153,6 +153,31 @@ ExecStart=/opt/songlo/.venv/bin/gunicorn \
 
 `SONGLO_AI_TIMEOUT` (mặc định 90 giây) phải **nhỏ hơn** giá trị này, để lỗi hiện ra
 thành một câu giải thích thay vì một trang 502.
+
+**Hạn mức là của riêng từng mô hình, và máy chủ nói rõ còn bao lâu.** Gọi liên tiếp
+cùng một đề bằng `jw/claude-opus-4-8`: 3 lần qua (12–13,6 giây), rồi **503** với
+thân phản hồi `[403]: HTTP 403 (reset after 1m 29s)`. Chặn đủ khoảng **2 phút**.
+Cùng lúc đó `oc/space-bunny-free` qua **10/10** yêu cầu liên tiếp — nên đây là hạn
+mức của **riêng mô hình đó**, và thứ làm nó cạn là gọi dồn dập.
+
+`aiwriter.py` đọc con số `reset after …` trong thân phản hồi (và tiêu đề chuẩn
+`Retry-After`) rồi mới quyết định:
+
+- chờ tại chỗ rồi thử lại nếu máy chủ nói ≤ `MAX_WAIT_SECONDS` (25 giây);
+- quá 25 giây thì **không chờ**: báo thẳng "còn khoảng 2 phút nữa mới dùng lại
+  được". Chờ đủ 90 giây thì giáo viên ngồi nhìn vòng xoay, mà ngân sách
+  `MAX_TOTAL_SECONDS` (100 giây) của cả yêu cầu cũng hết theo.
+
+Đo thật: thử lại mù quáng sau 1 giây và 3 giây **không cứu được lần nào** (5 lần
+gọi, có thử lại, vẫn 3/5 như khi chưa có). Vì vậy con số của máy chủ được ưu tiên
+hơn mọi giá trị đoán; `RETRY_DELAYS` chỉ còn **một** lần, dành cho trường hợp máy
+chủ không nói gì (mạng chập chờn, kết nối bị đóng).
+
+Cách dùng thực tế: vài phút một đề thì không gặp; bấm liên tiếp 5 đề thì gặp. Nếu
+trường cần sinh dồn dập, cách rẻ nhất là thêm **mô hình thứ hai** làm phương án dự
+phòng — nhưng phải là lựa chọn **hiện ra cho giáo viên thấy**, không phải tự động
+đổi ngầm: mô hình cũ (`oc/space-bunny-free`) đã từng ra đề sai, nên im lặng quay
+về nó còn tệ hơn là báo lỗi.
 
 Đổi lại: một yêu cầu treo sẽ giữ một luồng lâu hơn trước. Với `--workers 2
 --threads 4` và ba giáo viên thì không đáng lo; nếu trường mở cho nhiều giáo viên
@@ -416,8 +441,16 @@ máy chủ** — sao lưu nằm cùng đĩa với dữ liệu gốc thì không 
       **không** nằm trong mã nguồn, và `git check-ignore -v .env` xác nhận.
 - [ ] `gunicorn` có `--timeout 120` (một lần nhờ AI viết mất ~20 giây, mặc định
       30 giây là quá sát), và `SONGLO_AI_TIMEOUT` nhỏ hơn giá trị đó.
+- [ ] `MAX_TOTAL_SECONDS` trong `aiwriter.py` **nhỏ hơn** `--timeout` của
+      `gunicorn` ít nhất 15 giây. Đây là ràng buộc giữa mã nguồn và cấu hình máy
+      chủ: sửa một bên mà quên bên kia thì thử lại ba lần sẽ vượt thời hạn và
+      giáo viên nhận 502 trắng.
 - [ ] Đã thử **một lần thật**: dán một đề bài, bấm nhờ AI viết, rồi bấm sinh dữ
       liệu — và đọc lại mã trước khi bấm.
+- [ ] Đã thử **đường hỏng**, không chỉ đường thành công: khi hết hạn mức, thông
+      báo phải nói rõ còn bao lâu (chứ không phải "thử lại sau") và phải hiện ra
+      trong vài giây. `_vps/step38_thu_lai.py` phần C làm việc này bằng một stub
+      cục bộ, nên không tốn hạn mức thật.
 
 ## Giới hạn của cách ly
 

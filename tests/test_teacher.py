@@ -1617,7 +1617,14 @@ import urllib.request as _urlreq          # noqa: E402
 
 class _FakeResp:
     def __init__(self, payload):
-        self._body = _json.dumps(payload).encode()
+        # Nhan ca dict (JSON mot lan) lan chuoi tho (SSE) — hai dang ma endpoint
+        # that tra ve tuy theo mo hinh.
+        if isinstance(payload, bytes):
+            self._body = payload
+        elif isinstance(payload, str):
+            self._body = payload.encode()
+        else:
+            self._body = _json.dumps(payload).encode()
 
     def read(self):
         return self._body
@@ -1696,6 +1703,236 @@ got, err = _with_reply(_ai_reply("Tôi không viết được bài này.", "stop
 check("24e khong tach duoc thi bao loi", err is not None and got is None, got)
 check("24e khong do loi cho viec het token",
       err is not None and "hết token" not in str(err), str(err)[:90])
+
+# --- 24f. Doc duoc ca hai dang phan hoi ------------------------------------
+# Cung mot dia chi, cung mot yeu cau, nhung co mo hinh tra JSON mot lan con co mo
+# hinh tra **SSE** (tung dong `data: {...}`, moi dong mot manh `delta.content`).
+# Chi doc mot dang thi mo hinh kia hong voi thong bao "khong phai JSON" — trong
+# khi du lieu van nguyen ven, chi la dong goi khac.
+SSE = (
+    'data: {"choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}\n\n'
+    'data: {"choices":[{"index":0,"delta":{"content":"===GEN===\\n"}}]}\n\n'
+    'data: {"choices":[{"index":0,"delta":{"content":"int main(){}\\n"}}]}\n\n'
+    'data: {"choices":[{"index":0,"delta":{"content":"===SOL===\\nint main(){}"}}]}\n\n'
+    'data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n'
+    'data: [DONE]\n\n'
+)
+parsed = aiwriter._parse_body(SSE)
+check("24f gom duoc cac manh SSE thanh mot cau tra loi",
+      parsed["choices"][0]["message"]["content"]
+      == "===GEN===\nint main(){}\n===SOL===\nint main(){}",
+      repr(parsed["choices"][0]["message"]["content"])[:90])
+check("24f doc duoc finish_reason trong SSE",
+      parsed["choices"][0]["finish_reason"] == "stop",
+      parsed["choices"][0]["finish_reason"])
+check("24f van doc duoc JSON mot lan",
+      aiwriter._parse_body('{"choices":[{"finish_reason":"stop",'
+                           '"message":{"content":"x"}}]}')["choices"][0]["message"]["content"]
+      == "x")
+
+# Và đầu-cuối: một phản hồi SSE phải đi hết được đường ống, không chỉ hàm tách.
+got, err = _with_reply(SSE)
+check("24f phan hoi SSE di het duoc duong ong",
+      err is None and got == ("int main(){}", "int main(){}"), (err, got))
+
+# --- 24g. Loi tam thoi thi tu thu lai --------------------------------------
+# Mô hình mặc định nhanh gấp ba lần mô hình cũ nhưng **cứ vài lần liên tiếp lại
+# bị chặn**: đo 5 lần liên tiếp cùng một đề thì 3 lần qua, 2 lần nhận 503 (bên
+# trong là 403 của nhà cung cấp — hết lượt trong chốc lát, không phải khoá sai).
+# Lần gọi ngay sau đó qua bình thường, nên chỗ sửa đúng là thử lại, không phải
+# đổi lại mô hình chậm.
+import io as _io                           # noqa: E402
+import urllib.error as _urlerr             # noqa: E402
+
+V1 = "https://vidu.test/v1/chat/completions"
+
+
+def _http(code, body="nha cung cap tu choi", headers=None):
+    return _urlerr.HTTPError(V1, code, "loi", headers or {},
+                             _io.BytesIO(body.encode()))
+
+
+def _seq(*outcomes):
+    """Chay `write` voi mot chuoi ket qua theo thu tu. Tra ``(kq, loi, cac_timeout)``.
+
+    Lần nào hết chuỗi thì lặp lại kết quả cuối — đủ để mô tả "chặn liên tục".
+    """
+    real = _urlreq.urlopen
+    calls = []
+
+    def _open(req, timeout=None):
+        calls.append(timeout)
+        item = outcomes[min(len(calls) - 1, len(outcomes) - 1)]
+        if isinstance(item, Exception):
+            raise item
+        return _FakeResp(item)
+
+    _urlreq.urlopen = _open
+    try:
+        return aiwriter.write("Đề bài thử", base="https://vidu.test/v1",
+                              key="khoa-gia", model="model-gia"), None, calls
+    except aiwriter.AIError as exc:
+        return None, exc, calls
+    finally:
+        _urlreq.urlopen = real
+
+
+GOOD = _ai_reply("===GEN===\n" + GEN_OK + "\n===SOL===\n" + SOL_OK, "stop")
+
+# Bỏ thời gian nghỉ thật (1 s + 3 s) — bài kiểm không nên chờ.
+_saved_delays = aiwriter.RETRY_DELAYS
+_saved_total = aiwriter.MAX_TOTAL_SECONDS
+aiwriter.RETRY_DELAYS = (0.0, 0.0)
+
+got, err, calls = _seq(_http(503), GOOD)
+check("24g gap 503 thi tu thu lai va lan sau qua",
+      err is None and got == (GEN_OK, SOL_OK), (err, got))
+check("24g 503 o lan dau thi goi dung hai lan", len(calls) == 2, len(calls))
+
+got, err, calls = _seq(_http(503))
+check("24g 503 lien tuc thi bao loi chu khong tra ve rong",
+      got is None and err is not None, got)
+check("24g 503 lien tuc thi thu dung ba lan", len(calls) == 3, len(calls))
+check("24g loi cuoi noi ro da thu may lan", "3 lần" in str(err), str(err)[:120])
+check("24g loi cuoi giu chi tiet cua lan cuoi", "503" in str(err), str(err)[:200])
+
+# 403 trực tiếp **không** thử lại: khoá sai thì ba lần gọi chỉ làm giáo viên chờ
+# thêm một phút mà kết quả không đổi. Đây là ranh giới giữa `_Transient` và
+# `AIError`, nên phải kiểm cả hai phía.
+got, err, calls = _seq(_http(403, "blocked"))
+check("24g 403 thi khong thu lai", len(calls) == 1, len(calls))
+check("24g 403 thi van bao loi doc duoc", err is not None and "403" in str(err),
+      str(err)[:90])
+check("24g 403 thi khong do loi cho viec thu lai nhieu lan",
+      "đã thử" not in str(err), str(err)[:90])
+
+got, err, calls = _seq(_http(401, "bad key"))
+check("24g 401 thi khong thu lai", len(calls) == 1, len(calls))
+
+# 429 là "hết lượt trong chốc lát" — thử lại được.
+got, err, calls = _seq(_http(429), GOOD)
+check("24g 429 thi thu lai duoc", err is None and len(calls) == 2, (err, calls))
+
+# Lỗi mạng cũng thử lại được.
+got, err, calls = _seq(_urlerr.URLError("mang chap chon"), GOOD)
+check("24g loi mang thi thu lai duoc", err is None and len(calls) == 2, (err, calls))
+
+# Hợp đồng với tầng trên: `app.py` chỉ bắt `aiwriter.AIError`. Lỗi tạm thời lọt
+# ra ngoài mà không phải `AIError` thì giáo viên nhận trang lỗi 500.
+check("24g loi tam thoi van la AIError de tuyen duong bat duoc",
+      issubclass(aiwriter._Transient, aiwriter.AIError))
+
+# Ngân sách thời gian: đây là cơ chế chống 502. Ba lần × 90 giây = 270 giây, vượt
+# thời hạn 120 giây của gunicorn, nên thời gian chờ **từng lần** phải bị cắt theo
+# phần ngân sách còn lại.
+aiwriter.MAX_TOTAL_SECONDS = 5
+got, err, calls = _seq(_http(503))
+check("24g thoi gian cho moi lan bi cat theo ngan sach con lai",
+      bool(calls) and max(calls) <= 5, calls)
+aiwriter.MAX_TOTAL_SECONDS = 0
+got, err, calls = _seq(_http(503))
+check("24g ngan sach can thi khong goi them lan nao", len(calls) == 0, len(calls))
+check("24g ngan sach can thi van bao loi doc duoc",
+      err is not None and "tạm thời" in str(err), str(err)[:90])
+
+aiwriter.MAX_TOTAL_SECONDS = _saved_total
+aiwriter.RETRY_DELAYS = _saved_delays
+
+# --- 24h. Het han muc: cho theo dung con so may chu noi ----------------------
+# Bài học đắt nhất của vòng này. Bản đầu em đoán "chặn vài giây rồi hết" nên đặt
+# thử lại sau 1 s và 3 s. Đo lại thì **không cứu được lần nào** (5 lần gọi, có
+# thử lại, vẫn 3/5) — vì máy chủ nói thẳng lý do:
+#
+#   HTTP 503 {"error":{"message":"[...claude-opus-4-8] [403]:
+#            HTTP 403 (reset after 1m 29s)"}}
+#
+# Chặn đủ 89 giây, và cùng lúc đó `oc/space-bunny-free` qua 10/10 yêu cầu liên
+# tiếp. Nghĩa là hạn mức **của riêng mô hình**, reset theo cửa sổ. Đoán sai chỗ
+# này thì hoặc là chờ vô ích, hoặc là bỏ một mô hình đúng chỉ vì dùng sai cách.
+check("24h doc duoc 'reset after 1m 29s'", aiwriter._reset_after_seconds(
+    "HTTP 403 (reset after 1m 29s)") == 89)
+check("24h doc duoc 'reset after 40s'",
+      aiwriter._reset_after_seconds("HTTP 403 (reset after 40s)") == 40)
+check("24h doc duoc 'reset after 2m 0s'",
+      aiwriter._reset_after_seconds("(reset after 2m 0s)") == 120)
+check("24h khong co thi tra None",
+      aiwriter._reset_after_seconds("provider tu choi", "") is None)
+
+check("24h doc so giay thanh cau doc duoc", aiwriter._human_seconds(40) == "40 giây",
+      aiwriter._human_seconds(40))
+check("24h doc so giay thanh phut va giay",
+      aiwriter._human_seconds(89) == "1 phút 29 giây", aiwriter._human_seconds(89))
+check("24h phut chan thi khong hien 0 giay",
+      aiwriter._human_seconds(120) == "2 phút", aiwriter._human_seconds(120))
+
+
+class _Clock:
+    """Bọc `time` để ghi lại các lần `sleep` mà không phải chờ thật."""
+
+    def __init__(self, real):
+        self._real = real
+        self.slept = []
+
+    def sleep(self, seconds):
+        self.slept.append(seconds)
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+
+BLOCK_89 = '{"error":{"message":"[claude-opus-4-8] [403]: HTTP 403 (reset after 1m 29s)"}}'
+BLOCK_5 = '{"error":{"message":"[claude-opus-4-8] [403]: HTTP 403 (reset after 5s)"}}'
+
+_saved_clock = aiwriter.time
+_saved_max_wait = aiwriter.MAX_WAIT_SECONDS
+clock = _Clock(_saved_clock)
+aiwriter.time = clock
+aiwriter.RETRY_DELAYS = (0.0, 0.0)
+
+# Chặn 89 giây: **không** chờ. Bắt giáo viên nhìn vòng xoay một phút rưỡi mà còn
+# ăn hết ngân sách của cả yêu cầu; báo thẳng số còn lại thì hơn.
+got, err, calls = _seq(_http(503, BLOCK_89))
+check("24h chan 89 giay thi khong ngoi cho", len(calls) == 1, len(calls))
+check("24h chan 89 giay thi khong sleep lan nao", clock.slept == [], clock.slept)
+check("24h loi noi ro con bao lau nua moi dung lai duoc",
+      err is not None and "1 phút 29 giây" in str(err), str(err)[:140])
+check("24h loi goi dung ten chuyen: het han muc",
+      err is not None and "hạn mức" in str(err), str(err)[:90])
+
+# Chặn 5 giây: đủ ngắn để chờ tại chỗ, và chờ **đúng** con số đó cộng một giây
+# đồng hồ lệch — không phải một giá trị đoán.
+clock.slept = []
+got, err, calls = _seq(_http(503, BLOCK_5), GOOD)
+check("24h chan ngan thi cho roi thu lai va qua",
+      err is None and got == (GEN_OK, SOL_OK), (err, got))
+check("24h cho dung so giay may chu noi, cong mot",
+      clock.slept == [6.0], clock.slept)
+check("24h chan ngan thi chi goi hai lan", len(calls) == 2, len(calls))
+
+# Chặn ngắn nhưng ngân sách không còn chỗ: vẫn phải bỏ, không được chờ quá.
+clock.slept = []
+aiwriter.MAX_TOTAL_SECONDS = 5
+got, err, calls = _seq(_http(503, BLOCK_5), GOOD)
+check("24h ngan sach khong du cho thoi gian cho thi bo",
+      len(calls) == 1 and clock.slept == [], (len(calls), clock.slept))
+aiwriter.MAX_TOTAL_SECONDS = _saved_total
+
+# Máy chủ chỉ gửi tiêu đề chuẩn `Retry-After` (đơn vị giây) chứ không nói trong
+# thân: vẫn phải đọc.
+clock.slept = []
+got, err, calls = _seq(_http(503, "qua tai", {"Retry-After": "7"}), GOOD)
+check("24h doc duoc tieu de Retry-After",
+      err is None and clock.slept == [8.0], (err, clock.slept))
+
+# Không có con số nào thì mới dùng tới giá trị đoán.
+clock.slept = []
+got, err, calls = _seq(_http(503, "qua tai khong noi gi"), GOOD)
+check("24h khong co con so thi dung gia tri doan",
+      err is None and clock.slept == [0.0], clock.slept)
+
+aiwriter.MAX_WAIT_SECONDS = _saved_max_wait
+aiwriter.RETRY_DELAYS = _saved_delays
+aiwriter.time = _saved_clock
 
 shutil.rmtree(TMP, ignore_errors=True)
 
