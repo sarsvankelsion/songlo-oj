@@ -445,6 +445,14 @@ máy chủ** — sao lưu nằm cùng đĩa với dữ liệu gốc thì không 
       `gunicorn` ít nhất 15 giây. Đây là ràng buộc giữa mã nguồn và cấu hình máy
       chủ: sửa một bên mà quên bên kia thì thử lại ba lần sẽ vượt thời hạn và
       giáo viên nhận 502 trắng.
+- [ ] `TOTAL_BUDGET_MS` trong `gendata.py` nhỏ hơn **100 giây**, không phải 120.
+      Trần thật là của Cloudflare đứng trước tên miền (cắt ở 100 giây, lỗi 524),
+      chặt hơn `--timeout 120` của gunicorn. Bản trước để 20 giây vì một ghi chú
+      đã cũ nói gunicorn "mặc định 30 giây"; hậu quả là giáo viên xin 20 bộ chỉ
+      nhận 7 bộ trong khi máy chủ còn thừa bốn lần thời gian. Muốn biết một con
+      số ngân sách có đủ hay không thì phải **đo**: `_vps/tai_hien_7bo.py` dựng
+      một bộ sinh ngủ 2,8 giây mỗi bộ và in ra số bộ nhận được ở từng mức ngân
+      sách.
 - [ ] Đã thử **một lần thật**: dán một đề bài, bấm nhờ AI viết, rồi bấm sinh dữ
       liệu — và đọc lại mã trước khi bấm.
 - [ ] Đã thử **đường hỏng**, không chỉ đường thành công: khi hết hạn mức, thông

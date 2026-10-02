@@ -62,11 +62,23 @@ RUN_MEMORY_MB = 512
 
 # Ngân sách thời gian cho **cả** lần sinh.
 #
-# Con số này bị chặn bởi thứ nằm ngoài tệp này: gunicorn chạy với thời hạn mặc
-# định 30 giây (xem `deploy/README.md`), và một yêu cầu vượt quá nó bị cắt với
-# lỗi 502 — giáo viên mất công chờ rồi nhận một trang lỗi, và không biết đã sinh
-# được bao nhiêu. Dừng ở 20 giây và báo rõ đã làm được tới đâu thì hơn hẳn.
-TOTAL_BUDGET_MS = 20_000
+# Bị chặn bởi hai thứ nằm ngoài tệp này, và cái chặt hơn lại không phải cái dễ
+# thấy:
+#
+#   1. Cloudflare đứng trước tên miền, và nó cắt yêu cầu gốc ở **100 giây**
+#      (lỗi 524). Đây mới là trần thật.
+#   2. `songlo-web` chạy gunicorn với `--timeout 120`.
+#
+# Bản trước để 20 giây, kèm ghi chú rằng gunicorn "mặc định 30 giây". Ghi chú đó
+# đã cũ từ lâu, và cái giá của nó là thật: giáo viên xin 20 bộ, mỗi bộ mất ~2,9
+# giây, nên chỉ nhận được **7 bộ** rồi thấy một câu báo lỗi — trong khi máy chủ
+# còn thừa bốn lần thời gian. Đo được: cùng một bộ sinh, ngân sách 20 giây cho 8
+# bộ, ngân sách 75 giây cho đủ 20.
+#
+# 80 giây chừa 20 giây dưới trần Cloudflare. Một yêu cầu vượt trần thì giáo viên
+# nhận trang lỗi và **không biết đã sinh được bao nhiêu**; dừng sớm và báo rõ đã
+# làm tới đâu thì hơn hẳn.
+TOTAL_BUDGET_MS = 80_000
 
 
 def _read_text(path: Path) -> str:
