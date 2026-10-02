@@ -172,10 +172,12 @@ DB = os.path.join(TMP, "songlo.db")
 print("\nCSDL tam:", DB)
 
 app = create_app({"TESTING": True, "DATABASE": DB, "SECRET_KEY": "test",
-                  # Cô lập luôn thư mục chấm. Mặc định nó là `server/var/judge`,
-                  # tức là bài kiểm thử sẽ ghi vào cây mã nguồn — và mục §21 dịch
-                  # và chạy chương trình thật, nên nó tạo ra tệp thật.
-                  "JUDGE_WORKSPACE": os.path.join(TMP, "judge")})
+                  # Cô lập cả hai thư mục làm việc. Mặc định chúng là
+                  # `server/var/judge` và `server/var/gendata`, tức là bài kiểm
+                  # thử sẽ ghi vào cây mã nguồn — và mục §21 dịch và chạy chương
+                  # trình thật, nên nó tạo ra tệp thật.
+                  "JUDGE_WORKSPACE": os.path.join(TMP, "judge"),
+                  "GENDATA_WORKSPACE": os.path.join(TMP, "gendata")})
 app.config["MAX_CONTENT_LENGTH"] = 96 * 1024 * 1024   # cho phép ZIP lớn trong bài kiểm
 
 conn = db.connect(DB)
@@ -1015,10 +1017,30 @@ check("ma nguon qua dai: bao loi", "dài quá 64 KB" in text(r), text(r)[:300])
 # mot worker cua gunicorn bi giu mai mai, va chi can vai lan la ca trang dung.
 # Chay that voi gioi han that (5 giay) chu khong ha xuong cho nhanh — ha xuong
 # thi bai kiem khong con chung minh duoc gioi han that su co tac dung.
+#
+# Phai chap nhan **hai** cau tra loi khac nhau, vi hai he dieu hanh giet no theo
+# hai cach khac nhau: tren Linux `RLIMIT_CPU` gui `SIGXCPU` roi `SIGKILL` nen no
+# chet vi tin hieu (dong ho gio thuc khong kip chay), con tren Windows khong co
+# `RLIMIT_CPU` nen dong ho gio thuc moi la thu giet no. Doi dung mot cau la bai
+# kiem dung o may nay va sai o may kia — va do dung la chuyen da xay ra.
 r = gen({"gen_source": "int main() { while (true) {} }"})
-check("bo sinh treo: bao loi doc duoc", "không kết thúc trong 5 giây" in text(r),
-      text(r)[:400])
+body = text(r)
+check("bo sinh treo: bao da vuot gioi han thoi gian",
+      ("không kết thúc trong 5 giây" in body) or ("quá 5 giây CPU" in body),
+      body[:400])
+# Va tuyet doi khong duoc bao bang ma thoat am. Tren Linux, mot tien trinh bi
+# giet vi tin hieu co `exit_code = -1`; di thang vao nhanh "thoát với mã %d" thi
+# giao vien nhan cau "Bộ sinh dữ liệu thoát với mã -1" — mot con so khong co
+# nghia gi voi ho, va khong noi gi ve viec da vuot thoi gian.
+check("bo sinh treo: khong bao bang ma thoat am", "mã -1" not in body, body[:400])
 check("bo sinh treo: khong them bo nao", len(sl901_tests()) == 0, len(sl901_tests()))
+
+# Thu muc lam viec cua viec sinh du lieu phai **khac** thu muc cham bai. Tren may
+# chu that, `judge/` thuoc `root` va tien trinh web (tai khoan `songlo`) khong ghi
+# duoc vao do — dung chung mot thu muc thi moi lan sinh du lieu deu 500.
+check("sinh du lieu dung thu muc lam viec rieng",
+      app.config["GENDATA_WORKSPACE"] != app.config["JUDGE_WORKSPACE"],
+      (app.config["GENDATA_WORKSPACE"], app.config["JUDGE_WORKSPACE"]))
 
 # --- 21e. keep_draft: giao vien dang soan do ------------------------------
 wipe_sl901()

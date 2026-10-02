@@ -19,6 +19,19 @@ liệu đó để lấy đáp án. Không phải tự nghĩ ra đáp án, và kh
 
 Tệp này không phụ thuộc Flask — nó chỉ nhận hai chuỗi mã nguồn và một thư mục làm
 việc, nên gọi được từ tuyến đường, từ script, hoặc từ bài kiểm thử.
+
+Một điều phải biết về **quyền** khi chạy trên máy chủ thật: hàm này được gọi từ
+tiến trình web (gunicorn), mà trên máy chủ đó tiến trình web chạy bằng tài khoản
+``songlo`` chứ không phải ``root``. Bộ chấm bài thì chạy bằng ``root`` nên hạ được
+quyền trước khi chạy mã học sinh (xem ``sandbox._run_posix``); tiến trình web thì
+không, và ``sandbox`` nuốt lỗi hạ quyền một cách có chủ ý. Hệ quả: **chương trình
+do giáo viên gửi lên chạy với quyền của tài khoản web**, không phải quyền của tài
+khoản hạ quyền. Vì thế thư mục làm việc ở đây phải là thư mục **riêng**, do tài
+khoản web sở hữu — không dùng chung với thư mục chấm bài, vốn thuộc ``root``.
+
+Muốn bỏ hẳn khác biệt đó thì phải chuyển việc sinh dữ liệu sang tiến trình chấm
+(``worker.py``) và cho nó thành một việc trong hàng đợi. Đó là việc lớn hơn, và
+là việc tiếp theo nếu trường muốn mở quyền soạn đề cho nhiều giáo viên hơn.
 """
 
 from __future__ import annotations
@@ -60,6 +73,35 @@ def _read_text(path: Path) -> str:
     """Đọc một tệp dữ liệu đã sinh. Giải mã chịu lỗi để không ném ra ở đây."""
     with open(path, "rb") as fh:
         return fh.read().decode("utf-8", errors="replace")
+
+
+def _stop_reason(res, limit_ms: int, who: str) -> str | None:
+    """Vì sao tiến trình bị dừng giữa đường, hoặc ``None`` nếu nó tự thoát.
+
+    Phải tách hai đường, vì chúng bị dừng theo hai cách **khác nhau trên hai hệ
+    điều hành** và gộp lại thì thông báo sai:
+
+    - **Đồng hồ giờ thực** (``killed_by_watchdog``): chương trình không dùng CPU
+      mà vẫn treo — ngủ, hoặc chờ đọc dữ liệu vào. Xảy ra giống nhau ở mọi nền
+      tảng.
+    - **Giới hạn CPU**: trên Linux, ``RLIMIT_CPU`` gửi ``SIGXCPU`` rồi
+      ``SIGKILL``, nên tiến trình chết vì **tín hiệu** và mã thoát là ``-1``. Nếu
+      chỉ kiểm ``exit_code != 0`` thì giáo viên nhận câu "thoát với mã -1" — một
+      con số không có nghĩa gì với họ, và không nói gì về việc đã vượt thời gian.
+      Trên Windows thì ``RLIMIT_CPU`` không có, nên cùng chương trình đó lại bị
+      đồng hồ giờ thực giết và rơi vào nhánh trên.
+    """
+    if res.killed_by_watchdog:
+        return "%s không kết thúc trong %d giây" % (who, limit_ms // 1000)
+    # Lấy hai hằng số từ `judge` chứ không đọc `signal` trực tiếp: `SIGXCPU` và
+    # `SIGKILL` không tồn tại trên Windows, và `judge` đã có sẵn bản `getattr` có
+    # giá trị dự phòng. Đọc thẳng `signal.SIGXCPU` ở đây sẽ ném `AttributeError`
+    # ngay khi dựng tuple — kể cả khi tiến trình chết vì lý do khác.
+    if res.term_signal in (judge.SIGXCPU, judge.SIGKILL):
+        return "%s dùng quá %d giây CPU cho phép" % (who, limit_ms // 1000)
+    if res.term_signal is not None:
+        return "%s bị dừng bởi tín hiệu %d" % (who, res.term_signal)
+    return None
 
 
 def generate_tests(
@@ -124,9 +166,9 @@ def generate_tests(
                 time_limit_ms=RUN_LIMIT_MS,
                 memory_limit_mb=RUN_MEMORY_MB,
             )
-            if res.killed_by_watchdog:
-                return tests, ("Bộ sinh dữ liệu không kết thúc trong %d giây, ở bộ %d."
-                               % (RUN_LIMIT_MS // 1000, i))
+            if res.killed_by_watchdog or res.term_signal is not None:
+                reason = _stop_reason(res, RUN_LIMIT_MS, "Bộ sinh dữ liệu")
+                return tests, reason + " ở bộ %d." % i
             if res.exit_code != 0:
                 return tests, ("Bộ sinh dữ liệu thoát với mã %d ở bộ %d."
                                % (res.exit_code, i))
@@ -149,10 +191,10 @@ def generate_tests(
                 time_limit_ms=RUN_LIMIT_MS,
                 memory_limit_mb=RUN_MEMORY_MB,
             )
-            if res.killed_by_watchdog:
-                return tests, ("Lời giải mẫu không kết thúc trong %d giây ở bộ %d. "
-                               "Dữ liệu mà bộ sinh tạo ra có thể quá lớn."
-                               % (RUN_LIMIT_MS // 1000, i))
+            if res.killed_by_watchdog or res.term_signal is not None:
+                reason = _stop_reason(res, RUN_LIMIT_MS, "Lời giải mẫu")
+                return tests, reason + (
+                    " ở bộ %d. Dữ liệu mà bộ sinh tạo ra có thể quá lớn." % i)
             if res.exit_code != 0:
                 return tests, ("Lời giải mẫu thoát với mã %d ở bộ %d. "
                                "Lời giải mẫu phải đọc stdin và in đáp án ra stdout."

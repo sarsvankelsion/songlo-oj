@@ -28,7 +28,28 @@ sudo -u songlo /opt/songlo/.venv/bin/pip install -r /opt/songlo/server/requireme
 # tài khoản mà tiến trình web đang dùng, và nếu tài khoản đó không phải `songlo`
 # thì lần sao lưu hay chuyển máy sau này sẽ gặp một thư mục không đọc được.
 sudo install -d -o songlo -g songlo -m 755 /var/lib/songlo/avatars
+
+# Thư mục làm việc cho việc **sinh bộ dữ liệu từ lời giải mẫu**. Cố ý tách khỏi
+# `judge/`: việc sinh dữ liệu chạy trong tiến trình web (tài khoản `songlo`),
+# còn `judge/` thuộc `root` vì chỉ tiến trình chấm chạy bằng root mới ghi được
+# vào đó. Dùng chung một thư mục thì mỗi lần giáo viên bấm "Sinh bộ dữ liệu" đều
+# nhận lỗi 500, và lỗi đó không tái hiện được ở máy phát triển.
+#
+# Ứng dụng tự tạo thư mục này khi dùng lần đầu (tiến trình web sở hữu
+# `/var/lib/songlo`), nhưng tạo sẵn thì chủ sở hữu chắc chắn đúng.
+sudo install -d -o songlo -g songlo -m 700 /var/lib/songlo/gendata
 ```
+
+Một điều phải biết về quyền của việc sinh dữ liệu: chương trình do giáo viên gửi
+lên chạy bằng **tài khoản của tiến trình web** (`songlo`), không phải bằng tài
+khoản hạ quyền `songlo-judge` như mã học sinh. Lý do: hạ quyền cần `root`, mà
+tiến trình web chạy bằng `songlo`; `sandbox` nuốt lỗi hạ quyền một cách có chủ ý
+để không làm mọi thứ đổ vỡ. Giới hạn thời gian, bộ nhớ và kích thước tệp vẫn áp
+dụng đầy đủ — thiếu chỉ là tầng cách ly theo tài khoản.
+
+Muốn bỏ khác biệt đó thì phải chuyển việc sinh dữ liệu sang `worker.py` và cho
+nó thành một việc trong hàng đợi. Đó là việc lớn hơn; ghi ở đây để nếu trường mở
+quyền soạn đề cho nhiều giáo viên hơn thì biết chỗ cần làm trước.
 
 Cần **Pillow** trong `requirements.txt` cho phần ảnh đại diện. Thiếu nó thì mọi
 thứ khác vẫn chạy, chỉ riêng việc tải ảnh lên là báo lỗi — xem `server/avatars.py`.
@@ -323,6 +344,8 @@ máy chủ** — sao lưu nằm cùng đĩa với dữ liệu gốc thì không 
 - [ ] Mật khẩu giáo viên đã đổi; mật khẩu học sinh không dùng chung một giá trị.
 - [ ] `songlo-judge` là tài khoản riêng, không có quyền gì, không đăng nhập được.
 - [ ] `SONGLO_JUDGE_RUNAS_UID`/`GID` đã đặt, và `ps` xác nhận mã học sinh chạy bằng tài khoản đó.
+- [ ] `/var/lib/songlo/gendata` thuộc `songlo`, và **khác** `/var/lib/songlo/judge` (thuộc `root`).
+- [ ] Đã thử sinh một bộ dữ liệu từ lời giải mẫu qua giao diện, trên chính máy chủ này.
 - [ ] HTTPS đã bật.
 - [ ] `/var/lib/songlo` không nằm trong bất kỳ thư mục nào được phục vụ tĩnh.
 - [ ] Đã sao lưu thử và **phục hồi thử** một lần.

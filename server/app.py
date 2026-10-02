@@ -105,6 +105,17 @@ def create_app(config: dict | None = None) -> Flask:
         SECRET_KEY=os.environ.get("SONGLO_SECRET", "dev-only-doi-khoa-nay-khi-chay-that"),
         DATABASE=str(var_dir / "songlo.db"),
         JUDGE_WORKSPACE=str(var_dir / "judge"),
+        # Thư mục làm việc **riêng** cho việc sinh dữ liệu, không dùng chung với
+        # `JUDGE_WORKSPACE`.
+        #
+        # Vì sao: `JUDGE_WORKSPACE` trên máy chủ thật là `root:root` và chỉ tiến
+        # trình chấm (chạy bằng root) ghi được vào đó. Việc sinh dữ liệu chạy
+        # trong tiến trình web, mà tiến trình web chạy bằng tài khoản `songlo`
+        # chứ không phải root — nên nó tạo thư mục trong `judge/` bị từ chối với
+        # `PermissionError`, và lỗi đó chỉ hiện ra trên máy chủ thật, không hiện
+        # ở máy phát triển. Dùng một thư mục riêng do tài khoản web sở hữu thì
+        # không phải nới quyền cho thư mục chấm bài.
+        GENDATA_WORKSPACE=str(var_dir / "gendata"),
         COMPILER=os.environ.get("SONGLO_COMPILER", "g++"),
         DAILY_SUBMIT_LIMIT=DAILY_SUBMIT_LIMIT,
         MAX_SOURCE_LENGTH=MAX_SOURCE_LENGTH,
@@ -2124,7 +2135,7 @@ def _generate_tests(conn, problem, code: str):
         count = 10
 
     tests, error = gendata.generate_tests(
-        gen_source, sol_source, count, app.config["JUDGE_WORKSPACE"])
+        gen_source, sol_source, count, app.config["GENDATA_WORKSPACE"])
 
     # Sinh được một phần vẫn ghi phần đó vào: giáo viên đã chờ, và bỏ đi thì họ
     # chẳng được gì. Thông báo lỗi nói rõ đã dừng ở đâu.
