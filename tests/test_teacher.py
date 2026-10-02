@@ -1568,6 +1568,46 @@ try:
     check("24c de bai vua dan van con sau khi loi",
           (textarea(page, "statement") or "").strip() == "Đề bài thử",
           repr(textarea(page, "statement"))[:90])
+
+    # Lỗi "không tách được" xảy ra **sau khi** đã nhận được câu trả lời: mã nguồn
+    # vẫn nằm trong đó, chỉ là mô hình đánh dấu khác đi. Vứt đi thì giáo viên chờ
+    # 13 giây rồi nhận về con số không — chuyện đã xảy ra thật trên máy chủ.
+    RAW = "Dưới đây là mã:\n```cpp\nint main(){ return 0; }\n```"
+
+    def stub_unparsed(statement, **kw):
+        raise aiwriter.AIError("Không tách được hai chương trình từ câu trả lời.",
+                               raw=RAW)
+
+    aiwriter.write = stub_unparsed
+    resp = teacher.post(TESTS_URL, data={"action": "ai_write", "statement": "Đề bài thử",
+                                         "_csrf": tok})
+    page = text(resp)
+    # Chuỗi nhận biết phải nằm trong **thông báo**, không phải trong nhãn của ô:
+    # "Bộ sinh dữ liệu" là nhãn có sẵn ở mọi lần tải trang, kiểm bằng nó thì đạt
+    # một cách giả tạo.
+    check("24c khong tach duoc thi van giu cau tra loi cua AI",
+          RAW in (textarea(page, "gen_source") or ""),
+          repr(textarea(page, "gen_source"))[:120])
+    check("24c khong tach duoc thi noi ro da dat vao o nao",
+          "vẫn còn nguyên trong ô" in page)
+    check("24c khong tach duoc thi de bai van con",
+          (textarea(page, "statement") or "").strip() == "Đề bài thử")
+
+    # Lỗi **không** kèm câu trả lời (bị cắt vì hết token) thì ô phải để trống:
+    # mã thiếu một nửa đưa vào ô dễ bị tưởng là mã hoàn chỉnh rồi đi tìm một lỗi
+    # dịch không có thật.
+    def stub_truncated(statement, **kw):
+        raise aiwriter.AIError("AI viết dài quá trần 8000 token nên bị cắt giữa chừng.")
+
+    aiwriter.write = stub_truncated
+    resp = teacher.post(TESTS_URL, data={"action": "ai_write", "statement": "Đề bài thử",
+                                         "_csrf": tok})
+    page = text(resp)
+    check("24c bi cat thi khong do ma do dang vao o",
+          not (textarea(page, "gen_source") or "").strip(),
+          repr(textarea(page, "gen_source"))[:120])
+    check("24c bi cat thi khong hua la da giu cau tra loi",
+          "vẫn còn nguyên trong ô" not in page)
     aiwriter.write = stub_write
 
     # Đề không có đề bài và ô cũng để trống: phải nói rõ, và không tốn một lần gọi.

@@ -2233,7 +2233,16 @@ def _ai_write_tests(conn, problem):
         # Giữ lại đề bài vừa dán: bắt dán lại sau khi chờ hai chục giây là kiểu
         # làm phiền khiến người ta thôi dùng tính năng.
         flash(str(exc), "warn")
-        return _render_tests(conn, problem, ai_statement=statement)
+        # Lỗi "không tách được" xảy ra **sau khi** đã nhận được câu trả lời: mã
+        # nguồn vẫn nằm trong đó, chỉ là mô hình đánh dấu khác đi. Vứt đi thì giáo
+        # viên chờ 13 giây và nhận về con số không. Đặt nguyên văn vào ô bộ sinh,
+        # kèm một câu nói rõ phải làm gì — thêm một bước, đổi lấy việc không mất gì.
+        raw = getattr(exc, "raw", "")
+        if raw:
+            flash("Câu trả lời của AI vẫn còn nguyên trong ô «Bộ sinh dữ liệu» ở "
+                  "dưới. Em chưa tách được vì nó đánh dấu khác đi — cắt hai chương "
+                  "trình ra hai ô rồi bấm «Sinh bộ dữ liệu».", "info")
+        return _render_tests(conn, problem, ai_statement=statement, ai_gen=raw)
 
     flash("AI đã viết xong. Đọc lại hai chương trình rồi bấm «Sinh bộ dữ liệu» ở "
           "thẻ dưới. Đáp án của mọi bộ đều lấy từ lời giải mẫu, nên nó sai thì cả "

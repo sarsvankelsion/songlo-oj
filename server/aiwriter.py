@@ -153,7 +153,21 @@ class AIError(Exception):
 
     Thông báo của lớp này đi thẳng vào `flash()` và hiện cho giáo viên, nên phải
     là câu tiếng Việt đọc được — không phải thông báo của thư viện.
+
+    `raw` là câu trả lời **nguyên văn** của mô hình, khi lỗi xảy ra *sau khi* đã
+    nhận được nó (ví dụ không tách được hai chương trình). Vứt nó đi nghĩa là
+    giáo viên chờ 13 giây rồi nhận về con số không, trong khi mã nguồn vẫn nằm
+    nguyên trong đó — chỉ là mô hình đánh dấu khác đi. Tầng trên dùng nó để đặt
+    câu trả lời vào ô cho giáo viên tự cắt.
+
+    Cố ý **không** gắn `raw` cho lỗi bị cắt vì hết token: câu trả lời đó thiếu
+    mất một phần, đưa vào ô thì giáo viên dễ tưởng là mã hoàn chỉnh rồi đi tìm
+    một lỗi dịch không có thật.
     """
+
+    def __init__(self, message: str, raw: str = ""):
+        super().__init__(message)
+        self.raw = raw
 
 
 class _Transient(AIError):
@@ -257,7 +271,8 @@ def extract_blocks(text: str) -> tuple[str, str]:
 
     raise AIError(
         "Không tách được hai chương trình từ câu trả lời của AI (nó trả về %d "
-        "khối mã). Đầu câu trả lời:\n\n%s" % (len(blocks), text.strip()[:400]))
+        "khối mã). Đầu câu trả lời:\n\n%s" % (len(blocks), text.strip()[:400]),
+        raw=text)
 
 
 def _braces_balanced(code: str) -> bool:
