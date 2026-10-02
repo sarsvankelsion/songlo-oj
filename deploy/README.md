@@ -346,6 +346,10 @@ máy chủ** — sao lưu nằm cùng đĩa với dữ liệu gốc thì không 
 - [ ] `SONGLO_JUDGE_RUNAS_UID`/`GID` đã đặt, và `ps` xác nhận mã học sinh chạy bằng tài khoản đó.
 - [ ] `/var/lib/songlo/gendata` thuộc `songlo`, và **khác** `/var/lib/songlo/judge` (thuộc `root`).
 - [ ] Đã thử sinh một bộ dữ liệu từ lời giải mẫu qua giao diện, trên chính máy chủ này.
+- [ ] Đã tải một tệp bảng điểm về và **mở bằng Excel thật trên Windows**: chữ có
+      dấu hiện đúng, các cột tách rời nhau (không dồn hết vào một cột), và Excel
+      **không** hỏi gì về công thức. Đây là bước duy nhất không kiểm được bằng
+      script — cả ba lỗi của tệp CSV đều im lặng, nên chỉ mắt người mới thấy.
 - [ ] HTTPS đã bật.
 - [ ] `/var/lib/songlo` không nằm trong bất kỳ thư mục nào được phục vụ tĩnh.
 - [ ] Đã sao lưu thử và **phục hồi thử** một lần.

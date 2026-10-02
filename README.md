@@ -132,6 +132,13 @@ sau mới mở được các trang học sinh, nên nó chạy trên **bản sao
 đây tệp này không có bước đó, nên phần học sinh báo **11 lỗi giả** và che mất
 toàn bộ một nhánh giao diện — một lưới an toàn hỏng còn tệ hơn không có.
 
+> **Ba tệp trong `_tools/` cần CSDL của bộ dữ liệu mẫu** (`smoke.py`,
+> `render_pages.py`, `test_edit_problem.py`): chúng dùng tên đăng nhập `cophang`
+> / `9A01` và mã đề `SL001`. CSDL thật của trường có học sinh mang tên khác, nên
+> chạy chúng ở đó sẽ **thất bại vì tài khoản không tồn tại** — không phải vì
+> tuyến đường hỏng. Chạy chúng ở máy phát triển, hoặc trên một CSDL đã `seed`.
+> `smoke.py` nay nói rõ điều này thay vì chỉ in "đăng nhập thất bại".
+
 `test_edit_problem.py` **sao chép CSDL ra tệp tạm** trước khi làm việc, vì nó ghi
 chứ không chỉ đọc: nó tạo đề, sửa đề và công khai đề. Chạy thẳng trên CSDL thật
 thì mỗi lần kiểm thử lại để lại rác. Nó kiểm 33 điều, trong đó có những điều

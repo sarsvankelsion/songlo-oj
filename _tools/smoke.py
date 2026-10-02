@@ -9,6 +9,12 @@ Chạy:
     python _tools/smoke.py                    # dùng CSDL đã seed
     python _tools/smoke.py --database <path>
 
+**Tệp này cần CSDL của bộ dữ liệu mẫu, không chạy được trên CSDL thật của
+trường.** Nó dùng tên đăng nhập (`cophang`, `9A01`) và số hiệu bài nộp của bộ
+mẫu. CSDL thật có học sinh mang tên khác, nên đăng nhập sẽ thất bại và tệp này
+báo lỗi — nhưng lỗi đó là **chạy sai CSDL**, không phải tuyến đường hỏng. Từ nay
+nó nói rõ điều đó thay vì chỉ in "đăng nhập thất bại".
+
 **Phần học sinh chạy trên một bản sao CSDL, không phải CSDL gốc.** `seed.py` đặt
 ``must_change_password = 1`` cho mọi học sinh, và guard ở tầng ứng dụng chuyển
 hướng mọi trang về `/account` cho tới khi em đó đổi mật khẩu. Muốn mở được các
@@ -129,6 +135,23 @@ def login(client, username: str, password: str) -> bool:
     return resp.status_code in (301, 302, 303)
 
 
+def login_failed(who: str, username: str, database: str) -> None:
+    """Noi ro vi sao dang nhap that bai, thay vi chi bao "that bai".
+
+    Tep nay dung ten dang nhap cua **bo du lieu mau**. Tren CSDL that cua truong,
+    nhung ten do khong con (hoc sinh that co ten khac), va neu chi in ra "dang
+    nhap that bai" thi nguoi doc se tuong tuyen duong hong — trong khi van de la
+    dang chay sai CSDL. Da mat mot vong vi dung nhu vay.
+    """
+    print(f"  LỖI: đăng nhập {who} thất bại với tài khoản «{username}».")
+    print(f"       CSDL đang dùng: {database}")
+    print("       Tệp này dùng tài khoản của **bộ dữ liệu mẫu** "
+          f"({TEACHER_LOGIN[0]}, {STUDENT_LOGIN[0]}). Nếu đang trỏ vào CSDL thật")
+    print("       của trường thì các tài khoản đó không tồn tại — chạy "
+          "`python -m server.seed` trước,")
+    print("       hoặc trỏ `--database` vào CSDL mẫu. Đây không phải lỗi tuyến đường.")
+
+
 def check(client, routes, failures, label):
     for path, note in routes:
         resp = client.get(path)
@@ -167,7 +190,7 @@ def main(argv=None) -> int:
     print("\nGiáo viên (cophang):")
     teacher_client = app.test_client()
     if not login(teacher_client, *TEACHER_LOGIN):
-        print("  LỖI: đăng nhập giáo viên thất bại")
+        login_failed("giáo viên", TEACHER_LOGIN[0], args.database)
         failures.append(("giáo viên", "/login", 0, "đăng nhập thất bại"))
     else:
         check(teacher_client, TEACHER_ROUTES, failures, "giáo viên")
@@ -186,7 +209,7 @@ def main(argv=None) -> int:
     print("\nHọc sinh (9A01) — chưa đổi mật khẩu lần đầu (guard phải chặn):")
     student_client = app.test_client()
     if not login(student_client, *STUDENT_LOGIN):
-        print("  LỖI: đăng nhập học sinh thất bại")
+        login_failed("học sinh", STUDENT_LOGIN[0], args.database)
         failures.append(("học sinh", "/login", 0, "đăng nhập thất bại"))
     else:
         for path, note in STUDENT_ROUTES:
@@ -225,7 +248,7 @@ def main(argv=None) -> int:
         app2 = create_app({"DATABASE": tmp_db, "TESTING": False})
         student_client = app2.test_client()
         if not login(student_client, *STUDENT_LOGIN):
-            print("  LỖI: đăng nhập học sinh trên bản sao thất bại")
+            login_failed("học sinh", STUDENT_LOGIN[0], tmp_db)
             failures.append(("học sinh", "/login", 0, "đăng nhập trên bản sao thất bại"))
         else:
             check(student_client, STUDENT_ROUTES, failures, "học sinh")
