@@ -708,6 +708,10 @@ page = text(teacher.get("/teacher/problems"))
 check("co du lieu thi co bieu mau doi trang thai tren danh sach",
       'action="/teacher/problems/SL900/status"' in page)
 check("nut cong khai khong con bi mo", "chưa công khai được" not in page)
+# Dong nay phai hien cho MOI de chua cong khai, ke ca de da co du lieu. Truoc
+# day no chi hien khi de thieu du lieu — tuc la hien dung luc it can nhat.
+check("de co du lieu nhung chua cong khai van ghi 'Hoc sinh khong thay'",
+      "Học sinh không thấy" in page)
 
 # Cong khai lai bang mot bam.
 r = teacher.post("/teacher/problems/SL900/status",

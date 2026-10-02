@@ -87,22 +87,29 @@
                     <input type="hidden" name="back" value="{{ url_for('teacher_problems') }}">
                     <button class="btn btn--ghost btn--sm" type="submit">Thu hồi</button>
                   </form>
-                {% elif p['test_count'] %}
-                  <form method="post" action="{{ url_for('teacher_problem_status', code=p['code']) }}" class="mt-2">
-                    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-                    <input type="hidden" name="status" value="live">
-                    <input type="hidden" name="back" value="{{ url_for('teacher_problems') }}">
-                    <button class="btn btn--primary btn--sm" type="submit">Công khai</button>
-                  </form>
                 {% else %}
+                  {# Dòng này hiện cho **mọi** đề chưa công khai, kể cả đề đã có dữ
+                     liệu. Đó đúng là lúc cần nhất: đề công khai được ngay mà lại
+                     đang không công khai, nên hậu quả phải nói ra. Trước đây dòng
+                     này chỉ hiện khi đề thiếu dữ liệu — ngược hẳn. #}
                   <div class="text-xs text-muted mt-2">Học sinh không thấy</div>
-                  {# Chưa có bộ dữ liệu thì không công khai được. Nút vẫn hiện
-                     nhưng mờ, kèm lý do — giấu nút đi thì giáo viên không biết
-                     là nó có tồn tại. #}
-                  <button class="btn btn--outline btn--sm mt-2" type="button" disabled
-                          title="Đề chưa có bộ dữ liệu nên chưa công khai được. Nhập tệp ZIP ở trang bộ dữ liệu trước.">
-                    Công khai
-                  </button>
+
+                  {% if p['test_count'] %}
+                    <form method="post" action="{{ url_for('teacher_problem_status', code=p['code']) }}" class="mt-2">
+                      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                      <input type="hidden" name="status" value="live">
+                      <input type="hidden" name="back" value="{{ url_for('teacher_problems') }}">
+                      <button class="btn btn--primary btn--sm" type="submit">Công khai</button>
+                    </form>
+                  {% else %}
+                    {# Chưa có bộ dữ liệu thì không công khai được. Nút vẫn hiện
+                       nhưng mờ, kèm lý do — giấu nút đi thì giáo viên không biết
+                       là nó có tồn tại. #}
+                    <button class="btn btn--outline btn--sm mt-2" type="button" disabled
+                            title="Đề chưa có bộ dữ liệu nên chưa công khai được. Nhập tệp ZIP ở trang bộ dữ liệu trước.">
+                      Công khai
+                    </button>
+                  {% endif %}
                 {% endif %}
               </td>
               <td class="text-sm">{{ p['author_name'] or '—' }}</td>
