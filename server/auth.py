@@ -64,8 +64,19 @@ def make_temp_password(length: int = 10) -> str:
     Bỏ các ký tự dễ nhìn nhầm khi đọc trên giấy: ``0/O``, ``1/l/I``. Mật khẩu
     này được đọc to hoặc chép tay trong phòng máy, nên khả năng đọc đúng quan
     trọng hơn vài bit entropy.
+
+    **Và chỉ dùng chữ thường.** Bản trước trộn cả chữ hoa, mà chữ hoa thì không
+    đọc được thành lời: `EpxWn7Dq3E` đọc lên là "e p x w n 7 d q 3 e" — người
+    nghe gõ đúng chuỗi đó và bị từ chối, trong khi mật khẩu hoàn toàn đúng. Đo
+    được trên máy chủ thật: cùng một mật khẩu, gõ nguyên văn thì vào, gõ chữ
+    thường thì nhận `401`. Cả mục đích của hàm này là để đọc cho người khác
+    chép, nên giữ chữ hoa là tự phá mục đích của chính nó.
+
+    Mất khoảng 7 bit so với bảng chữ cái trộn hoa/thường (10 ký tự × log2(33)
+    ≈ 50 bit). Không đáng lo: đây là mật khẩu dùng một lần, bị bắt đổi ngay lần
+    đăng nhập đầu, và băm bằng PBKDF2.
     """
-    alphabet = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    alphabet = "abcdefghjkmnpqrstuvwxyz23456789"
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 

@@ -854,7 +854,21 @@ def _register_routes(app: Flask) -> None:
         password = request.form.get("password") or ""
 
         conn = db.get_db()
-        row = db.query_one(conn, "SELECT * FROM users WHERE username = ?", (username,))
+        # `COLLATE NOCASE` là bắt buộc, không phải chi tiết làm đẹp.
+        #
+        # Cột `username` khai `TEXT NOT NULL UNIQUE` — không có `COLLATE NOCASE` —
+        # nên phép `=` của SQLite **phân biệt hoa thường**. Trong khi đó trường
+        # đặt tên học sinh là `9A203` (chữ A hoa), còn màn hình tạo tài khoản lại
+        # hạ tên người dùng gõ xuống chữ thường trước khi lưu. Hai quy ước khác
+        # nhau cho cùng một cái tên, và không có gì nói ra điều đó.
+        #
+        # Hậu quả thật, đọc được từ nhật ký máy chủ: giáo viên tạo tài khoản
+        # `9A203`, máy lưu `9a203`, rồi chính giáo viên đăng nhập bằng `9A203` và
+        # nhận `Tên đăng nhập hoặc mật khẩu không đúng` — chín lần liên tiếp.
+        # Trông y hệt "đặt lại mật khẩu không được", nên tài khoản bị xoá rồi tạo
+        # lại, rồi lại hỏng tiếp.
+        row = db.query_one(
+            conn, "SELECT * FROM users WHERE username = ? COLLATE NOCASE", (username,))
 
         # Một thông báo lỗi duy nhất cho cả hai trường hợp sai tên đăng nhập và
         # sai mật khẩu. Nếu tách ra, kẻ tấn công dò được tên đăng nhập nào có
@@ -1300,7 +1314,15 @@ def _register_routes(app: Flask) -> None:
     @auth.teacher_required
     def teacher_user_create():
         conn = db.get_db()
-        username = (request.form.get("username") or "").strip().lower()
+        # Giữ nguyên dạng giáo viên gõ, KHÔNG hạ về chữ thường.
+        #
+        # Bản trước hạ hết về chữ thường ở đây, nên giáo viên gõ `9A203` (đúng
+        # quy ước của trường, và đúng mọi tài khoản đang có) mà tài khoản được
+        # lưu thành `9a203`. Tên trong CSDL khác tên người tạo ra nó gõ — và
+        # không màn hình nào nói ra. Đăng nhập nay không phân biệt hoa thường
+        # nên cả hai cách gõ đều vào được; nhưng cái tên **lưu** thì phải là cái
+        # tên người dùng đã gõ, để danh sách lớp đọc ra đúng quy ước.
+        username = (request.form.get("username") or "").strip()
         full_name = (request.form.get("full_name") or "").strip()
         class_name = (request.form.get("class_name") or "").strip()
         role = _choice(request.form, "role", ("student", "teacher", "admin"), "student")
@@ -1312,7 +1334,15 @@ def _register_routes(app: Flask) -> None:
             # Dấu chấm và gạch dưới được phép vì tên đăng nhập của trường có dạng
             # `an.nguyen9a`; còn lại phải là chữ hoặc số, không dấu cách.
             error = "Tên đăng nhập chỉ gồm chữ, số, dấu chấm và gạch dưới."
-        elif db.query_one(conn, "SELECT id FROM users WHERE username = ?", (username,)):
+        # Tra trùng cũng phải `COLLATE NOCASE`. Ràng buộc `UNIQUE` của cột là
+        # phân biệt hoa thường, nên `9a203` và `9A203` cùng tồn tại được — và khi
+        # đó phép tra lúc đăng nhập (không phân biệt hoa thường) sẽ bắt gặp hai
+        # hàng và trả về hàng bất kỳ. Nghĩa là học sinh có thể đăng nhập vào
+        # nhầm tài khoản. Chặn ngay từ lúc tạo thì không bao giờ có cặp đó.
+        elif db.query_one(
+                conn,
+                "SELECT id FROM users WHERE username = ? COLLATE NOCASE",
+                (username,)):
             error = "Tên đăng nhập %s đã có người dùng." % username
         elif role == "student" and not class_name:
             error = "Học sinh phải thuộc một lớp."

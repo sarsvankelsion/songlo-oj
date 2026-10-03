@@ -564,7 +564,10 @@ def seed_users(conn) -> dict[str, int]:
     ids: dict[str, int] = {}
 
     for username, full_name, role in TEACHERS:
-        row = db.query_one(conn, "SELECT id FROM users WHERE username = ?", (username,))
+        # `COLLATE NOCASE` để lần gieo lại không tạo thêm một tài khoản chỉ khác
+        # hoa/thường. Xem chú thích ở `login()` trong `app.py`.
+        row = db.query_one(
+            conn, "SELECT id FROM users WHERE username = ? COLLATE NOCASE", (username,))
         if row:
             ids[username] = row["id"]
             continue
@@ -582,7 +585,8 @@ def seed_users(conn) -> dict[str, int]:
         counters[class_name] = counters.get(class_name, 0) + 1
         username = student_username(class_name, counters[class_name])
 
-        row = db.query_one(conn, "SELECT id FROM users WHERE username = ?", (username,))
+        row = db.query_one(
+            conn, "SELECT id FROM users WHERE username = ? COLLATE NOCASE", (username,))
         if row:
             ids[username] = row["id"]
             continue

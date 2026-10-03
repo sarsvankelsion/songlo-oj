@@ -403,6 +403,58 @@ check("mat khau cu khong con dung",
       not auth.verify_password(row["password_hash"], "matkhaucu1"))
 conn.close()
 
+print("\n=== 10b. Ten dang nhap khong phan biet hoa/thuong ===")
+# Loi that doc duoc tren may chu that: giao vien tao tai khoan `9A203`, man hinh
+# tao ha ten xuong `9a203` truoc khi luu, roi chinh giao vien dang nhap bang
+# `9A203` va bi tu choi — chin lan lien tiep. Nhin ra thi y het "dat lai mat
+# khau khong duoc", nen tai khoan bi xoa roi tao lai, roi lai hong tiep.
+csrf = token(teacher, "/teacher/users")
+r = teacher.post("/teacher/users/create",
+                 data={"_csrf": csrf, "username": "Hoa.Thuong9A", "full_name": "Hoa Thường",
+                       "class_name": "9A", "role": "student"},
+                 follow_redirects=True)
+body = text(r)
+check("tao duoc tai khoan ten co chu HOA", "Đã tạo tài khoản" in body, body[:300])
+m = re.search(r"Mật khẩu tạm:\s*([A-Za-z0-9]+)", body)
+temp_ht = m.group(1) if m else ""
+
+conn = db.connect(DB)
+row = db.query_one(conn, "SELECT * FROM users WHERE username = ? COLLATE NOCASE",
+                   ("hoa.thuong9a",))
+check("ten luu dung nhu da go, khong bi ha chu thuong",
+      row is not None and row["username"] == "Hoa.Thuong9A",
+      row["username"] if row else "khong tim thay")
+conn.close()
+
+for nhan, ten_go in (("nhu da go", "Hoa.Thuong9A"),
+                     ("chu thuong het", "hoa.thuong9a"),
+                     ("chu HOA het", "HOA.THUONG9A")):
+    c = app.test_client()
+    r = login(c, ten_go, temp_ht)
+    check("dang nhap duoc voi ten %s" % nhan, r.status_code == 302,
+          "%s %s" % (r.status_code, r.headers.get("Location")))
+
+# Trung ten chi khac hoa/thuong phai bi tu choi: neu khong, phep tra luc dang
+# nhap se bat gap hai hang va tra ve hang bat ky — hoc sinh vao nham tai khoan.
+csrf = token(teacher, "/teacher/users")
+r = teacher.post("/teacher/users/create",
+                 data={"_csrf": csrf, "username": "hoa.thuong9a", "full_name": "Trùng Khác Hoa",
+                       "class_name": "9A", "role": "student"},
+                 follow_redirects=True)
+check("chan tao trung ten chi khac hoa/thuong", "đã có người dùng" in text(r), text(r)[:300])
+conn = db.connect(DB)
+n = db.query_one(conn, "SELECT COUNT(*) n FROM users WHERE username = ? COLLATE NOCASE",
+                 ("hoa.thuong9a",))["n"]
+check("chi co dung mot tai khoan", n == 1, n)
+conn.close()
+
+print("\n=== 10c. Mat khau tam phai doc duoc thanh loi ===")
+mk = auth.make_temp_password()
+check("khong co chu HOA", not any(c.isupper() for c in mk), mk)
+check("khong co ky tu de doc nham 0/O/1/l/I", not (set(mk) & set("0O1lI")), mk)
+check("dung 10 ky tu", len(mk) == 10, len(mk))
+check("hai lan sinh khac nhau", auth.make_temp_password() != mk)
+
 print("\n=== 11. Xoa tai khoan: bai nop di theo, de bai o lai ===")
 conn = db.connect(DB)
 pid = db.query_one(conn, "SELECT id FROM problems WHERE code = ?", ("SL001",))["id"]
